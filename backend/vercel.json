@@ -1,27 +1,19 @@
 {
   "version": 2,
-  "name": "insurance-advisor-api",
   "builds": [
     {
-      "src": "src/app.js",
+      "src": "api/index.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/src/app.js"
-    },
-    {
-      "src": "/health",
-      "dest": "/src/app.js"
+      "src": "/(.*)",
+      "dest": "/api/index.js"
     }
   ],
-  "env": {
-    "NODE_ENV": "production"
-  },
   "functions": {
-    "src/app.js": {
+    "api/index.js": {
       "maxDuration": 30
     }
   }
