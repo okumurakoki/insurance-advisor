@@ -8,12 +8,16 @@ const db = require('../utils/database-factory');
 
 // Test endpoint for CORS debugging
 router.get('/test', (req, res) => {
-    res.json({
-        status: 'OK',
-        message: 'Auth endpoint is working',
-        cors: 'Enabled',
-        timestamp: new Date().toISOString()
-    });
+    try {
+        res.json({
+            status: 'OK',
+            message: 'Auth endpoint is working',
+            cors: 'Enabled',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 router.post('/login', async (req, res) => {
