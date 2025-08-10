@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: insurance_advisor_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password_123}
+      MYSQL_DATABASE: ${DB_NAME:-insurance_advisor_dev}
+      MYSQL_USER: ${DB_USER:-insurance_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-insurance_password_123}
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docs/database-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./docs/init-dev-data.sql:/docker-entrypoint-initdb.d/02-data.sql
+    networks:
+      - insurance_network
+    command: --default-authentication-plugin=mysql_native_password
+
+  # Backend API (Development mode)
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: insurance_advisor_api
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-insurance_user}
+      DB_PASSWORD: ${DB_PASSWORD:-insurance_password_123}
+      DB_NAME: ${DB_NAME:-insurance_advisor_dev}
+      JWT_SECRET: ${JWT_SECRET}
+      NOTEBOOK_LM_API_KEY: ${NOTEBOOK_LM_API_KEY:-mock_api_key}
+      ALLOWED_ORIGINS: http://localhost:3001,http://localhost:3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    networks:
+      - insurance_network
+
+  # Frontend (Development mode)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+      args:
+        REACT_APP_API_URL: http://localhost:3000/api
+    container_name: insurance_advisor_frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      - api
+    networks:
+      - insurance_network
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000/api
+
+volumes:
+  db_data:
+
+networks:
+  insurance_network:
+    driver: bridge
