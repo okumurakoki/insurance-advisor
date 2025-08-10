@@ -1,7 +1,7 @@
 {
   "name": "insurance-advisor-backend",
   "version": "1.0.0",
-  "description": "Variable Insurance Advisory System Backend",
+  "description": "Variable Insurance Advisory System Backend API",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
