@@ -6,6 +6,16 @@ const logger = require('../utils/logger');
 const { authenticateToken } = require('../middleware/auth');
 const db = require('../utils/database-factory');
 
+// Test endpoint for CORS debugging
+router.get('/test', (req, res) => {
+    res.json({
+        status: 'OK',
+        message: 'Auth endpoint is working',
+        cors: 'Enabled',
+        timestamp: new Date().toISOString()
+    });
+});
+
 router.post('/login', async (req, res) => {
     const { userId, password, accountType } = req.body;
 
