@@ -17,8 +17,14 @@ const limiter = rateLimit({
 
 app.use(helmet());
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3001'],
-    credentials: true
+    origin: [
+        'http://localhost:3001',
+        'https://insurance-advisor-frontend.vercel.app',
+        'https://insurance-advisor-frontend-git-main-kokiokumuras-projects.vercel.app'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
