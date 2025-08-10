@@ -25,19 +25,19 @@ class User {
     }
 
     static async findById(id) {
-        const sql = 'SELECT * FROM users WHERE id = ? AND is_active = TRUE';
+        const sql = 'SELECT * FROM users WHERE id = $1 AND is_active = TRUE';
         const results = await db.query(sql, [id]);
         return results[0] || null;
     }
 
     static async findByUserId(userId, accountType) {
-        const sql = 'SELECT * FROM users WHERE user_id = ? AND account_type = ? AND is_active = TRUE';
+        const sql = 'SELECT * FROM users WHERE user_id = $1 AND account_type = $2 AND is_active = TRUE';
         const results = await db.query(sql, [userId, accountType]);
         return results[0] || null;
     }
 
     static async updateLastLogin(id) {
-        const sql = 'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?';
+        const sql = 'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1';
         await db.query(sql, [id]);
     }
 
