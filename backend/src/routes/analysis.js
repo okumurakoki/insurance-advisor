@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs').promises;
 const Customer = require('../models/Customer');
 const AnalysisResult = require('../models/AnalysisResult');
 const MarketData = require('../models/MarketData');
@@ -12,7 +11,7 @@ const logger = require('../utils/logger');
 const { authenticateToken, authorizePlanFeature, authorizeAccountType } = require('../middleware/auth');
 
 const upload = multer({
-    dest: 'uploads/temp/',
+    storage: multer.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
     fileFilter: (req, file, cb) => {
         if (file.mimetype === 'application/pdf') {
@@ -33,7 +32,7 @@ router.post('/upload-market-data',
         }
 
         try {
-            const pdfBuffer = await fs.readFile(req.file.path);
+            const pdfBuffer = req.file.buffer;
             
             await MarketData.create({
                 data_date: new Date(),
@@ -43,16 +42,11 @@ router.post('/upload-market-data',
                 uploaded_by: req.user.id
             });
 
-            await fs.unlink(req.file.path);
-
             logger.info(`Market data uploaded by user: ${req.user.userId}`);
 
             res.json({ message: 'Market data uploaded successfully' });
         } catch (error) {
             logger.error('Market data upload error:', error);
-            if (req.file) {
-                await fs.unlink(req.file.path).catch(() => {});
-            }
             res.status(500).json({ error: 'Failed to upload market data' });
         }
     }

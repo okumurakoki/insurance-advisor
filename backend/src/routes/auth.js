@@ -131,7 +131,7 @@ router.post('/logout', authenticateToken, async (req, res) => {
         
         if (token) {
             const tokenHash = require('crypto').createHash('sha256').update(token).digest('hex');
-            await db.query('DELETE FROM user_sessions WHERE token_hash = ?', [tokenHash]);
+            await db.query('DELETE FROM user_sessions WHERE token_hash = $1', [tokenHash]);
         }
 
         res.json({ message: 'Logged out successfully' });
