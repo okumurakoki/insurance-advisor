@@ -43,8 +43,23 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/line', lineRoutes);
 
+// Add basic root route
+app.get('/', (req, res) => {
+    res.json({ 
+        message: 'Variable Insurance Advisory System API',
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+    });
+});
+
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Add favicon handler to prevent 404s
+app.get('/favicon.ico', (req, res) => {
+    res.status(204).end();
 });
 
 app.use((err, req, res, next) => {
