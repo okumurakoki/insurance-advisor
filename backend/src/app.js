@@ -15,7 +15,10 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.'
 });
 
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+}));
 app.use(cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
     credentials: true,
