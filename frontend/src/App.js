@@ -18,7 +18,7 @@ function App() {
   const handleLogin = async (userId, password, accountType) => {
     setLoading(true);
     try {
-      const apiUrl = process.env.REACT_APP_API_BASE_URL || 'https://backend-3ij3exak4-kokiokumuras-projects.vercel.app/api';
+      const apiUrl = process.env.REACT_APP_API_BASE_URL || 'https://backend-f4o3zs64t-kokiokumuras-projects.vercel.app/api';
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
