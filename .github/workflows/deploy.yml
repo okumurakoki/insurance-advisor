@@ -1,105 +1,172 @@
-name: Deploy to Vercel
+name: Deploy to Production
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18.x'
 
 jobs:
   test:
+    name: Test
     runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: backend/package-lock.json
-    
-    - name: Install dependencies
-      run: |
-        cd backend
-        npm ci
-    
-    - name: Run tests
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
-        JWT_SECRET: test-jwt-secret
-        NODE_ENV: test
-      run: |
-        cd backend
-        npm test
-    
-    - name: Run linting
-      run: |
-        cd backend
-        npm run lint
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+      
+      - name: Run Frontend Tests
+        working-directory: ./frontend
+        run: npm test -- --coverage --watchAll=false
+      
+      - name: Run Backend Tests
+        working-directory: ./backend
+        run: npm test
+      
+      - name: Run Linting
+        run: |
+          cd frontend && npm run lint
+          cd ../backend && npm run lint
 
-  deploy-backend:
+  build:
+    name: Build
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Deploy to Vercel
-      uses: amondnet/vercel-action@v25
-      with:
-        vercel-token: ${{ secrets.VERCEL_TOKEN }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        vercel-args: '--prod'
-        working-directory: backend
-        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install Dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Build Frontend
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          CI: false
+      
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: frontend/build
 
   deploy-frontend:
+    name: Deploy Frontend to Vercel
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-build
+          path: frontend/build
+      
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FRONTEND }}
+          vercel-args: '--prod'
+          working-directory: ./frontend
+
+  deploy-backend:
+    name: Deploy Backend to Vercel
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
+    environment: production
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-    
-    - name: Install and build
-      env:
-        REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
-      run: |
-        cd frontend
-        npm ci
-        npm run build
-    
-    - name: Deploy to Vercel
-      uses: amondnet/vercel-action@v25
-      with:
-        vercel-token: ${{ secrets.VERCEL_TOKEN }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        vercel-args: '--prod'
-        working-directory: frontend
-        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-        vercel-project-id: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
+      - uses: actions/checkout@v3
+      
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_BACKEND }}
+          vercel-args: '--prod'
+          working-directory: ./backend
+
+  run-migrations:
+    name: Run Database Migrations
+    needs: [deploy-frontend, deploy-backend]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      
+      - name: Run Migrations
+        run: |
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase db push --include-all
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+  health-check:
+    name: Health Check
+    needs: run-migrations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Frontend
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://insurance-optimizer.com)
+          if [ $response -eq 200 ]; then
+            echo "Frontend is healthy"
+          else
+            echo "Frontend health check failed with status: $response"
+            exit 1
+          fi
+      
+      - name: Check Backend API
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://api.insurance-optimizer.com/health)
+          if [ $response -eq 200 ]; then
+            echo "Backend API is healthy"
+          else
+            echo "Backend API health check failed with status: $response"
+            exit 1
+          fi
+
+  notify:
+    name: Notify Deployment Status
+    needs: health-check
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send Notification
+        run: |
+          if [ "${{ needs.health-check.result }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed!"
+          fi

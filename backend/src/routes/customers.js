@@ -4,6 +4,14 @@ const Customer = require('../models/Customer');
 const logger = require('../utils/logger');
 const { authenticateToken, authorizeAccountType } = require('../middleware/auth');
 
+// Handle CORS preflight requests
+router.options('*', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.status(200).send();
+});
+
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const customers = await Customer.getByUserId(req.user.id);

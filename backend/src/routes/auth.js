@@ -6,17 +6,38 @@ const logger = require('../utils/logger');
 const { authenticateToken } = require('../middleware/auth');
 const db = require('../utils/database-factory');
 
-// Test endpoint for CORS debugging
-router.get('/test', (req, res) => {
+// Handle CORS preflight requests
+router.options('*', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.status(200).send();
+});
+
+// Test endpoint for database connectivity
+router.get('/test', async (req, res) => {
     try {
+        const db = require('../utils/database-factory');
+        console.log('Testing database connection...');
+        
+        // Check users in database
+        const users = await db.query('SELECT id, username, user_type, name FROM prudential_users LIMIT 5');
+        console.log('Users in database:', users);
+        
         res.json({
             status: 'OK',
-            message: 'Auth endpoint is working',
+            message: 'Auth endpoint and database working',
             cors: 'Enabled',
+            database: 'Connected',
+            users: users,
             timestamp: new Date().toISOString()
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Test endpoint error:', error);
+        res.status(500).json({ 
+            error: error.message,
+            stack: error.stack 
+        });
     }
 });
 
@@ -32,13 +53,27 @@ router.post('/login', async (req, res) => {
     try {
         const user = await User.findByUserId(userId, accountType);
 
-        if (!user || !(await User.checkPassword(password, user.password_hash))) {
-            logger.warn(`Failed login attempt for user: ${userId}, type: ${accountType}`);
+        if (!user) {
+            logger.warn(`User not found: ${userId}, type: ${accountType}`);
+            return res.status(401).json({ error: 'User not found' });
+        }
+
+        // Debug password check
+        console.log('Password check:', { 
+            userId, 
+            inputPassword: password,
+            passwordHash: user.password_hash ? user.password_hash.substring(0, 20) + '...' : 'null'
+        });
+        
+        const isValid = await User.checkPassword(password, user.password_hash);
+        console.log('Password valid:', isValid);
+        
+        if (!isValid) {
+            logger.warn(`Wrong password for user: ${userId}`);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         await User.updateLastLogin(user.id);
-
         const token = jwt.sign(
             { 
                 id: user.id, 
@@ -49,11 +84,12 @@ router.post('/login', async (req, res) => {
             { expiresIn: '24h' }
         );
 
-        // PostgreSQL compatible session insert
-        await db.query(
-            'INSERT INTO user_sessions (user_id, token_hash, ip_address, user_agent, expires_at) VALUES ($1, $2, $3, $4, NOW() + INTERVAL \'24 hours\')',
-            [user.id, require('crypto').createHash('sha256').update(token).digest('hex'), req.ip, req.headers['user-agent']]
-        );
+        // TODO: Create user_sessions table and restore session tracking
+        // Temporarily disabled to fix login issue
+        // await db.query(
+        //     'INSERT INTO user_sessions (user_id, token_hash, ip_address, user_agent, expires_at) VALUES ($1, $2, $3, $4, NOW() + INTERVAL \'24 hours\')',
+        //     [user.id, require('crypto').createHash('sha256').update(token).digest('hex'), req.ip, req.headers['user-agent']]
+        // );
 
         logger.info(`User logged in: ${user.user_id} (${user.account_type})`);
 
@@ -68,8 +104,21 @@ router.post('/login', async (req, res) => {
             }
         });
     } catch (error) {
-        logger.error('Login error:', error);
-        res.status(500).json({ error: 'Login failed' });
+        logger.error('Login error:', {
+            error: error.message,
+            stack: error.stack,
+            userId: userId,
+            accountType: accountType
+        });
+        
+        // Check for specific database connection errors
+        if (error.message.includes('connect ECONNREFUSED') || error.message.includes('Connection terminated')) {
+            res.status(503).json({ error: 'Database connection failed' });
+        } else if (error.message.includes('CORS') || error.message.includes('Host validation')) {
+            res.status(403).json({ error: 'Request not allowed from this origin' });
+        } else {
+            res.status(500).json({ error: 'Login failed' });
+        }
     }
 });
 

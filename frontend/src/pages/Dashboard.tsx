@@ -34,6 +34,7 @@ const Dashboard: React.FC = () => {
     totalAnalyses: 0,
     avgMonthlyPremium: 0,
   });
+  const [marketData, setMarketData] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -55,6 +56,16 @@ const Dashboard: React.FC = () => {
         totalAnalyses: 0, // This would come from a stats API endpoint
         avgMonthlyPremium,
       });
+
+      // Fetch market data from Supabase Edge Functions
+      try {
+        const marketResponse = await api.getMarketData();
+        if (marketResponse.success) {
+          setMarketData(marketResponse.data);
+        }
+      } catch (marketErr) {
+        console.log('Market data not available:', marketErr);
+      }
     } catch (err: any) {
       setError('データの取得に失敗しました');
     } finally {
@@ -228,6 +239,40 @@ const Dashboard: React.FC = () => {
             )}
           </Box>
         </Grid>
+
+        {/* Market Data */}
+        {marketData.length > 0 && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3, mb: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                📈 市場データ (リアルタイム)
+              </Typography>
+              <Grid container spacing={2}>
+                {marketData.slice(0, 5).map((data, index) => (
+                  <Grid item xs={12} sm={6} md={4} key={index}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="h6">{data.symbol}</Typography>
+                        <Typography variant="h5" color="primary">
+                          ${data.price?.toFixed(2)}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color={data.change >= 0 ? 'success.main' : 'error.main'}
+                        >
+                          {data.change >= 0 ? '+' : ''}{data.change?.toFixed(2)} ({data.changePercent})
+                        </Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          {data.lastUpdate}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Paper>
+          </Grid>
+        )}
 
         {/* Recent Customers */}
         <Grid item xs={12}>

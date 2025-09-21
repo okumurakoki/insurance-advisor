@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { User, Customer, AnalysisResult, LoginForm, CustomerForm } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://api.insurance-optimizer.com/api';
+const SUPABASE_FUNCTIONS_URL = process.env.REACT_APP_FUNCTIONS_URL || 'https://api.insurance-optimizer.com/api';
 
 class ApiService {
   private api: AxiosInstance;
@@ -151,6 +152,57 @@ class ApiService {
     formData.append('marketData', file);
 
     const response = await this.api.post('/analysis/upload-market-data', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  // Market Data endpoints (Supabase Edge Functions)
+  async getMarketData(): Promise<{ success: boolean; data: any[]; timestamp: string }> {
+    const response = await axios.get(`${SUPABASE_FUNCTIONS_URL}/market-data/real-time`);
+    return response.data;
+  }
+
+  async generatePdfReport(reportType: string, customerId: string, dateRange: any): Promise<{ success: boolean; reportId: string; downloadUrl: string }> {
+    const response = await axios.post(`${SUPABASE_FUNCTIONS_URL}/generate-report-pdf`, {
+      reportType,
+      customerId,
+      dateRange,
+    });
+    return response.data;
+  }
+
+  async getCustomersFromKV(): Promise<{ success: boolean; data: any[]; timestamp: string }> {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(`${SUPABASE_FUNCTIONS_URL}/customers`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  }
+
+  // PDF Analysis endpoints
+  async analyzePdfDocument(file: File, customerId: number): Promise<{ success: boolean; analysis: any; message: string }> {
+    const formData = new FormData();
+    formData.append('pdf', file);
+    formData.append('customerId', customerId.toString());
+
+    const response = await this.api.post('/analysis/pdf-analysis', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  async extractPdfText(file: File): Promise<{ success: boolean; text: string }> {
+    const formData = new FormData();
+    formData.append('pdf', file);
+
+    const response = await this.api.post('/analysis/extract-pdf-text', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

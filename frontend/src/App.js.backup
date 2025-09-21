@@ -17,8 +17,25 @@ function App() {
 
   const handleLogin = async (userId, password, accountType) => {
     setLoading(true);
+    
+    // Re-enable real authentication
+    // const demoUser = {
+    //   id: '1',
+    //   userId: userId,
+    //   accountType: accountType,
+    //   planType: 'standard'
+    // };
+    // 
+    // localStorage.setItem('token', 'demo-token');
+    // localStorage.setItem('user', JSON.stringify(demoUser));
+    // setUser(demoUser);
+    // setIsLoggedIn(true);
+    // setLoading(false);
+    // return;
+    
+    // Original login code (re-enabled)
     try {
-      const apiUrl = process.env.REACT_APP_API_BASE_URL || 'https://backend-f4o3zs64t-kokiokumuras-projects.vercel.app/api';
+      const apiUrl = 'https://api.insurance-optimizer.com/api';
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
@@ -179,9 +196,9 @@ function LoginPage({ onLogin, loading }) {
         }}>
           <h3 style={{ margin: '0 0 15px 0', fontSize: '16px' }}>デモアカウント</h3>
           <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
-            <p><strong>代理店:</strong> demo-agency / password</p>
-            <p><strong>担当者:</strong> demo-agent / password</p>
-            <p><strong>顧客:</strong> demo-customer / password</p>
+            <p><strong>代理店:</strong> demo_agency / 任意のパスワード</p>
+            <p><strong>担当者:</strong> demo_staff / 任意のパスワード</p>
+            <p><strong>管理者:</strong> admin / 任意のパスワード</p>
           </div>
         </div>
       </div>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge Functions テスト</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1976d2;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1565c0;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 3px;
+            border-left: 4px solid #4caf50;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .error {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+        .loading {
+            border-left-color: #ff9800;
+            background: #fff3e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏦 Supabase Edge Functions テスト</h1>
+        
+        <div class="test-section">
+            <h3>1. ヘルスチェック</h3>
+            <p>Edge Function の基本動作確認</p>
+            <button onclick="testPing()">ヘルスチェック実行</button>
+            <div id="ping-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. デバッグ情報</h3>
+            <p>システム環境とバージョン情報取得</p>
+            <button onclick="testDebug()">デバッグ情報取得</button>
+            <div id="debug-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 市場データ取得</h3>
+            <p>Alpha Vantage API経由でリアルタイム市場データ取得</p>
+            <button onclick="testMarketData()">市場データ取得</button>
+            <div id="market-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 顧客データ</h3>
+            <p>KVストアから顧客データ取得 (認証必要)</p>
+            <button onclick="testCustomers()">顧客データ取得</button>
+            <div id="customers-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. PDFレポート生成</h3>
+            <p>投資分析レポートのPDF生成テスト</p>
+            <button onclick="testPdfReport()">PDFレポート生成</button>
+            <div id="pdf-result" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'https://cqjxcfchrsjllyhsqawu.supabase.co/functions/v1/server';
+
+        function showResult(elementId, content, isError = false, isLoading = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = isError ? 'result error' : (isLoading ? 'result loading' : 'result');
+            element.textContent = content;
+        }
+
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            };
+            
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+
+            const response = await fetch(`${BASE_URL}${endpoint}`, options);
+            const data = await response.text();
+            
+            try {
+                return JSON.parse(data);
+            } catch {
+                return data;
+            }
+        }
+
+        async function testPing() {
+            showResult('ping-result', 'テスト実行中...', false, true);
+            try {
+                const result = await apiCall('/ping');
+                showResult('ping-result', JSON.stringify(result, null, 2));
+            } catch (error) {
+                showResult('ping-result', `エラー: ${error.message}`, true);
+            }
+        }
+
+        async function testDebug() {
+            showResult('debug-result', 'テスト実行中...', false, true);
+            try {
+                const result = await apiCall('/debug');
+                showResult('debug-result', JSON.stringify(result, null, 2));
+            } catch (error) {
+                showResult('debug-result', `エラー: ${error.message}`, true);
+            }
+        }
+
+        async function testMarketData() {
+            showResult('market-result', 'テスト実行中... (市場データ取得には時間がかかる場合があります)', false, true);
+            try {
+                const result = await apiCall('/market-data/real-time');
+                showResult('market-result', JSON.stringify(result, null, 2));
+            } catch (error) {
+                showResult('market-result', `エラー: ${error.message}`, true);
+            }
+        }
+
+        async function testCustomers() {
+            showResult('customers-result', 'テスト実行中...', false, true);
+            try {
+                const result = await apiCall('/customers');
+                showResult('customers-result', JSON.stringify(result, null, 2));
+            } catch (error) {
+                showResult('customers-result', `エラー: ${error.message}`, true);
+            }
+        }
+
+        async function testPdfReport() {
+            showResult('pdf-result', 'テスト実行中...', false, true);
+            try {
+                const result = await apiCall('/generate-report-pdf', 'POST', {
+                    reportType: 'investment_analysis',
+                    customerId: 'test-customer',
+                    dateRange: {
+                        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+                        endDate: new Date().toISOString()
+                    }
+                });
+                showResult('pdf-result', JSON.stringify(result, null, 2));
+            } catch (error) {
+                showResult('pdf-result', `エラー: ${error.message}`, true);
+            }
+        }
+
+        // ページ読み込み時に基本情報表示
+        window.onload = function() {
+            console.log('Edge Functions テストページが読み込まれました');
+            console.log('Base URL:', BASE_URL);
+        }
+    </script>
+</body>
+</html>

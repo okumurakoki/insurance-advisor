@@ -21,7 +21,8 @@ class Customer {
                 contract_amount, monthly_premium, risk_tolerance, 
                 investment_goal, notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING id
         `;
         
         const result = await db.query(sql, [
@@ -37,11 +38,11 @@ class Customer {
             notes || null
         ]);
         
-        return result.insertId;
+        return result[0].id;
     }
 
     static async findById(id) {
-        const sql = 'SELECT * FROM customers WHERE id = ? AND is_active = TRUE';
+        const sql = 'SELECT * FROM customers WHERE id = $1 AND is_active = TRUE';
         const results = await db.query(sql, [id]);
         return results[0] || null;
     }
@@ -49,7 +50,7 @@ class Customer {
     static async getByUserId(userId) {
         const sql = `
             SELECT * FROM customers 
-            WHERE user_id = ? AND is_active = TRUE 
+            WHERE user_id = $1 AND is_active = TRUE 
             ORDER BY created_at DESC
         `;
         return await db.query(sql, [userId]);

@@ -24,8 +24,8 @@ class DatabasePostgreSQL {
                 client.release();
                 console.log('PostgreSQL database connection established');
                 
-                // Setup tables on first run
-                await this.setupTables();
+                // Skip automatic table setup - tables already exist in Supabase
+                // await this.setupTables();
             } catch (error) {
                 console.error('Database connection failed:', error);
                 throw error;

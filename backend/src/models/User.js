@@ -25,19 +25,28 @@ class User {
     }
 
     static async findById(id) {
-        const sql = 'SELECT * FROM users WHERE id = $1 AND is_active = TRUE';
+        const sql = 'SELECT id, username as user_id, password_hash, user_type as account_type, name, email, created_at FROM prudential_users WHERE id = $1 AND is_active = TRUE';
         const results = await db.query(sql, [id]);
         return results[0] || null;
     }
 
     static async findByUserId(userId, accountType) {
-        const sql = 'SELECT * FROM users WHERE user_id = $1 AND account_type = $2 AND is_active = TRUE';
-        const results = await db.query(sql, [userId, accountType]);
+        // Map frontend account types to database user types
+        const typeMapping = {
+            'parent': 'agency',
+            'child': 'staff', 
+            'grandchild': 'admin'
+        };
+        
+        const dbUserType = typeMapping[accountType] || accountType;
+        
+        const sql = 'SELECT id, username as user_id, password_hash, user_type as account_type, name, email, created_at FROM prudential_users WHERE username = $1 AND user_type = $2';
+        const results = await db.query(sql, [userId, dbUserType]);
         return results[0] || null;
     }
 
     static async updateLastLogin(id) {
-        const sql = 'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1';
+        const sql = 'UPDATE prudential_users SET updated_at = CURRENT_TIMESTAMP WHERE id = $1';
         await db.query(sql, [id]);
     }
 
@@ -63,7 +72,10 @@ class User {
     }
 
     static async checkPassword(inputPassword, hashedPassword) {
-        return await bcrypt.compare(inputPassword, hashedPassword);
+        console.log('Checking password with bcrypt:', { inputPassword, hashedPassword: hashedPassword ? hashedPassword.substring(0, 20) + '...' : 'null' });
+        const result = await bcrypt.compare(inputPassword, hashedPassword);
+        console.log('Bcrypt compare result:', result);
+        return result;
     }
 
     static async changePassword(id, newPassword) {

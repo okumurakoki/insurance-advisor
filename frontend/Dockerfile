@@ -1,35 +1,18 @@
-# Build stage
-FROM node:18-alpine as build
+FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci
 
-# Copy source code
 COPY . .
 
-# Build arguments
-ARG REACT_APP_API_URL
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ENV REACT_APP_API_BASE_URL=https://insurance-advisor-backend.fly.dev/api
 
-# Build the application
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+RUN npm install -g serve
 
-# Copy built application
-COPY --from=build /app/build /usr/share/nginx/html
+EXPOSE 3000
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Expose port 80
-EXPOSE 80
-
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["serve", "-s", "build", "-l", "3000"]
