@@ -15,6 +15,7 @@ import {
   TextField,
   Alert,
   CircularProgress,
+  LinearProgress,
   AppBar,
   Toolbar,
   IconButton,
@@ -947,7 +948,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                 }
               }}
             >
-              {isOptimizing ? '⏳ AI分析中...' : '🎯 今月の最適化を実行する'}
+              {isOptimizing ? 'AI分析中...' : '今月の最適化を実行する'}
             </Button>
           </Box>
         </Grid>
@@ -958,7 +959,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             <Paper sx={{ p: 2, mb: 2, border: '2px solid #2196f3' }}>
               <Box sx={{ textAlign: 'center', mb: 2 }}>
                 <Typography variant="h5" gutterBottom color="primary" sx={{ fontWeight: 'bold' }}>
-                  🎯 今月の最適化推奨配分
+                  今月の最適化推奨配分
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
                   AI分析による最適なポートフォリオ配分のご提案
@@ -968,7 +969,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
               <Grid container spacing={3}>
                 <Grid item xs={12}>
                   <Typography variant="h5" gutterBottom color="primary" sx={{ fontWeight: 'bold', mb: 3 }}>
-                    📊 ファンド配分の変更提案
+                    ファンド配分の変更提案
                   </Typography>
                   
                   {/* ビフォー・アフター 円グラフ表示 */}
@@ -976,7 +977,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     <Grid item xs={12} md={6}>
                       <Card sx={{ p: 3, boxShadow: 1 }}>
                         <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                          📋 現在の配分
+                          現在の配分
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
                           <Box sx={{ position: 'relative', width: 180, height: 180 }}>
@@ -1177,7 +1178,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     generatePDF(optimizationReport);
                   }}
                 >
-                  📄 詳細レポートをPDF出力
+                  詳細レポートをPDF出力
                 </Button>
                 <Button
                   variant="outlined"
@@ -1188,20 +1189,88 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
               </Box>
             </Paper>
           ) : (
-            // 最適化結果待機中の固定レイアウト（実際のサイズに合わせる）
-            <Paper sx={{ p: 2, mb: 2, border: '2px dashed #ccc', minHeight: '400px' }}>
-              <Box sx={{ textAlign: 'center', mb: 2 }}>
-                <Typography variant="h5" gutterBottom color="text.secondary" sx={{ fontWeight: 'bold' }}>
-                  🎯 最適化結果表示エリア
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                  「🎯 今月の最適化を実行する」ボタンを押すと、ここに推奨配分が表示されます
-                </Typography>
-              </Box>
-              
-              <Typography variant="h5" gutterBottom color="text.secondary" sx={{ fontWeight: 'bold', mb: 3, mt: 4, textAlign: 'center' }}>
-                📊 ファンド配分の変更提案（プレビュー）
-              </Typography>
+            // 最適化結果待機中の固定レイアウト
+            <Paper sx={{ p: 2, mb: 2, border: '2px dashed #ccc', minHeight: '400px', backgroundColor: '#f8f9fa' }}>
+              {isOptimizing ? (
+                // 分析中のアニメーション
+                <Box sx={{ textAlign: 'center', py: 8 }}>
+                  <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', mb: 4 }}>
+                    AI分析中
+                  </Typography>
+                  <Box sx={{ position: 'relative', display: 'inline-block', mb: 3 }}>
+                    <CircularProgress 
+                      size={120} 
+                      thickness={4}
+                      sx={{ color: 'primary.light' }}
+                    />
+                    <CircularProgress 
+                      size={120} 
+                      thickness={4}
+                      variant="indeterminate"
+                      sx={{ 
+                        color: 'primary.main',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        animationDuration: '1500ms'
+                      }}
+                    />
+                  </Box>
+                  <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+                    市場データを解析しています...
+                  </Typography>
+                  <Box sx={{ width: '60%', mx: 'auto', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Box sx={{ width: '100%', mr: 1 }}>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={30} 
+                          sx={{ height: 8, borderRadius: 4, bgcolor: 'grey.300' }}
+                        />
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
+                        市場分析
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Box sx={{ width: '100%', mr: 1 }}>
+                        <LinearProgress 
+                          variant="indeterminate" 
+                          sx={{ height: 8, borderRadius: 4, bgcolor: 'grey.300' }}
+                        />
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
+                        リスク計算
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Box sx={{ width: '100%', mr: 1 }}>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={0} 
+                          sx={{ height: 8, borderRadius: 4, bgcolor: 'grey.300' }}
+                        />
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
+                        最適化完了
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              ) : (
+                <>
+                  <Box sx={{ textAlign: 'center', mb: 2 }}>
+                  <Typography variant="h5" gutterBottom color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                    最適化結果表示エリア
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    「今月の最適化を実行する」ボタンを押すと、AI分析が開始されます
+                  </Typography>
+                  </Box>
+                  
+                  <Typography variant="h5" gutterBottom color="text.secondary" sx={{ fontWeight: 'bold', mb: 3, mt: 4, textAlign: 'center' }}>
+                    ファンド配分の変更提案（プレビュー）
+                  </Typography>
               
               <Grid container spacing={2} sx={{ opacity: 0.3 }}>
                 <Grid item xs={12} md={6}>
@@ -1315,69 +1384,72 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     </Card>
                   </Grid>
                 </Grid>
-              </Box>
+                </Box>
+                </>
+              )}
             </Paper>
           )}
         </Grid>
 
         {/* Statistics Cards */}
         {user.accountType !== 'grandchild' && (
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                  <Box>
-                    <Typography color="textSecondary" gutterBottom>
-                      👥 管理中の顧客数
-                    </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                      5人
-                    </Typography>
-                    <Typography variant="body2" color="success.main">
-                      📈 今月+2人追加
-                    </Typography>
+          <>
+            <Grid item xs={12} sm={6} md={4}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box>
+                      <Typography color="textSecondary" gutterBottom>
+                        管理中の顧客数
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                        5人
+                      </Typography>
+                      <Typography variant="body2" color="success.main">
+                        今月+2人追加
+                      </Typography>
+                    </Box>
+                    <Person color="primary" sx={{ fontSize: 40 }} />
                   </Box>
-                  <Person color="primary" sx={{ fontSize: 40 }} />
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box>
+                      <Typography color="textSecondary" gutterBottom>
+                        作成済みレポート数
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                        3件
+                      </Typography>
+                      <Typography variant="body2" color="primary.main">
+                        1件 作成中
+                      </Typography>
+                    </Box>
+                    <AssessmentIcon color="secondary" sx={{ fontSize: 40 }} />
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </>
         )}
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={user.accountType === 'grandchild' ? 6 : 4}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    {user.accountType === 'grandchild' ? '📊 マイレポート数' : '📊 作成済みレポート数'}
-                  </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                    3件
-                  </Typography>
-                  <Typography variant="body2" color="primary.main">
-                    ⏳ 1件 作成中
-                  </Typography>
-                </Box>
-                <AssessmentIcon color="secondary" sx={{ fontSize: 40 }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    {user.accountType === 'grandchild' ? '💰 私の運用資産' : '💰 お客様の総運用資産'}
+                    {user.accountType === 'grandchild' ? '現在の運用額' : 'お客様の総運用資産'}
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
                     {user.accountType === 'grandchild' ? '2,500万円' : '1億2,500万円'}
                   </Typography>
                   <Typography variant="body2" color="success.main">
-                    📈 今月+8.2%増加
+                    今月+8.2%増加
                   </Typography>
                 </Box>
                 <TrendingUp color="success" sx={{ fontSize: 40 }} />
@@ -1386,19 +1458,19 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={user.accountType === 'grandchild' ? 6 : 4}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    {user.accountType === 'grandchild' ? '🎯 私の運用利回り' : '🎯 お客様の平均利回り'}
+                    {user.accountType === 'grandchild' ? '現在の運用利回り' : 'お客様の平均利回り'}
                   </Typography>
                   <Typography variant="h5" color="success.main" sx={{ fontWeight: 'bold' }}>
                     +6.8%
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    📅 今年の年率収益率
+                    今年の年率収益率
                   </Typography>
                 </Box>
                 <Add color="success" sx={{ fontSize: 40 }} />
@@ -1408,11 +1480,12 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         </Grid>
 
         {/* Fund Performance Analysis */}
+        {user.accountType !== 'grandchild' ? (
         <Grid item xs={12}>
           <Paper sx={{ p: 3, mb: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
               <Typography variant="h6">
-                📊 プルデンシャル変額保険ファンド分析 (リアルタイム)
+                プルデンシャル変額保険ファンド分析 (リアルタイム)
               </Typography>
               <Chip label="最終更新: 1分前" color="success" size="small" />
             </Box>
@@ -1545,10 +1618,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                         <Typography variant="caption" color="text.secondary">期待収益率</Typography>
                         <Typography variant="body2" fontWeight="bold">5.5% (年率)</Typography>
                       </Grid>
-                      <Grid item xs={4}>
-                        <Typography variant="caption" color="text.secondary">管理手数料</Typography>
-                        <Typography variant="body2">1.6% (年率)</Typography>
-                      </Grid>
+                      {/* 管理手数料削除 */}
                       <Grid item xs={4}>
                         <Typography variant="caption" color="text.secondary">投資推奨度</Typography>
                         <Typography variant="body2" color="error.main" fontWeight="bold">25%</Typography>
@@ -1583,10 +1653,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                         <Typography variant="caption" color="text.secondary">期待収益率</Typography>
                         <Typography variant="body2" fontWeight="bold">7.2% (年率)</Typography>
                       </Grid>
-                      <Grid item xs={4}>
-                        <Typography variant="caption" color="text.secondary">管理手数料</Typography>
-                        <Typography variant="body2">2.0% (年率)</Typography>
-                      </Grid>
+                      {/* 管理手数料削除 */}
                       <Grid item xs={4}>
                         <Typography variant="caption" color="text.secondary">投資推奨度</Typography>
                         <Typography variant="body2" color="success.main" fontWeight="bold">85%</Typography>
@@ -1636,193 +1703,128 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             </Box>
           </Paper>
         </Grid>
-
-        {/* Portfolio Analysis Summary */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              📊 ポートフォリオ分析サマリー
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <Typography variant="body2" color="text.secondary">
-                  リスク分析完了
-                </Typography>
-                <Typography variant="h6" color="primary">
-                  2件
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body2" color="text.secondary">
-                  最適化実行
-                </Typography>
-                <Typography variant="h6" color="secondary">
-                  1件
-                </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  平均推奨配分: 米国債券型35% | 株式型30% | 米国株式型20%
-                </Typography>
-              </Grid>
-            </Grid>
-          </Paper>
-        </Grid>
-
-        {/* Fund Performance Summary */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              🎯 ファンドパフォーマンス
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                  <Typography variant="body2">米国株式型 (割安)</Typography>
-                  <Typography variant="body2" color="success.main">+12.3% (年率)</Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                  <Typography variant="body2">世界株式型</Typography>
-                  <Typography variant="body2" color="success.main">+8.7% (年率)</Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                  <Typography variant="body2">株式型</Typography>
-                  <Typography variant="body2" color="success.main">+6.8% (年率)</Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                  <Typography variant="body2">米国債券型</Typography>
-                  <Typography variant="body2" color="primary.main">+3.2% (年率)</Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2">REIT型 (割高)</Typography>
-                  <Typography variant="body2" color="error.main">-1.5% (年率)</Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          </Paper>
-        </Grid>
-
-        {/* Recent Activities */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              📋 最近のアクティビティ
-            </Typography>
-            <Grid container spacing={2}>
-              {user?.accountType !== 'grandchild' && (
-                <Grid item xs={12} sm={4}>
-                  <Card variant="outlined" sx={{ p: 2 }}>
-                    <Typography variant="subtitle2" color="primary">
-                      新規顧客登録
+        ) : (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3, mb: 2 }}>
+              <Typography variant="h6" gutterBottom sx={{ textAlign: 'center' }}>
+                プルデンシャル変額保険ファンドパフォーマンス
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={2.4}>
+                  <Card sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50' }}>
+                    <Typography variant="subtitle2" color="text.secondary">国内株式型</Typography>
+                    <Typography variant="h5" color="success.main" sx={{ fontWeight: 'bold', my: 1 }}>
+                      +6.8%
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      高橋美咲様が登録されました
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      2時間前
-                    </Typography>
+                    <Typography variant="caption">(年率)</Typography>
                   </Card>
                 </Grid>
-              )}
-              <Grid item xs={12} sm={4}>
-                <Card variant="outlined" sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" color="secondary">
-                    レポート完了
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    佐藤花子様のポートフォリオ最適化
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    5時間前
-                  </Typography>
-                </Card>
+                <Grid item xs={12} sm={6} md={2.4}>
+                  <Card sx={{ textAlign: 'center', p: 2, bgcolor: 'success.50', border: '2px solid', borderColor: 'success.main' }}>
+                    <Typography variant="subtitle2" color="text.secondary">米国株式型</Typography>
+                    <Typography variant="h5" color="success.main" sx={{ fontWeight: 'bold', my: 1 }}>
+                      +12.3%
+                    </Typography>
+                    <Typography variant="caption" color="success.main">今月のおすすめ</Typography>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
+                  <Card sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50' }}>
+                    <Typography variant="subtitle2" color="text.secondary">米国債券型</Typography>
+                    <Typography variant="h5" color="primary.main" sx={{ fontWeight: 'bold', my: 1 }}>
+                      +3.2%
+                    </Typography>
+                    <Typography variant="caption">(年率)</Typography>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
+                  <Card sx={{ textAlign: 'center', p: 2, bgcolor: 'error.50', border: '2px solid', borderColor: 'error.main' }}>
+                    <Typography variant="subtitle2" color="text.secondary">REIT型</Typography>
+                    <Typography variant="h5" color="error.main" sx={{ fontWeight: 'bold', my: 1 }}>
+                      -1.5%
+                    </Typography>
+                    <Typography variant="caption" color="error.main">割高</Typography>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
+                  <Card sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50' }}>
+                    <Typography variant="subtitle2" color="text.secondary">世界株式型</Typography>
+                    <Typography variant="h5" color="success.main" sx={{ fontWeight: 'bold', my: 1 }}>
+                      +8.7%
+                    </Typography>
+                    <Typography variant="caption">(年率)</Typography>
+                  </Card>
+                </Grid>
               </Grid>
-              <Grid item xs={12} sm={4}>
-                <Card variant="outlined" sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" color="warning.main">
-                    市場更新
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    米国株式型ファンドが割安状態に
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    1日前
-                  </Typography>
-                </Card>
-              </Grid>
-            </Grid>
-          </Paper>
-        </Grid>
+            </Paper>
+          </Grid>
+        )}
 
         {/* Action Buttons */}
-        <Grid item xs={12}>
-          <Box display="flex" gap={2} flexWrap="wrap">
-            {user?.accountType !== 'grandchild' && (
-              <>
-                <Button 
-                  variant="contained" 
-                  startIcon={<Add />}
-                  onClick={() => navigate('/customers/new')}
-                >
-                  新規顧客登録
-                </Button>
-                <Button 
-                  variant="outlined"
-                  onClick={() => navigate('/customers')}
-                >
-                  顧客一覧
-                </Button>
-              </>
-            )}
-            {user.accountType === 'admin' && (
+        {user.accountType !== 'grandchild' && (
+          <Grid item xs={12}>
+            <Box display="flex" gap={2} flexWrap="wrap">
+              <Button 
+                variant="contained" 
+                startIcon={<Add />}
+                onClick={() => navigate('/customers/new')}
+              >
+                新規顧客登録
+              </Button>
               <Button 
                 variant="outlined"
-                onClick={() => navigate('/products')}
+                onClick={() => navigate('/customers')}
               >
-                ファンド管理
+                顧客一覧
               </Button>
-            )}
-            <Button 
-              variant="outlined"
-              onClick={() => navigate('/reports')}
-            >
-              分析レポート
-            </Button>
-            <Button 
-              variant="outlined"
-              onClick={() => navigate('/reports/new')}
-            >
-              新規分析実行
-            </Button>
-            <Button 
-              variant="outlined"
-              color="secondary"
-              onClick={() => navigate('/portfolio-optimizer')}
-              startIcon={<TrendingUp />}
-            >
-              ポートフォリオ最適化
-            </Button>
-            <Button 
-              variant="outlined"
-              onClick={() => navigate('/backtest')}
-            >
-              バックテスト
-            </Button>
-            {user?.accountType !== 'grandchild' && (
+              {user.accountType === 'admin' && (
+                <Button 
+                  variant="outlined"
+                  onClick={() => navigate('/products')}
+                >
+                  ファンド管理
+                </Button>
+              )}
+              <Button 
+                variant="outlined"
+                onClick={() => navigate('/reports')}
+              >
+                分析レポート
+              </Button>
+              <Button 
+                variant="outlined"
+                onClick={() => navigate('/reports/new')}
+              >
+                新規分析実行
+              </Button>
+              <Button 
+                variant="outlined"
+                color="secondary"
+                onClick={() => navigate('/portfolio-optimizer')}
+                startIcon={<TrendingUp />}
+              >
+                ポートフォリオ最適化
+              </Button>
+              <Button 
+                variant="outlined"
+                onClick={() => navigate('/backtest')}
+              >
+                バックテスト
+              </Button>
               <Button 
                 variant="outlined"
                 onClick={() => navigate('/customer-comparison')}
               >
                 顧客比較分析
               </Button>
-            )}
-          </Box>
-        </Grid>
+            </Box>
+          </Grid>
+        )}
 
         {/* Welcome Message */}
         <Grid item xs={12}>
           <Alert severity="success">
-            🎉 プルデンシャル生命変額保険最適化システムへようこそ！
+            プルデンシャル生命変額保険最適化システムへようこそ！
             AI搭載の分析機能で最適な投資戦略をご提案します。
           </Alert>
         </Grid>
@@ -3594,6 +3596,7 @@ function ReportList({ user, navigate }: ReportListProps) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [selectedReport, setSelectedReport] = useState<any>(null);
 
   useEffect(() => {
     // Mock report data
@@ -3645,6 +3648,12 @@ function ReportList({ user, navigate }: ReportListProps) {
       }
       setReports(userReports);
       setFilteredReports(userReports);
+      
+      // Grandchild accounts automatically view their first report
+      if (user?.accountType === 'grandchild' && userReports.length > 0) {
+        setSelectedReport(userReports[0]);
+      }
+      
       setLoading(false);
     }, 500);
   }, [user?.accountType, user?.customerId]);
