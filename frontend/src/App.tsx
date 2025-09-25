@@ -416,6 +416,7 @@ interface User {
   planType: 'standard' | 'master' | 'exceed';
   customerLimit: number;
   isAdmin?: boolean;
+  customerId?: number;  // For grandchild accounts to link to their customer record
 }
 
 function App() {
@@ -559,7 +560,8 @@ function AppContent() {
           userId: 'demo_customer',
           accountType: 'grandchild' as const,
           planType: 'standard' as const,
-          customerLimit: 0
+          customerLimit: 0,
+          customerId: 1  // Link to specific customer (田中太郎)
         };
         
         localStorage.setItem('token', 'demo-token-' + Date.now());
@@ -3635,8 +3637,14 @@ function ReportList({ user, navigate }: ReportListProps) {
     ];
     
     setTimeout(() => {
-      setReports(mockReports);
-      setFilteredReports(mockReports);
+      // Filter reports based on user type
+      let userReports = mockReports;
+      if (user?.accountType === 'grandchild' && user?.customerId) {
+        // Grandchild accounts can only see their own reports
+        userReports = mockReports.filter(report => report.customerId === user.customerId);
+      }
+      setReports(userReports);
+      setFilteredReports(userReports);
       setLoading(false);
     }, 500);
   }, []);
