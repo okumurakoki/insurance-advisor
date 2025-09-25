@@ -3596,6 +3596,7 @@ function ReportList({ user, navigate }: ReportListProps) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
   useEffect(() => {
