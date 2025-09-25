@@ -4113,19 +4113,23 @@ function ReportDetail({ user, navigate }: ReportDetailProps) {
           >
             PDFダウンロード
           </Button>
-          <Button
-            variant="outlined"
-            startIcon={<DownloadIcon />}
-            onClick={() => downloadReport(report, 'excel')}
-          >
-            Excel出力
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => navigate(`/customers/${report.customerId}`)}
-          >
-            顧客詳細を見る
-          </Button>
+          {user?.accountType !== 'grandchild' && (
+            <>
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={() => downloadReport(report, 'excel')}
+              >
+                Excel出力
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => navigate(`/customers/${report.customerId}`)}
+              >
+                顧客詳細を見る
+              </Button>
+            </>
+          )}
         </Box>
       </Box>
 
