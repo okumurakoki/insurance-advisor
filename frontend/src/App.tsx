@@ -3647,7 +3647,7 @@ function ReportList({ user, navigate }: ReportListProps) {
       setFilteredReports(userReports);
       setLoading(false);
     }, 500);
-  }, []);
+  }, [user?.accountType, user?.customerId]);
 
   // フィルタリング機能
   useEffect(() => {
