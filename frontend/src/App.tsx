@@ -3650,14 +3650,15 @@ function ReportList({ user, navigate }: ReportListProps) {
       setReports(userReports);
       setFilteredReports(userReports);
       
-      // Grandchild accounts automatically view their first report
+      // Grandchild accounts automatically redirect to their first report detail
       if (user?.accountType === 'grandchild' && userReports.length > 0) {
-        setSelectedReport(userReports[0]);
+        navigate(`/reports/${userReports[0].id}`);
+        return;
       }
       
       setLoading(false);
     }, 500);
-  }, [user?.accountType, user?.customerId]);
+  }, [user?.accountType, user?.customerId, navigate]);
 
   // フィルタリング機能
   useEffect(() => {
