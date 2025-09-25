@@ -618,7 +618,7 @@ function AppContent() {
     ...(user?.accountType !== 'grandchild' ? [{ path: '/customers', icon: <PeopleIcon />, text: '顧客管理' }] : []),
     ...(user?.accountType === 'admin' ? [{ path: '/products', icon: <AssessmentIcon />, text: 'ファンド管理' }] : []),
     { path: '/reports', icon: <AssessmentIcon />, text: user?.accountType === 'grandchild' ? 'マイレポート' : 'レポート' },
-    { path: '/alerts', icon: <NotificationsIcon />, text: '通知・アラート' },
+    ...(user?.accountType !== 'grandchild' ? [{ path: '/alerts', icon: <NotificationsIcon />, text: '通知・アラート' }] : []),
   ];
 
   const drawerContent = (
