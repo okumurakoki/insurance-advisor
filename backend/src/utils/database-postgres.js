@@ -8,13 +8,20 @@ class DatabasePostgreSQL {
     async initialize() {
         if (!this.pool) {
             const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-            
+
+            if (!connectionString) {
+                console.error('DATABASE_URL not found in environment variables');
+                throw new Error('DATABASE_URL is required for PostgreSQL connection');
+            }
+
+            console.log('Initializing PostgreSQL with connection string:', connectionString.substring(0, 30) + '...');
+
             this.pool = new Pool({
                 connectionString,
                 ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
                 max: 20,
                 idleTimeoutMillis: 30000,
-                connectionTimeoutMillis: 2000,
+                connectionTimeoutMillis: 10000, // Increased for serverless
             });
 
             // Test connection
@@ -22,12 +29,13 @@ class DatabasePostgreSQL {
                 const client = await this.pool.connect();
                 await client.query('SELECT NOW()');
                 client.release();
-                console.log('PostgreSQL database connection established');
-                
+                console.log('✅ PostgreSQL database connection established successfully');
+
                 // Skip automatic table setup - tables already exist in Supabase
                 // await this.setupTables();
             } catch (error) {
-                console.error('Database connection failed:', error);
+                console.error('❌ Database connection failed:', error.message);
+                console.error('Connection string (masked):', connectionString.substring(0, 30) + '...');
                 throw error;
             }
         }
@@ -298,22 +306,32 @@ class DatabasePostgreSQL {
     }
 
     async query(sql, params = []) {
-        await this.initialize();
-        
-        const client = await this.pool.connect();
         try {
-            const result = await client.query(sql, params);
-            
-            if (sql.trim().toUpperCase().startsWith('SELECT')) {
-                return result.rows;
-            } else {
-                return {
-                    insertId: result.rows[0]?.id || null,
-                    affectedRows: result.rowCount
-                };
+            await this.initialize();
+
+            console.log('PostgreSQL Query:', sql.substring(0, 100), 'params:', params);
+
+            const client = await this.pool.connect();
+            try {
+                const result = await client.query(sql, params);
+
+                console.log('Query result:', result.rowCount, 'rows affected/returned');
+
+                if (sql.trim().toUpperCase().startsWith('SELECT')) {
+                    return result.rows;
+                } else {
+                    return {
+                        insertId: result.rows[0]?.id || null,
+                        affectedRows: result.rowCount
+                    };
+                }
+            } finally {
+                client.release();
             }
-        } finally {
-            client.release();
+        } catch (error) {
+            console.error('❌ Query execution error:', error.message);
+            console.error('SQL:', sql.substring(0, 100));
+            throw error;
         }
     }
 
