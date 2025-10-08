@@ -153,4 +153,99 @@ router.get('/plan-features', authenticateToken, async (req, res) => {
     }
 });
 
+// 管理者専用: 全ユーザー一覧取得
+router.get('/', authenticateToken, authorizeAccountType('admin'), async (req, res) => {
+    try {
+        const users = await User.findAll();
+        
+        // パスワードハッシュを除外
+        const usersWithoutPasswords = users.map(user => {
+            const { password_hash, ...userWithoutPassword } = user;
+            return userWithoutPassword;
+        });
+        
+        logger.info(`All users fetched by admin: ${req.user.userId}`);
+        res.json(usersWithoutPasswords);
+    } catch (error) {
+        logger.error('Users fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+// 管理者専用: 新規ユーザー作成
+router.post('/', authenticateToken, authorizeAccountType('admin'), async (req, res) => {
+    const { userId, name, email, password, accountType, planType, customerLimit, parentId, customerId } = req.body;
+
+    if (!userId || !name || !email || !password || !accountType) {
+        return res.status(400).json({ 
+            error: 'ユーザーID、名前、メール、パスワード、アカウント種別は必須です' 
+        });
+    }
+
+    const validAccountTypes = ['admin', 'parent', 'child', 'grandchild'];
+    if (!validAccountTypes.includes(accountType)) {
+        return res.status(400).json({ 
+            error: '無効なアカウント種別です' 
+        });
+    }
+
+    try {
+        const existingUser = await User.findByUserId(userId);
+        if (existingUser) {
+            return res.status(409).json({ error: 'ユーザーIDが既に存在します' });
+        }
+
+        const newUserId = await User.createWithDetails({
+            userId,
+            name,
+            email,
+            password,
+            accountType,
+            planType: planType || 'standard',
+            customerLimit: customerLimit || 10,
+            parentId,
+            customerId
+        });
+
+        logger.info(`New user created: ${userId} (${accountType}) by admin: ${req.user.userId}`);
+
+        res.status(201).json({ 
+            message: 'ユーザーが正常に作成されました',
+            userId: newUserId
+        });
+    } catch (error) {
+        logger.error('User creation error:', error);
+        res.status(500).json({ error: 'ユーザー作成に失敗しました' });
+    }
+});
+
+// 管理者専用: ユーザー情報更新
+router.put('/:id', authenticateToken, authorizeAccountType('admin'), async (req, res) => {
+    const { id } = req.params;
+    const { name, email, accountType, planType, customerLimit, isActive } = req.body;
+
+    try {
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ error: 'ユーザーが見つかりません' });
+        }
+
+        await User.update(id, {
+            name: name || user.name,
+            email: email || user.email,
+            accountType: accountType || user.account_type,
+            planType: planType || user.plan_type,
+            customerLimit: customerLimit !== undefined ? customerLimit : user.customer_limit,
+            isActive: isActive !== undefined ? isActive : user.is_active
+        });
+
+        logger.info(`User updated: ${user.user_id} by admin: ${req.user.userId}`);
+
+        res.json({ message: 'ユーザー情報が正常に更新されました' });
+    } catch (error) {
+        logger.error('User update error:', error);
+        res.status(500).json({ error: 'ユーザー情報の更新に失敗しました' });
+    }
+});
+
 module.exports = router;

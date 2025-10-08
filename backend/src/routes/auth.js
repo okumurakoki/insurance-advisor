@@ -17,11 +17,23 @@ router.options('*', (req, res) => {
 // Test endpoint for database connectivity
 router.get('/test', async (req, res) => {
     try {
-        const db = require('../utils/database-factory');
         console.log('Testing database connection...');
+        console.log('Environment vars:', {
+            USE_SQLITE: process.env.USE_SQLITE,
+            NODE_ENV: process.env.NODE_ENV
+        });
+        
+        const db = require('../utils/database-factory');
+        console.log('Database factory loaded');
+        
+        // Initialize if needed
+        if (db.initialize && typeof db.initialize === 'function') {
+            await db.initialize();
+            console.log('Database initialized');
+        }
         
         // Check users in database
-        const users = await db.query('SELECT id, username, user_type, name FROM prudential_users LIMIT 5');
+        const users = await db.query('SELECT id, user_id, account_type FROM users LIMIT 5');
         console.log('Users in database:', users);
         
         res.json({
@@ -30,27 +42,37 @@ router.get('/test', async (req, res) => {
             cors: 'Enabled',
             database: 'Connected',
             users: users,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            env: {
+                USE_SQLITE: process.env.USE_SQLITE,
+                NODE_ENV: process.env.NODE_ENV
+            }
         });
     } catch (error) {
         console.error('Test endpoint error:', error);
         res.status(500).json({ 
             error: error.message,
-            stack: error.stack 
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+            env: {
+                USE_SQLITE: process.env.USE_SQLITE,
+                NODE_ENV: process.env.NODE_ENV
+            }
         });
     }
 });
 
 router.post('/login', async (req, res) => {
     const { userId, password, accountType } = req.body;
-
-    if (!userId || !password || !accountType) {
-        return res.status(400).json({ 
-            error: 'User ID, password, and account type are required' 
-        });
-    }
+    console.log('Login attempt:', { userId, accountType });
 
     try {
+
+        if (!userId || !password || !accountType) {
+            return res.status(400).json({
+                error: 'User ID, password, and account type are required'
+            });
+        }
+
         const user = await User.findByUserId(userId, accountType);
 
         if (!user) {
@@ -104,6 +126,7 @@ router.post('/login', async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('Login error details:', error);
         logger.error('Login error:', {
             error: error.message,
             stack: error.stack,

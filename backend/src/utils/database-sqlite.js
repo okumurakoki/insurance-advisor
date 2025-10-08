@@ -9,21 +9,14 @@ class DatabaseSQLite {
 
     async initialize() {
         if (!this.db) {
-            const dbPath = path.join(__dirname, '../../data/insurance_advisor.db');
-            
-            // Create data directory if it doesn't exist
-            const dbDir = path.dirname(dbPath);
-            if (!fs.existsSync(dbDir)) {
-                fs.mkdirSync(dbDir, { recursive: true });
-            }
-            
             return new Promise((resolve, reject) => {
-                this.db = new sqlite3.Database(dbPath, (err) => {
+                // Use in-memory database for Vercel deployment
+                this.db = new sqlite3.Database(':memory:', (err) => {
                     if (err) {
                         console.error('Database connection failed:', err);
                         reject(err);
                     } else {
-                        console.log('SQLite database connection established');
+                        console.log('SQLite in-memory database connection established');
                         this.setupTables().then(resolve).catch(reject);
                     }
                 });
@@ -38,7 +31,7 @@ class DatabaseSQLite {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            account_type TEXT CHECK(account_type IN ('parent', 'child', 'grandchild')) NOT NULL,
+            account_type TEXT CHECK(account_type IN ('admin', 'parent', 'child', 'grandchild')) NOT NULL,
             plan_type TEXT CHECK(plan_type IN ('standard', 'master', 'exceed')) DEFAULT 'standard',
             parent_id INTEGER,
             customer_limit INTEGER DEFAULT 10,
@@ -134,9 +127,9 @@ class DatabaseSQLite {
     async insertInitialData() {
         const users = `
         INSERT OR IGNORE INTO users (user_id, password_hash, account_type, plan_type, customer_limit) VALUES
-        ('admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'parent', 'exceed', 999),
-        ('demo001', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'parent', 'master', 50),
-        ('agent001', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'child', 'standard', 10);
+        ('admin', '$2a$10$VhaxtrSyP0OFubuRg75O/e9yaSRmO7PMoD2Yk.7vzB5UjAeSUVUAW', 'admin', 'exceed', 999),
+        ('demo001', '$2a$10$VhaxtrSyP0OFubuRg75O/e9yaSRmO7PMoD2Yk.7vzB5UjAeSUVUAW', 'parent', 'master', 50),
+        ('agent001', '$2a$10$VhaxtrSyP0OFubuRg75O/e9yaSRmO7PMoD2Yk.7vzB5UjAeSUVUAW', 'child', 'standard', 10);
         `;
 
         const customers = `

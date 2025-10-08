@@ -5,6 +5,8 @@ const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
 const path = require('path');
 
+// Load local environment first, then fallback to regular .env
+dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 const app = express();
@@ -21,6 +23,7 @@ app.use(helmet({
 }));
 // CORS configuration with better error handling
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || ['*'];
+console.log('CORS allowed origins:', allowedOrigins);
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -32,13 +35,16 @@ app.use(cors({
             return callback(null, true);
         }
         
+        // Temporarily allow all origins to debug
+        return callback(null, true);
+        
         // Check if origin is in allowed list or if wildcard is set
-        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        } else {
-            console.error(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
-            return callback(new Error('Not allowed by CORS'), false);
-        }
+        // if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        //     return callback(null, true);
+        // } else {
+        //     console.error(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
+        //     return callback(new Error('Not allowed by CORS'), false);
+        // }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -73,7 +79,31 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+    res.json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        env: process.env.NODE_ENV,
+        memory: process.env.USE_MEMORY_DB
+    });
+});
+
+// Add /api/health as well
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        message: 'Insurance Advisor API is running'
+    });
+});
+
+// Simple test endpoint
+app.get('/api/test-simple', (req, res) => {
+    res.json({
+        status: 'OK',
+        message: 'Simple test endpoint working',
+        env: process.env.NODE_ENV || 'unknown',
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Add favicon handler to prevent 404s
@@ -81,12 +111,23 @@ app.get('/favicon.ico', (req, res) => {
     res.status(204).end();
 });
 
+// Global error handler
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    console.error('Global error handler:', err);
+
+    // Handle CORS errors specifically
+    if (err.message && err.message.includes('CORS')) {
+        return res.status(403).json({
+            error: 'CORS policy violation',
+            message: err.message
+        });
+    }
+
     res.status(err.status || 500).json({
-        error: process.env.NODE_ENV === 'production' 
-            ? 'Internal server error' 
-            : err.message
+        error: process.env.NODE_ENV === 'production'
+            ? 'Internal server error'
+            : err.message,
+        details: process.env.NODE_ENV === 'production' ? undefined : err.stack
     });
 });
 

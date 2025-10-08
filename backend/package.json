@@ -31,7 +31,6 @@
     "mysql2": "^3.6.5",
     "pdfkit": "^0.14.0",
     "pg": "^8.11.3",
-    "sqlite3": "^5.1.6",
     "winston": "^3.11.0"
   },
   "devDependencies": {
