@@ -106,6 +106,26 @@ app.get('/api/test-simple', (req, res) => {
     });
 });
 
+// Database test endpoint
+app.get('/api/test-db', async (req, res) => {
+    try {
+        const db = require('./utils/database-factory');
+        const users = await db.query('SELECT user_id, account_type FROM users LIMIT 5');
+        res.json({
+            status: 'OK',
+            message: 'Database connected',
+            usersCount: users.length,
+            users: users
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'ERROR',
+            message: error.message,
+            stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        });
+    }
+});
+
 // Add favicon handler to prevent 404s
 app.get('/favicon.ico', (req, res) => {
     res.status(204).end();
