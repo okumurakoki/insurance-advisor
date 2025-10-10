@@ -29,7 +29,7 @@ class User {
     }
 
     static async findById(id) {
-        const sql = 'SELECT id, user_id, password_hash, account_type, plan_type, customer_limit, parent_id, created_at, COALESCE(is_active, 1) as is_active FROM users WHERE id = $1 AND is_active = 1';
+        const sql = 'SELECT id, user_id, password_hash, account_type, plan_type, customer_limit, parent_id, created_at, is_active FROM users WHERE id = $1 AND is_active = true';
         const results = await db.query(sql, [id]);
         return results[0] || null;
     }
