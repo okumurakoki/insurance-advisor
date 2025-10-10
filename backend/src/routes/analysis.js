@@ -213,4 +213,65 @@ router.get('/export/:analysisId',
     }
 );
 
+// Get all analysis results (reports) for current user
+router.get('/results', authenticateToken, async (req, res) => {
+    try {
+        const results = await AnalysisResult.getByUserId(req.user.id);
+
+        // Format results for frontend
+        const formattedResults = await Promise.all(results.map(async (result) => {
+            const customer = await Customer.findById(result.customer_id);
+            return {
+                id: result.id,
+                title: `${customer?.name || '不明'}様 分析レポート`,
+                customerId: result.customer_id,
+                customerName: customer?.name || '不明',
+                type: 'analysis',
+                status: 'completed',
+                createdDate: result.created_at,
+                completedDate: result.created_at,
+                summary: result.recommendation_text || '最適化提案',
+                recommendations: Object.keys(result.recommended_allocation || {}).length
+            };
+        }));
+
+        res.json(formattedResults);
+    } catch (error) {
+        logger.error('Failed to fetch analysis results:', error);
+        res.status(500).json({ error: 'Failed to fetch reports' });
+    }
+});
+
+// Get single analysis result
+router.get('/results/:id', authenticateToken, async (req, res) => {
+    try {
+        const result = await AnalysisResult.findById(req.params.id);
+
+        if (!result) {
+            return res.status(404).json({ error: 'Report not found' });
+        }
+
+        const customer = await Customer.findById(result.customer_id);
+
+        if (customer.user_id !== req.user.id) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        res.json({
+            id: result.id,
+            customerId: result.customer_id,
+            customerName: customer.name,
+            analysisDate: result.analysis_date,
+            currentAllocation: result.current_allocation,
+            recommendedAllocation: result.recommended_allocation,
+            adjustmentFactors: result.adjustment_factors,
+            recommendationText: result.recommendation_text,
+            confidenceScore: result.confidence_score
+        });
+    } catch (error) {
+        logger.error('Failed to fetch analysis result:', error);
+        res.status(500).json({ error: 'Failed to fetch report' });
+    }
+});
+
 module.exports = router;
