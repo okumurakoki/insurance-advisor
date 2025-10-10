@@ -50,9 +50,6 @@ import {
   CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material';
 
-// API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.insurance-optimizer.com';
-
 // PDF Generation utility
 const generatePDF = (reportData: any, reportType: string = 'report') => {
   // Create HTML content for PDF
@@ -236,7 +233,7 @@ const generatePDF = (reportData: any, reportType: string = 'report') => {
 
       ${reportData.content?.recommendedAllocation ? `
       <div class="section">
-        <div class="section-title">推奨ポートフォリオ配分</div>
+        <div class="section-title">📊 推奨ポートフォリオ配分</div>
         ${Object.entries(reportData.content.recommendedAllocation).map(([fund, percentage]) => `
           <div class="portfolio-item">
             <span>${
@@ -269,7 +266,7 @@ const generatePDF = (reportData: any, reportType: string = 'report') => {
 
       ${reportData.currentAllocation ? `
       <div class="section">
-        <div class="section-title">今月の推奨配分変更</div>
+        <div class="section-title">📊 今月の推奨配分変更</div>
         <table class="allocation-table">
           <thead>
             <tr>
@@ -368,9 +365,14 @@ const generatePDF = (reportData: any, reportType: string = 'report') => {
   }
 };
 
-// Download functionality
-const downloadReport = (reportData: any) => {
-  generatePDF(reportData);
+// Download functionality (for future real PDF generation)
+const downloadReport = (reportData: any, format: 'pdf' | 'excel' = 'pdf') => {
+  if (format === 'pdf') {
+    generatePDF(reportData);
+  } else {
+    // Future Excel export functionality
+    alert('Excel出力機能は実装予定です');
+  }
 };
 
 const theme = createTheme({
@@ -499,40 +501,84 @@ function AppContent() {
 
   const handleLogin = async (userId: string, password: string, accountType: string) => {
     setLoading(true);
-
+    
     try {
-      // Call actual API
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          password,
-          accountType
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.token) {
-        // Store token and user data
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        setUser(data.user);
+      // Demo mode - use mock authentication for frontend demo
+      if (userId === 'admin' && password === 'password123') {
+        const mockUser = {
+          id: 1,
+          userId: 'admin',
+          accountType: 'admin' as const,
+          planType: 'exceed' as const,
+          customerLimit: 999
+        };
+        
+        localStorage.setItem('token', 'demo-token-' + Date.now());
+        localStorage.setItem('user', JSON.stringify(mockUser));
+        setUser(mockUser);
         setIsLoggedIn(true);
         fetchMarketData();
-        setLoading(false);
-      } else {
-        alert('ログインに失敗しました: ' + (data.error || '無効なユーザーIDまたはパスワードです'));
-        setLoading(false);
+        return;
       }
+      
+      if (userId === 'demo_agency' && password === 'password123') {
+        const mockUser = {
+          id: 2,
+          userId: 'demo_agency',
+          accountType: 'parent' as const,
+          planType: 'master' as const,
+          customerLimit: 50
+        };
+        
+        localStorage.setItem('token', 'demo-token-' + Date.now());
+        localStorage.setItem('user', JSON.stringify(mockUser));
+        setUser(mockUser);
+        setIsLoggedIn(true);
+        fetchMarketData();
+        return;
+      }
+      
+      if (userId === 'demo_staff' && password === 'password123') {
+        const mockUser = {
+          id: 3,
+          userId: 'demo_staff',
+          accountType: 'child' as const,
+          planType: 'standard' as const,
+          customerLimit: 10
+        };
+        
+        localStorage.setItem('token', 'demo-token-' + Date.now());
+        localStorage.setItem('user', JSON.stringify(mockUser));
+        setUser(mockUser);
+        setIsLoggedIn(true);
+        fetchMarketData();
+        return;
+      }
+      
+      if (userId === 'demo_customer' && password === 'password123') {
+        const mockUser = {
+          id: 4,
+          userId: 'demo_customer',
+          accountType: 'grandchild' as const,
+          planType: 'standard' as const,
+          customerLimit: 0,
+          customerId: 1  // Link to specific customer (田中太郎)
+        };
+        
+        localStorage.setItem('token', 'demo-token-' + Date.now());
+        localStorage.setItem('user', JSON.stringify(mockUser));
+        setUser(mockUser);
+        setIsLoggedIn(true);
+        fetchMarketData();
+        return;
+      }
+      
+      // For invalid credentials
+      alert('ログインに失敗しました: 無効なユーザーIDまたはパスワードです');
     } catch (error) {
-      console.error('Login error:', error);
-      alert('ログインエラー: サーバーに接続できません');
-      setLoading(false);
+      alert('ログインエラー: ' + error);
     }
+    setLoading(false);
   };
 
   const handleLogout = () => {
@@ -571,7 +617,6 @@ function AppContent() {
     { path: '/dashboard', icon: <DashboardIcon />, text: 'ダッシュボード' },
     ...(user?.accountType !== 'grandchild' ? [{ path: '/customers', icon: <PeopleIcon />, text: '顧客管理' }] : []),
     ...(user?.accountType === 'admin' ? [{ path: '/products', icon: <AssessmentIcon />, text: 'ファンド管理' }] : []),
-    ...(user?.accountType === 'admin' ? [{ path: '/users', icon: <PeopleIcon />, text: 'ユーザー管理' }] : []),
     { path: '/reports', icon: <AssessmentIcon />, text: user?.accountType === 'grandchild' ? 'マイレポート' : 'レポート' },
     ...(user?.accountType !== 'grandchild' ? [{ path: '/alerts', icon: <NotificationsIcon />, text: '通知・アラート' }] : []),
   ];
@@ -705,13 +750,6 @@ function AppContent() {
           <Route path="/products/upload-pdf" element={<PDFUploadForm user={user} navigate={navigate} />} />
           <Route path="/products/:id" element={<ProductDetail user={user} navigate={navigate} />} />
           <Route path="/products/:id/edit" element={<ProductForm user={user} navigate={navigate} isEdit={true} />} />
-          {user?.accountType === 'admin' && (
-            <>
-              <Route path="/users" element={<UserManagement user={user} navigate={navigate} />} />
-              <Route path="/users/new" element={<UserForm user={user} navigate={navigate} />} />
-              <Route path="/users/:id/edit" element={<UserForm user={user} navigate={navigate} isEdit={true} />} />
-            </>
-          )}
           <Route path="/reports" element={<ReportList user={user} navigate={navigate} />} />
           <Route path="/reports/new" element={<ReportForm user={user} navigate={navigate} />} />
           <Route path="/reports/:id" element={<ReportDetail user={user} navigate={navigate} />} />
@@ -886,7 +924,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
             <Box>
               <Typography variant="h4" component="h1" gutterBottom>
-                {user.accountType === 'grandchild' ? 'マイ投資ダッシュボード' : '投資ダッシュボード'}
+                {user.accountType === 'grandchild' ? '📊 マイ投資ダッシュボード' : '📊 投資ダッシュボード'}
               </Typography>
               <Typography variant="subtitle1" gutterBottom>
                 ようこそ、{user.userId} さん ({user.accountType === 'grandchild' ? '顧客' : getPlanTypeLabel(user.planType)})
@@ -934,55 +972,71 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     ファンド配分の変更提案
                   </Typography>
                   
-                  {/* ビフォー・アフター 円グラフ表示 */}
+                  {/* ファンド別配分表示（プログレスバー形式） */}
                   <Grid container spacing={2}>
                     <Grid item xs={12} md={6}>
                       <Card sx={{ p: 3, boxShadow: 1 }}>
                         <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center' }}>
                           現在の配分
                         </Typography>
-                        <Box sx={{ mt: 3 }}>
-                          {Object.entries(optimizationResults.recommendations).map(([fundKey, fund]) => (
-                            <Box key={fundKey} sx={{ mb: 2 }}>
-                              <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                                <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                                  {fundKey === 'equity' ? '国内株式型' :
-                                   fundKey === 'usEquity' ? '米国株式型' :
-                                   fundKey === 'usBond' ? '米国債券型' :
-                                   fundKey === 'reit' ? 'REIT型' : '世界株式型'}
-                                </Typography>
-                                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                                  {fund.current}%
-                                </Typography>
-                              </Box>
-                              <Box sx={{ position: 'relative', height: 28 }}>
-                                <LinearProgress
-                                  variant="determinate"
-                                  value={fund.current}
-                                  sx={{
-                                    height: 28,
-                                    borderRadius: 2,
-                                    backgroundColor: '#e0e0e0',
-                                    '& .MuiLinearProgress-bar': {
-                                      backgroundColor: '#757575',
-                                      borderRadius: 2,
-                                    }
-                                  }}
-                                />
-                                <Box
-                                  sx={{
-                                    position: 'absolute',
-                                    left: '50%',
-                                    top: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    color: fund.current > 50 ? 'white' : 'text.primary',
-                                    fontWeight: 'bold',
-                                    fontSize: '0.875rem'
-                                  }}
-                                >
-                                  {fund.current}%
-                                </Box>
-                              </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                          <Box sx={{ position: 'relative', width: 180, height: 180 }}>
+                            <svg width="180" height="180" viewBox="0 0 180 180">
+                              {/* 円グラフの描画 */}
+                              {(() => {
+                                let currentAngle = 0;
+                                const colors = ['#9e9e9e', '#757575', '#616161', '#424242', '#212121'];
+                                return Object.entries(optimizationResults.recommendations).map(([fundKey, fund], index) => {
+                                  const angle = (fund.current / 100) * 360;
+                                  const startAngle = currentAngle;
+                                  const endAngle = currentAngle + angle;
+                                  currentAngle = endAngle;
+                                  
+                                  const startAngleRad = (startAngle * Math.PI) / 180;
+                                  const endAngleRad = (endAngle * Math.PI) / 180;
+                                  
+                                  const x1 = 90 + 80 * Math.cos(startAngleRad);
+                                  const y1 = 90 + 80 * Math.sin(startAngleRad);
+                                  const x2 = 90 + 80 * Math.cos(endAngleRad);
+                                  const y2 = 90 + 80 * Math.sin(endAngleRad);
+                                  
+                                  const largeArcFlag = angle > 180 ? 1 : 0;
+                                  
+                                  return (
+                                    <path
+                                      key={fundKey}
+                                      d={`M 90 90 L ${x1} ${y1} A 80 80 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                                      fill={colors[index]}
+                                      stroke="white"
+                                      strokeWidth="2"
+                                    />
+                                  );
+                                });
+                              })()}
+                            </svg>
+                          </Box>
+                        </Box>
+                        <Box>
+                          {Object.entries(optimizationResults.recommendations).map(([fundKey, fund], index) => (
+                            <Box key={fundKey} display="flex" alignItems="center" mb={1}>
+                              <Box
+                                sx={{
+                                  width: 16,
+                                  height: 16,
+                                  backgroundColor: ['#9e9e9e', '#757575', '#616161', '#424242', '#212121'][index],
+                                  borderRadius: 1,
+                                  mr: 1
+                                }}
+                              />
+                              <Typography variant="body1" sx={{ fontWeight: 'bold', flex: 1 }}>
+                                {fundKey === 'equity' ? '国内株式型' :
+                                 fundKey === 'usEquity' ? '米国株式型' :
+                                 fundKey === 'usBond' ? '米国債券型' :
+                                 fundKey === 'reit' ? 'REIT型' : '世界株式型'}
+                              </Typography>
+                              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                {fund.current}%
+                              </Typography>
                             </Box>
                           ))}
                         </Box>
@@ -994,90 +1048,75 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                         <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center', color: 'primary.main' }}>
                           🎯 推奨配分
                         </Typography>
-                        <Box sx={{ mt: 3 }}>
-                          {Object.entries(optimizationResults.recommendations).map(([fundKey, fund]) => {
-                            const getBarColor = () => {
-                              if (fundKey === 'equity') return '#4caf50';
-                              if (fundKey === 'usEquity') return '#2196f3';
-                              if (fundKey === 'usBond') return '#ff9800';
-                              if (fundKey === 'reit') return '#f44336';
-                              return '#9c27b0';
-                            };
-                            return (
-                              <Box key={fundKey} sx={{ mb: 2 }}>
-                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                                  <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                                    {fundKey === 'equity' ? '国内株式型' :
-                                     fundKey === 'usEquity' ? '米国株式型' :
-                                     fundKey === 'usBond' ? '米国債券型' :
-                                     fundKey === 'reit' ? 'REIT型' : '世界株式型'}
-                                  </Typography>
-                                  <Box display="flex" alignItems="center" gap={1}>
-                                    {fund.change !== 0 && (
-                                      <Chip 
-                                        label={`${fund.change > 0 ? '+' : ''}${fund.change}%`}
-                                        color={fund.change > 0 ? "success" : "warning"}
-                                        sx={{ fontSize: '0.9rem', fontWeight: 'bold' }}
-                                      />
-                                    )}
-                                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: getBarColor() }}>
-                                      {fund.recommended}%
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                                <Box sx={{ position: 'relative', height: 28 }}>
-                                  <LinearProgress
-                                    variant="determinate"
-                                    value={fund.recommended}
-                                    sx={{
-                                      height: 28,
-                                      borderRadius: 2,
-                                      backgroundColor: '#e0e0e0',
-                                      '& .MuiLinearProgress-bar': {
-                                        backgroundColor: getBarColor(),
-                                        borderRadius: 2,
-                                      }
-                                    }}
-                                  />
-                                  <Box
-                                    sx={{
-                                      position: 'absolute',
-                                      left: '50%',
-                                      top: '50%',
-                                      transform: 'translate(-50%, -50%)',
-                                      color: fund.recommended > 50 ? 'white' : 'text.primary',
-                                      fontWeight: 'bold',
-                                      fontSize: '0.875rem'
-                                    }}
-                                  >
-                                    {fund.recommended}%
-                                  </Box>
-                                  {fund.change !== 0 && (
-                                    <Box
-                                      sx={{
-                                        position: 'absolute',
-                                        left: `${fund.current}%`,
-                                        top: -8,
-                                        bottom: -8,
-                                        width: 2,
-                                        backgroundColor: '#000',
-                                        opacity: 0.3,
-                                        '&::before': {
-                                          content: '"前"',
-                                          position: 'absolute',
-                                          bottom: -20,
-                                          left: '50%',
-                                          transform: 'translateX(-50%)',
-                                          fontSize: '0.75rem',
-                                          whiteSpace: 'nowrap'
-                                        }
-                                      }}
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                          <Box sx={{ position: 'relative', width: 180, height: 180 }}>
+                            <svg width="180" height="180" viewBox="0 0 180 180">
+                              {/* 推奨配分の円グラフ */}
+                              {(() => {
+                                let currentAngle = 0;
+                                const colors = ['#4caf50', '#2196f3', '#ff9800', '#f44336', '#9c27b0'];
+                                return Object.entries(optimizationResults.recommendations).map(([fundKey, fund], index) => {
+                                  const angle = (fund.recommended / 100) * 360;
+                                  const startAngle = currentAngle;
+                                  const endAngle = currentAngle + angle;
+                                  currentAngle = endAngle;
+                                  
+                                  const startAngleRad = (startAngle * Math.PI) / 180;
+                                  const endAngleRad = (endAngle * Math.PI) / 180;
+                                  
+                                  const x1 = 90 + 80 * Math.cos(startAngleRad);
+                                  const y1 = 90 + 80 * Math.sin(startAngleRad);
+                                  const x2 = 90 + 80 * Math.cos(endAngleRad);
+                                  const y2 = 90 + 80 * Math.sin(endAngleRad);
+                                  
+                                  const largeArcFlag = angle > 180 ? 1 : 0;
+                                  
+                                  return (
+                                    <path
+                                      key={fundKey}
+                                      d={`M 90 90 L ${x1} ${y1} A 80 80 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                                      fill={colors[index]}
+                                      stroke="white"
+                                      strokeWidth="2"
                                     />
-                                  )}
-                                </Box>
+                                  );
+                                });
+                              })()}
+                            </svg>
+                          </Box>
+                        </Box>
+                        <Box>
+                          {Object.entries(optimizationResults.recommendations).map(([fundKey, fund], index) => (
+                            <Box key={fundKey} display="flex" alignItems="center" mb={1}>
+                              <Box
+                                sx={{
+                                  width: 16,
+                                  height: 16,
+                                  backgroundColor: ['#4caf50', '#2196f3', '#ff9800', '#f44336', '#9c27b0'][index],
+                                  borderRadius: 1,
+                                  mr: 1
+                                }}
+                              />
+                              <Typography variant="body1" sx={{ fontWeight: 'bold', flex: 1 }}>
+                                {fundKey === 'equity' ? '国内株式型' :
+                                 fundKey === 'usEquity' ? '米国株式型' :
+                                 fundKey === 'usBond' ? '米国債券型' :
+                                 fundKey === 'reit' ? 'REIT型' : '世界株式型'}
+                              </Typography>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                {fund.change !== 0 && (
+                                  <Chip 
+                                    label={`${fund.change > 0 ? '+' : ''}${fund.change}%`}
+                                    color={fund.change > 0 ? "success" : "warning"}
+                                    sx={{ fontSize: '0.9rem', fontWeight: 'bold' }}
+                                  />
+                                )}
+                                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                  {fund.recommended}%
+                                </Typography>
                               </Box>
-                            );
-                          })}
+                            </Box>
+                          ))}
                         </Box>
                       </Card>
                     </Grid>
@@ -1239,30 +1278,37 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center' }}>
                       📋 現在の配分
                     </Typography>
-                    <Box sx={{ mt: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+                      <Box sx={{ position: 'relative', width: 120, height: 120, bgcolor: 'grey.200', borderRadius: '50%' }}>
+                        <Box sx={{ 
+                          position: 'absolute', 
+                          top: '50%', 
+                          left: '50%', 
+                          transform: 'translate(-50%, -50%)',
+                          fontSize: '24px'
+                        }}>
+                          📊
+                        </Box>
+                      </Box>
+                    </Box>
+                    <Box>
                       {['国内株式型', '米国株式型', '米国債券型', 'REIT型', '世界株式型'].map((name, index) => (
-                        <Box key={index} sx={{ mb: 1.5 }}>
-                          <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              {name}
-                            </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              --%
-                            </Typography>
-                          </Box>
-                          <LinearProgress
-                            variant="determinate"
-                            value={0}
+                        <Box key={index} display="flex" alignItems="center" mb={1}>
+                          <Box
                             sx={{
-                              height: 20,
-                              borderRadius: 2,
-                              backgroundColor: '#e0e0e0',
-                              '& .MuiLinearProgress-bar': {
-                                backgroundColor: 'grey.400',
-                                borderRadius: 2,
-                              }
+                              width: 16,
+                              height: 16,
+                              backgroundColor: 'grey.300',
+                              borderRadius: 1,
+                              mr: 1
                             }}
                           />
+                          <Typography variant="body2" sx={{ fontWeight: 'bold', flex: 1 }}>
+                            {name}
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                            --%
+                          </Typography>
                         </Box>
                       ))}
                     </Box>
@@ -1274,30 +1320,37 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center', color: 'text.secondary' }}>
                       🎯 推奨配分
                     </Typography>
-                    <Box sx={{ mt: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+                      <Box sx={{ position: 'relative', width: 120, height: 120, bgcolor: 'grey.200', borderRadius: '50%' }}>
+                        <Box sx={{ 
+                          position: 'absolute', 
+                          top: '50%', 
+                          left: '50%', 
+                          transform: 'translate(-50%, -50%)',
+                          fontSize: '24px'
+                        }}>
+                          🎯
+                        </Box>
+                      </Box>
+                    </Box>
+                    <Box>
                       {['国内株式型', '米国株式型', '米国債券型', 'REIT型', '世界株式型'].map((name, index) => (
-                        <Box key={index} sx={{ mb: 1.5 }}>
-                          <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              {name}
-                            </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              --%
-                            </Typography>
-                          </Box>
-                          <LinearProgress
-                            variant="determinate"
-                            value={0}
+                        <Box key={index} display="flex" alignItems="center" mb={1}>
+                          <Box
                             sx={{
-                              height: 20,
-                              borderRadius: 2,
-                              backgroundColor: '#e0e0e0',
-                              '& .MuiLinearProgress-bar': {
-                                backgroundColor: 'grey.400',
-                                borderRadius: 2,
-                              }
+                              width: 16,
+                              height: 16,
+                              backgroundColor: 'grey.300',
+                              borderRadius: 1,
+                              mr: 1
                             }}
                           />
+                          <Typography variant="body2" sx={{ fontWeight: 'bold', flex: 1 }}>
+                            {name}
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                            --%
+                          </Typography>
                         </Box>
                       ))}
                     </Box>
@@ -1323,7 +1376,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                   <Grid item xs={12} sm={6}>
                     <Card sx={{ p: 2, bgcolor: 'grey.50' }}>
                       <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                        PDFレポート出力可能
+                        詳細レポート出力可能
                       </Typography>
                       <Typography variant="caption">
                         PDF形式でダウンロードできます
@@ -1632,7 +1685,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <Typography variant="body2" color="primary.main" fontWeight="bold">
-                    安定運用: 米国債券型
+                    📊 安定運用: 米国債券型
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     金利上昇局面でも安定したパフォーマンス。
@@ -4062,6 +4115,19 @@ function ReportDetail({ user, navigate }: ReportDetailProps) {
           </Button>
           {user?.accountType !== 'grandchild' && (
             <>
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={() => downloadReport(report, 'excel')}
+              >
+                Excel出力
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => navigate(`/customers/${report.customerId}`)}
+              >
+                顧客詳細を見る
+              </Button>
             </>
           )}
         </Box>
@@ -5215,7 +5281,7 @@ function BacktestEngine({ user, navigate }: BacktestEngineProps) {
               {/* パフォーマンス概要 */}
               <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                  パフォーマンス概要
+                  📊 パフォーマンス概要
                 </Typography>
                 <Grid container spacing={3}>
                   <Grid item xs={6} sm={4}>
@@ -5606,7 +5672,7 @@ function CustomerComparison({ user, navigate }: CustomerComparisonProps) {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        顧客比較分析
+        📊 顧客比較分析
       </Typography>
       <Typography variant="subtitle1" color="text.secondary" gutterBottom>
         複数の顧客のパフォーマンスとポートフォリオを比較分析します
@@ -5787,7 +5853,7 @@ function CustomerComparison({ user, navigate }: CustomerComparisonProps) {
           {viewMode === 'portfolio' && (
             <Paper sx={{ p: 3, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
-                ポートフォリオ配分比較
+                📊 ポートフォリオ配分比較
               </Typography>
               <Grid container spacing={3}>
                 {selectedData.map(customer => (
@@ -6211,7 +6277,7 @@ function PDFUploadForm({ user, navigate }: PDFUploadFormProps) {
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-              抽出されたファンド情報
+              📊 抽出されたファンド情報
             </Typography>
             
             {!extractedData ? (
@@ -6302,472 +6368,6 @@ function PDFUploadForm({ user, navigate }: PDFUploadFormProps) {
           • 更新履歴は自動的に記録されます
         </Typography>
       </Alert>
-    </Container>
-  );
-}
-
-// User Management Component
-interface UserManagementProps {
-  user: User;
-  navigate: (path: string) => void;
-}
-
-function UserManagement({ user, navigate }: UserManagementProps) {
-  const [users, setUsers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch('https://api.insurance-optimizer.com/api/users', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (response.ok) {
-          const userData = await response.json();
-          setUsers(userData);
-          setFilteredUsers(userData);
-        } else {
-          // フォールバック：APIが利用できない場合はモックデータを使用
-          const mockUsers = [
-            {
-              id: 1,
-              userId: 'admin',
-              name: 'システム管理者',
-              email: 'admin@insurance-optimizer.com',
-              accountType: 'admin',
-              planType: 'exceed',
-              customerLimit: 1000,
-              isActive: true,
-              lastLogin: '2024-01-20T10:30:00',
-              createdAt: '2024-01-01T00:00:00'
-            },
-            {
-              id: 2,
-              userId: 'demo_agency',
-              name: '代理店テスト',
-              email: 'agency@test.com',
-              accountType: 'parent',
-              planType: 'master',
-              customerLimit: 100,
-              isActive: true,
-              lastLogin: '2024-01-20T09:15:00',
-              createdAt: '2024-01-05T00:00:00'
-            },
-            {
-              id: 3,
-              userId: 'demo_staff',
-              name: '担当者テスト',
-              email: 'staff@test.com',
-              accountType: 'child',
-              planType: 'standard',
-              customerLimit: 10,
-              parentId: 2,
-              isActive: true,
-              lastLogin: '2024-01-19T14:20:00',
-              createdAt: '2024-01-10T00:00:00'
-            },
-            {
-              id: 4,
-              userId: 'demo_customer',
-              name: '田中太郎',
-              email: 'tanaka@test.com',
-              accountType: 'grandchild',
-              planType: 'standard',
-              customerLimit: 0,
-              customerId: 1,
-              isActive: true,
-              lastLogin: '2024-01-20T08:00:00',
-              createdAt: '2024-01-15T00:00:00'
-            }
-          ];
-          setUsers(mockUsers);
-          setFilteredUsers(mockUsers);
-        }
-      } catch (error) {
-        console.error('Failed to fetch users:', error);
-        // エラー時もモックデータを使用
-        const mockUsers = [
-          {
-            id: 1,
-            userId: 'admin',
-            name: 'システム管理者',
-            email: 'admin@insurance-optimizer.com',
-            accountType: 'admin',
-            planType: 'exceed',
-            customerLimit: 1000,
-            isActive: true,
-            lastLogin: '2024-01-20T10:30:00',
-            createdAt: '2024-01-01T00:00:00'
-          }
-        ];
-        setUsers(mockUsers);
-        setFilteredUsers(mockUsers);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchUsers();
-  }, []);
-
-  useEffect(() => {
-    let filtered = users;
-    if (searchTerm) {
-      filtered = filtered.filter(user => 
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    setFilteredUsers(filtered);
-  }, [users, searchTerm]);
-
-  const getAccountTypeLabel = (accountType: string) => {
-    const labels = {
-      admin: '管理者',
-      parent: '代理店',
-      child: '担当者',
-      grandchild: '顧客'
-    };
-    return labels[accountType as keyof typeof labels] || accountType;
-  };
-
-  const getPlanTypeLabel = (planType: string) => {
-    const labels = {
-      standard: 'スタンダード',
-      master: 'マスター',
-      exceed: 'エクシード'
-    };
-    return labels[planType as keyof typeof labels] || planType;
-  };
-
-  if (loading) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="300px">
-          <CircularProgress />
-        </Box>
-      </Container>
-    );
-  }
-
-  return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1">
-          ユーザー管理
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate('/users/new')}
-        >
-          新規ユーザー作成
-        </Button>
-      </Box>
-
-      {/* 検索バー */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="ユーザー検索"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="名前、ユーザーID、メールアドレスで検索"
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Typography variant="body2" color="text.secondary">
-              {filteredUsers.length}件 / {users.length}件
-            </Typography>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      {/* ユーザー一覧 */}
-      <Paper sx={{ overflow: 'hidden' }}>
-        {filteredUsers.map((userData) => (
-          <Card 
-            key={userData.id} 
-            variant="outlined" 
-            sx={{ 
-              m: 1,
-              cursor: 'pointer',
-              '&:hover': { 
-                backgroundColor: 'action.hover',
-                transform: 'translateY(-2px)',
-                transition: 'all 0.2s ease-in-out'
-              }
-            }}
-            onClick={() => navigate(`/users/${userData.id}/edit`)}
-          >
-            <CardContent>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={3}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Person />
-                    <Box>
-                      <Typography variant="h6" component="div">
-                        {userData.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        @{userData.userId}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                
-                <Grid item xs={12} sm={3}>
-                  <Typography variant="body2" color="text.secondary">
-                    メールアドレス
-                  </Typography>
-                  <Typography variant="body2">
-                    {userData.email}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12} sm={2}>
-                  <Typography variant="body2" color="text.secondary">
-                    アカウント種別
-                  </Typography>
-                  <Chip
-                    label={getAccountTypeLabel(userData.accountType)}
-                    color={userData.accountType === 'admin' ? 'error' : 
-                           userData.accountType === 'parent' ? 'primary' : 'default'}
-                    size="small"
-                  />
-                </Grid>
-                
-                <Grid item xs={12} sm={2}>
-                  <Typography variant="body2" color="text.secondary">
-                    プラン
-                  </Typography>
-                  <Typography variant="body2">
-                    {getPlanTypeLabel(userData.planType)}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12} sm={2}>
-                  <Box display="flex" flexDirection="column" gap={1}>
-                    <Chip
-                      label={userData.isActive ? '有効' : '無効'}
-                      color={userData.isActive ? 'success' : 'error'}
-                      size="small"
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      最終ログイン: {new Date(userData.lastLogin).toLocaleDateString('ja-JP')}
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        ))}
-        
-        {filteredUsers.length === 0 && users.length > 0 && (
-          <Box textAlign="center" py={8}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              検索条件に一致するユーザーが見つかりません
-            </Typography>
-            <Button
-              variant="outlined"
-              onClick={() => setSearchTerm('')}
-            >
-              検索条件をリセット
-            </Button>
-          </Box>
-        )}
-      </Paper>
-    </Container>
-  );
-}
-
-// User Form Component
-interface UserFormProps {
-  user: User;
-  navigate: (path: string) => void;
-  isEdit?: boolean;
-}
-
-function UserForm({ user, navigate, isEdit = false }: UserFormProps) {
-  const [formData, setFormData] = useState({
-    userId: '',
-    name: '',
-    email: '',
-    password: '',
-    accountType: 'child',
-    planType: 'standard',
-    customerLimit: 10,
-    parentId: '',
-    customerId: '',
-    isActive: true
-  });
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    try {
-      // 実際のAPI呼び出し
-      const url = isEdit && formData.id 
-        ? `https://api.insurance-optimizer.com/api/users/${formData.id}`
-        : 'https://api.insurance-optimizer.com/api/users';
-        
-      const response = await fetch(url, {
-        method: isEdit ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(formData)
-      });
-      
-      if (response.ok) {
-        alert(isEdit ? 'ユーザー情報を更新しました' : '新規ユーザーを作成しました');
-        navigate('/users');
-      } else {
-        alert('操作に失敗しました。再度お試しください。');
-      }
-    } catch (error) {
-      console.error('User operation failed:', error);
-      alert('操作に失敗しました。ネットワーク接続を確認してください。');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          {isEdit ? 'ユーザー情報編集' : '新規ユーザー作成'}
-        </Typography>
-        
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                required
-                fullWidth
-                label="ユーザーID"
-                value={formData.userId}
-                onChange={(e) => handleChange('userId', e.target.value)}
-                disabled={isEdit}
-                helperText={isEdit ? 'ユーザーIDは変更できません' : ''}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                required
-                fullWidth
-                label="名前"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                required
-                fullWidth
-                type="email"
-                label="メールアドレス"
-                value={formData.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                required={!isEdit}
-                fullWidth
-                type="password"
-                label="パスワード"
-                value={formData.password}
-                onChange={(e) => handleChange('password', e.target.value)}
-                helperText={isEdit ? '変更する場合のみ入力' : ''}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                required
-                fullWidth
-                select
-                label="アカウント種別"
-                value={formData.accountType}
-                onChange={(e) => handleChange('accountType', e.target.value)}
-                SelectProps={{ native: true }}
-              >
-                <option value="admin">管理者</option>
-                <option value="parent">代理店</option>
-                <option value="child">担当者</option>
-                <option value="grandchild">顧客</option>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                required
-                fullWidth
-                select
-                label="プランタイプ"
-                value={formData.planType}
-                onChange={(e) => handleChange('planType', e.target.value)}
-                SelectProps={{ native: true }}
-              >
-                <option value="standard">スタンダード</option>
-                <option value="master">マスター</option>
-                <option value="exceed">エクシード</option>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="number"
-                label="顧客上限数"
-                value={formData.customerLimit}
-                onChange={(e) => handleChange('customerLimit', parseInt(e.target.value))}
-                disabled={formData.accountType === 'grandchild'}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <input
-                  type="checkbox"
-                  checked={formData.isActive}
-                  onChange={(e) => handleChange('isActive', e.target.checked)}
-                />
-                <Typography>アクティブ</Typography>
-              </Box>
-            </Grid>
-          </Grid>
-
-          <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/users')}
-            >
-              キャンセル
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={loading}
-            >
-              {loading ? <CircularProgress size={24} /> : (isEdit ? '更新' : '作成')}
-            </Button>
-          </Box>
-        </Box>
-      </Paper>
     </Container>
   );
 }
