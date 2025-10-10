@@ -51,7 +51,7 @@ import {
 } from '@mui/icons-material';
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.insurance-optimizer.com';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com';
 
 // PDF Generation utility
 const generatePDF = (reportData: any, reportType: string = 'report') => {
