@@ -51,7 +51,7 @@ import {
 } from '@mui/icons-material';
 
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com';
+const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com').replace(/\/+$/, '');
 
 // PDF Generation utility
 const generatePDF = (reportData: any, reportType: string = 'report') => {
@@ -502,7 +502,11 @@ function AppContent() {
 
     try {
       // Call actual API
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const url = `${API_BASE_URL}/api/auth/login`;
+      console.log('Login API URL:', url);
+      console.log('Login request:', { userId, accountType });
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -513,6 +517,8 @@ function AppContent() {
           accountType
         }),
       });
+
+      console.log('Response status:', response.status);
 
       const data = await response.json();
 
@@ -1897,65 +1903,48 @@ function CustomerList({ user, navigate }: CustomerListProps) {
   const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
-    // Mock customer data
-    const mockCustomers = [
-      {
-        id: 1,
-        name: '田中 太郎',
-        email: 'tanaka@example.com',
-        phone: '090-1234-5678',
-        contractDate: '2023-01-15',
-        monthlyPremium: 25000,
-        riskTolerance: 'balanced',
-        status: 'active'
-      },
-      {
-        id: 2,
-        name: '佐藤 花子',
-        email: 'sato@example.com',
-        phone: '090-2345-6789',
-        contractDate: '2023-03-20',
-        monthlyPremium: 18000,
-        riskTolerance: 'conservative',
-        status: 'active'
-      },
-      {
-        id: 3,
-        name: '山田 次郎',
-        email: 'yamada@example.com',
-        phone: '090-3456-7890',
-        contractDate: '2023-05-10',
-        monthlyPremium: 35000,
-        riskTolerance: 'aggressive',
-        status: 'active'
-      },
-      {
-        id: 4,
-        name: '鈴木 一郎',
-        email: 'suzuki@example.com',
-        phone: '090-4567-8901',
-        contractDate: '2023-02-28',
-        monthlyPremium: 22000,
-        riskTolerance: 'conservative',
-        status: 'active'
-      },
-      {
-        id: 5,
-        name: '高橋 美咲',
-        email: 'takahashi@example.com',
-        phone: '090-5678-9012',
-        contractDate: '2023-04-15',
-        monthlyPremium: 28000,
-        riskTolerance: 'balanced',
-        status: 'inactive'
+    // Fetch customers from API
+    const fetchCustomers = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/customers`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Convert API data to frontend format
+          const formattedCustomers = data.map((customer: any) => ({
+            id: customer.id,
+            name: customer.name,
+            email: customer.email || '',
+            phone: customer.phone || '',
+            contractDate: customer.contract_date || customer.contractDate,
+            monthlyPremium: customer.monthly_premium || customer.monthlyPremium,
+            riskTolerance: customer.risk_tolerance || customer.riskTolerance || 'balanced',
+            status: customer.is_active ? 'active' : 'inactive'
+          }));
+          setCustomers(formattedCustomers);
+          setFilteredCustomers(formattedCustomers);
+        } else {
+          console.error('Failed to fetch customers:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+      } finally {
+        setLoading(false);
       }
-    ];
-    
-    setTimeout(() => {
-      setCustomers(mockCustomers);
-      setFilteredCustomers(mockCustomers);
-      setLoading(false);
-    }, 500);
+    };
+
+    fetchCustomers();
   }, []);
 
   // フィルタリング機能
@@ -2223,12 +2212,52 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
     e.preventDefault();
     setLoading(true);
 
-    // Mock save operation
-    setTimeout(() => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('認証エラー: ログインしてください');
+        navigate('/');
+        return;
+      }
+
+      const url = isEdit
+        ? `${API_BASE_URL}/api/customers/${id}`
+        : `${API_BASE_URL}/api/customers`;
+
+      const method = isEdit ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          contractDate: formData.contractDate,
+          contractAmount: parseFloat(formData.contractAmount),
+          monthlyPremium: parseFloat(formData.monthlyPremium),
+          riskTolerance: formData.riskTolerance,
+          investmentGoal: formData.investmentGoal,
+          notes: formData.notes
+        })
+      });
+
+      if (response.ok) {
+        alert(isEdit ? '顧客情報を更新しました' : '新規顧客を登録しました');
+        navigate('/customers');
+      } else {
+        const error = await response.json();
+        alert(`エラー: ${error.error || '保存に失敗しました'}`);
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('保存中にエラーが発生しました');
+    } finally {
       setLoading(false);
-      alert(isEdit ? '顧客情報を更新しました' : '新規顧客を登録しました');
-      navigate('/customers');
-    }, 1000);
+    }
   };
 
   const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -2371,47 +2400,60 @@ interface CustomerDetailProps {
 }
 
 function CustomerDetail({ user, navigate }: CustomerDetailProps) {
+  const location = useLocation();
+  const customerId = location.pathname.split('/')[2];
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
-    // Mock customer detail data
-    const mockCustomer = {
-      id: 1,
-      name: '田中 太郎',
-      email: 'tanaka@example.com',
-      phone: '090-1234-5678',
-      contractDate: '2023-01-15',
-      monthlyPremium: 25000,
-      contractAmount: 5000000,
-      riskTolerance: 'balanced',
-      investmentGoal: '老後資金の準備',
-      notes: '定期的な見直しを希望',
-      status: 'active',
-      portfolio: {
-        equity: 25,
-        usEquity: 20,
-        usBond: 30,
-        reit: 15,
-        globalEquity: 10
-      },
-      performanceHistory: [
-        { month: '2023-07', value: 100, return: 0 },
-        { month: '2023-08', value: 102.3, return: 2.3 },
-        { month: '2023-09', value: 101.8, return: -0.5 },
-        { month: '2023-10', value: 105.2, return: 3.4 },
-        { month: '2023-11', value: 108.7, return: 3.5 },
-        { month: '2023-12', value: 112.5, return: 3.8 },
-        { month: '2024-01', value: 115.8, return: 3.3 }
-      ]
+    const fetchCustomerDetail = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/');
+          return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/customers/${customerId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setCustomer({
+            id: data.id,
+            name: data.name,
+            email: data.email || '',
+            phone: data.phone || '',
+            contractDate: data.contract_date || data.contractDate,
+            monthlyPremium: data.monthly_premium || data.monthlyPremium,
+            contractAmount: data.contract_amount || data.contractAmount,
+            riskTolerance: data.risk_tolerance || data.riskTolerance || 'balanced',
+            investmentGoal: data.investment_goal || data.investmentGoal || '',
+            notes: data.notes || '',
+            status: data.is_active ? 'active' : 'inactive',
+            portfolio: { equity: 0, usEquity: 0, usBond: 0, reit: 0, globalEquity: 0 },
+            performanceHistory: []
+          });
+        } else {
+          alert('顧客情報の取得に失敗しました');
+          navigate('/customers');
+        }
+      } catch (error) {
+        console.error('Error fetching customer detail:', error);
+        alert('エラーが発生しました');
+        navigate('/customers');
+      } finally {
+        setLoading(false);
+      }
     };
-    
-    setTimeout(() => {
-      setCustomer(mockCustomer);
-      setLoading(false);
-    }, 500);
-  }, []);
+
+    fetchCustomerDetail();
+  }, [customerId, navigate]);
 
   if (loading) {
     return (
@@ -3547,64 +3589,45 @@ function ReportList({ user, navigate }: ReportListProps) {
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
   useEffect(() => {
-    // Mock report data
-    const mockReports = [
-      {
-        id: 1,
-        title: '田中太郎様 リスク分析レポート',
-        customerId: 1,
-        customerName: '田中太郎',
-        type: 'risk_analysis',
-        status: 'completed',
-        createdDate: '2024-01-15',
-        completedDate: '2024-01-15',
-        summary: '保守的な運用プロファイルに基づく最適なポートフォリオ配分を提案',
-        recommendations: 3
-      },
-      {
-        id: 2,
-        title: '佐藤花子様 ポートフォリオ最適化レポート',
-        customerId: 2,
-        customerName: '佐藤花子',
-        type: 'portfolio_optimization',
-        status: 'completed',
-        createdDate: '2024-01-20',
-        completedDate: '2024-01-20',
-        summary: 'バランス型運用における効率的フロンティア分析結果',
-        recommendations: 5
-      },
-      {
-        id: 3,
-        title: '山田次郎様 パフォーマンス分析レポート',
-        customerId: 3,
-        customerName: '山田次郎',
-        type: 'performance_analysis',
-        status: 'processing',
-        createdDate: '2024-01-25',
-        completedDate: null,
-        summary: '積極的運用の6ヶ月パフォーマンス評価（処理中）',
-        recommendations: 0
+    const fetchReports = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/analysis/results`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          let userReports = data;
+          if (user?.accountType === 'grandchild' && user?.customerId) {
+            userReports = data.filter((report: any) => report.customerId === user.customerId);
+          }
+          setReports(userReports);
+          setFilteredReports(userReports);
+
+          if (user?.accountType === 'grandchild' && userReports.length > 0) {
+            navigate(`/reports/${userReports[0].id}`);
+            return;
+          }
+        } else {
+          console.error('Failed to fetch reports:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching reports:', error);
+      } finally {
+        setLoading(false);
       }
-    ];
-    
-    setTimeout(() => {
-      // Filter reports based on user type
-      let userReports = mockReports;
-      if (user?.accountType === 'grandchild' && user?.customerId) {
-        // Grandchild accounts can only see their own reports
-        userReports = mockReports.filter(report => report.customerId === user.customerId);
-      }
-      setReports(userReports);
-      setFilteredReports(userReports);
-      
-      // Grandchild accounts automatically redirect to their first report detail
-      if (user?.accountType === 'grandchild' && userReports.length > 0) {
-        navigate(`/reports/${userReports[0].id}`);
-        return;
-      }
-      
-      setLoading(false);
-    }, 500);
+    };
+
+    fetchReports();
   }, [user?.accountType, user?.customerId, navigate]);
 
   // フィルタリング機能
