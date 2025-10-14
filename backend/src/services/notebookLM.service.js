@@ -75,14 +75,14 @@ class NotebookLMService {
         // This simulates NotebookLM's analysis based on the prompt
         return {
             analysis: {
-                marketConditions: "Current market shows moderate volatility with positive growth trends in technology and healthcare sectors.",
+                marketConditions: "現在の市場は適度なボラティリティを示しており、テクノロジーおよびヘルスケアセクターでプラスの成長トレンドが見られます。グローバル経済の回復基調が続く中、分散投資によるリスク管理が重要です。",
                 recommendations: {
                     allocation: {
-                        "国内株式": 25,
-                        "海外株式": 35,
-                        "国内債券": 20,
-                        "海外債券": 15,
-                        "不動産": 5
+                        "株式型": 25,
+                        "米国株式型": 30,
+                        "米国債券型": 20,
+                        "REIT型": 10,
+                        "世界株式型": 15
                     },
                     adjustmentFactors: {
                         timeHorizon: {
@@ -132,16 +132,16 @@ class NotebookLMService {
     }
 
     extractMarketAnalysis(response) {
-        return response.marketAnalysis || "Market analysis not available";
+        return response.marketAnalysis || "市場分析データが利用できません";
     }
 
     extractAllocation(response) {
         return response.recommendedAllocation || {
-            "国内株式": 30,
-            "海外株式": 30,
-            "国内債券": 20,
-            "海外債券": 15,
-            "不動産": 5
+            "株式型": 25,
+            "米国株式型": 30,
+            "米国債券型": 20,
+            "REIT型": 10,
+            "世界株式型": 15
         };
     }
 
