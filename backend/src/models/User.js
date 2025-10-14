@@ -80,25 +80,9 @@ class User {
     }
 
     static async getPlanFeatures(planType) {
-        // Return features based on plan type
-        const features = {
-            'standard': [
-                { feature_name: 'customer_limit', feature_value: '10', description: 'Maximum number of customers' },
-                { feature_name: 'export_pdf', feature_value: 'true', description: 'Export reports to PDF' }
-            ],
-            'master': [
-                { feature_name: 'customer_limit', feature_value: '50', description: 'Maximum number of customers' },
-                { feature_name: 'export_pdf', feature_value: 'true', description: 'Export reports to PDF' },
-                { feature_name: 'advanced_analytics', feature_value: 'true', description: 'Advanced analytics features' }
-            ],
-            'exceed': [
-                { feature_name: 'customer_limit', feature_value: '999', description: 'Unlimited customers' },
-                { feature_name: 'export_pdf', feature_value: 'true', description: 'Export reports to PDF' },
-                { feature_name: 'advanced_analytics', feature_value: 'true', description: 'Advanced analytics features' },
-                { feature_name: 'api_access', feature_value: 'true', description: 'API access' }
-            ]
-        };
-        return features[planType] || [];
+        const sql = 'SELECT feature_name, feature_value, description FROM plan_features WHERE plan_type = $1';
+        const features = await db.query(sql, [planType]);
+        return features;
     }
 
     static async findByLineId(lineUserId) {

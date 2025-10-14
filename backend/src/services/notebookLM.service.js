@@ -3,29 +3,72 @@ const logger = require('../utils/logger');
 
 class NotebookLMService {
     constructor() {
-        this.apiKey = process.env.NOTEBOOK_LM_API_KEY;
-        this.baseURL = process.env.NOTEBOOK_LM_BASE_URL || 'https://notebooklm.googleapis.com/v1';
+        this.apiKey = process.env.GEMINI_API_KEY || process.env.NOTEBOOK_LM_API_KEY;
+        this.baseURL = 'https://generativelanguage.googleapis.com/v1beta';
     }
 
     async analyzePDF(pdfBuffer, analysisPrompt) {
         try {
-            // Note: This is a mock implementation as NotebookLM API details are not public
-            // In production, replace with actual NotebookLM API calls
-            
-            // For demonstration, we'll simulate the API response
-            logger.info('Analyzing PDF with NotebookLM...');
-            
-            // Simulate API delay
+            logger.info('Analyzing PDF with Gemini AI...');
+
+            // Gemini APIが利用可能な場合は実際の分析を実行
+            if (this.apiKey && this.apiKey !== 'your-gemini-api-key-here') {
+                try {
+                    return await this.analyzeWithGemini(pdfBuffer, analysisPrompt);
+                } catch (apiError) {
+                    logger.warn('Gemini API call failed, falling back to mock:', apiError.message);
+                }
+            }
+
+            // API keyがない場合またはAPIエラーの場合はモック実装を使用
+            logger.info('Using mock analysis (Gemini API not configured)');
             await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // Mock response structure
+
             const mockResponse = this.generateMockAnalysis(analysisPrompt);
-            
             return this.parseAnalysisResult(mockResponse);
         } catch (error) {
-            logger.error('NotebookLM analysis error:', error);
-            throw new Error(`NotebookLM analysis failed: ${error.message}`);
+            logger.error('Analysis error:', error);
+            throw new Error(`Analysis failed: ${error.message}`);
         }
+    }
+
+    async analyzeWithGemini(pdfBuffer, analysisPrompt) {
+        // Gemini APIでPDF分析を実行
+        const base64PDF = pdfBuffer.toString('base64');
+
+        const response = await axios.post(
+            `${this.baseURL}/models/gemini-pro-vision:generateContent?key=${this.apiKey}`,
+            {
+                contents: [{
+                    parts: [
+                        { text: analysisPrompt },
+                        {
+                            inline_data: {
+                                mime_type: 'application/pdf',
+                                data: base64PDF
+                            }
+                        }
+                    ]
+                }]
+            }
+        );
+
+        return this.parseGeminiResponse(response.data);
+    }
+
+    parseGeminiResponse(response) {
+        // Gemini APIレスポンスをパース
+        const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+        // JSONを抽出
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const analysis = JSON.parse(jsonMatch[0]);
+            return this.parseAnalysisResult({ analysis });
+        }
+
+        // JSON抽出失敗時はモックデータを返す
+        return this.parseAnalysisResult(this.generateMockAnalysis(''));
     }
 
     generateMockAnalysis(prompt) {

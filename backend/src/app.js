@@ -11,6 +11,9 @@ dotenv.config();
 
 const app = express();
 
+// Trust proxy for Vercel deployment
+app.set('trust proxy', 1);
+
 const limiter = rateLimit({
     windowMs: process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000,
     max: process.env.RATE_LIMIT_MAX_REQUESTS || 100,

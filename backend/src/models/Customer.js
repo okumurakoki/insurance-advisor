@@ -37,8 +37,8 @@ class Customer {
             investment_goal || null,
             notes || null
         ]);
-        
-        return result[0].id;
+
+        return result.insertId || result[0]?.id;
     }
 
     static async findById(id) {
@@ -57,7 +57,7 @@ class Customer {
     }
 
     static async countByUserId(userId) {
-        const sql = 'SELECT COUNT(*) as count FROM customers WHERE user_id = ? AND is_active = TRUE';
+        const sql = 'SELECT COUNT(*) as count FROM customers WHERE user_id = $1 AND is_active = TRUE';
         const results = await db.query(sql, [userId]);
         return results[0].count;
     }
@@ -65,37 +65,39 @@ class Customer {
     static async update(id, updateData) {
         const fields = [];
         const values = [];
-        
+        let paramCount = 1;
+
         Object.entries(updateData).forEach(([key, value]) => {
             if (value !== undefined) {
-                fields.push(`${key} = ?`);
+                fields.push(`${key} = $${paramCount}`);
                 values.push(value);
+                paramCount++;
             }
         });
-        
+
         if (fields.length === 0) {
             return;
         }
-        
+
         values.push(id);
-        
-        const sql = `UPDATE customers SET ${fields.join(', ')} WHERE id = ?`;
+
+        const sql = `UPDATE customers SET ${fields.join(', ')} WHERE id = $${paramCount}`;
         await db.query(sql, values);
     }
 
     static async deactivate(id) {
-        const sql = 'UPDATE customers SET is_active = FALSE WHERE id = ?';
+        const sql = 'UPDATE customers SET is_active = FALSE WHERE id = $1';
         await db.query(sql, [id]);
     }
 
     static async getAnalysisHistory(customerId) {
         const sql = `
-            SELECT 
+            SELECT
                 ar.*,
                 u.user_id as created_by_user_id
             FROM analysis_results ar
             JOIN users u ON ar.created_by = u.id
-            WHERE ar.customer_id = ?
+            WHERE ar.customer_id = $1
             ORDER BY ar.analysis_date DESC
         `;
         return await db.query(sql, [customerId]);
@@ -117,14 +119,14 @@ class Customer {
 
     static async search(userId, searchTerm) {
         const sql = `
-            SELECT * FROM customers 
-            WHERE user_id = ? 
-            AND is_active = TRUE 
+            SELECT * FROM customers
+            WHERE user_id = $1
+            AND is_active = TRUE
             AND (
-                name LIKE ? 
-                OR email LIKE ? 
-                OR phone LIKE ?
-                OR notes LIKE ?
+                name LIKE $2
+                OR email LIKE $3
+                OR phone LIKE $4
+                OR notes LIKE $5
             )
             ORDER BY name ASC
         `;
@@ -134,7 +136,7 @@ class Customer {
 
     static async getStatistics(userId) {
         const sql = `
-            SELECT 
+            SELECT
                 COUNT(*) as total_customers,
                 SUM(contract_amount) as total_contract_amount,
                 SUM(monthly_premium) as total_monthly_premium,
@@ -144,7 +146,7 @@ class Customer {
                 COUNT(CASE WHEN risk_tolerance = 'balanced' THEN 1 END) as balanced_count,
                 COUNT(CASE WHEN risk_tolerance = 'aggressive' THEN 1 END) as aggressive_count
             FROM customers
-            WHERE user_id = ? AND is_active = TRUE
+            WHERE user_id = $1 AND is_active = TRUE
         `;
         const results = await db.query(sql, [userId]);
         return results[0];

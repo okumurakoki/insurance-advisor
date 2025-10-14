@@ -33,18 +33,27 @@ router.post('/upload-market-data',
 
         try {
             const pdfBuffer = req.file.buffer;
-            
-            await MarketData.create({
+
+            const result = await MarketData.create({
                 data_date: new Date(),
                 data_type: 'monthly_report',
                 source_file: req.file.originalname,
-                data_content: {},
+                data_content: {
+                    fileName: req.file.originalname,
+                    fileSize: req.file.size,
+                    uploadedAt: new Date().toISOString()
+                },
+                pdf_content: pdfBuffer,
                 uploaded_by: req.user.id
             });
 
-            logger.info(`Market data uploaded by user: ${req.user.userId}`);
+            logger.info(`Market data uploaded by user: ${req.user.userId}, file: ${req.file.originalname}`);
 
-            res.json({ message: 'Market data uploaded successfully' });
+            res.json({
+                message: 'Market data uploaded successfully',
+                id: result,
+                fileName: req.file.originalname
+            });
         } catch (error) {
             logger.error('Market data upload error:', error);
             res.status(500).json({ error: 'Failed to upload market data' });

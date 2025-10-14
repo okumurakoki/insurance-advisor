@@ -752,6 +752,58 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [optimizationResults, setOptimizationResults] = useState<any>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [showRecommendations, setShowRecommendations] = useState(false);
+  const [uploadingMarketData, setUploadingMarketData] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedFile(event.target.files[0]);
+    }
+  };
+
+  const handleUploadMarketData = async () => {
+    if (!selectedFile) {
+      alert('PDFファイルを選択してください');
+      return;
+    }
+
+    setUploadingMarketData(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('認証エラー: ログインしてください');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('marketData', selectedFile);
+
+      const response = await fetch(`${API_BASE_URL}/api/analysis/upload-market-data`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`マーケットデータをアップロードしました: ${data.fileName}`);
+        setSelectedFile(null);
+        // Reset file input
+        const fileInput = document.getElementById('market-data-file') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+      } else {
+        const error = await response.json();
+        alert(`アップロードエラー: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('アップロード中にエラーが発生しました');
+    } finally {
+      setUploadingMarketData(false);
+    }
+  };
 
   const getPlanTypeLabel = (type: string) => {
     const labels = {
@@ -920,6 +972,47 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             </Button>
           </Box>
         </Grid>
+
+        {/* Market Data Upload Section (親アカウントのみ) */}
+        {user.accountType === 'parent' && (
+          <Grid item xs={12}>
+            <Card sx={{ p: 3, bgcolor: '#f5f5f5' }}>
+              <Typography variant="h6" gutterBottom>
+                📊 マーケットデータアップロード
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                月次マーケットレポート（PDF）をアップロードして、顧客への推奨配分を生成できます。
+              </Typography>
+              <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  id="market-data-file"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
+                <label htmlFor="market-data-file">
+                  <Button variant="outlined" component="span">
+                    PDFを選択
+                  </Button>
+                </label>
+                {selectedFile && (
+                  <Typography variant="body2">
+                    選択済み: {selectedFile.name}
+                  </Typography>
+                )}
+                <Button
+                  variant="contained"
+                  onClick={handleUploadMarketData}
+                  disabled={!selectedFile || uploadingMarketData}
+                  startIcon={uploadingMarketData ? <CircularProgress size={20} /> : null}
+                >
+                  {uploadingMarketData ? 'アップロード中...' : 'アップロード'}
+                </Button>
+              </Box>
+            </Card>
+          </Grid>
+        )}
 
         {/* 最適化結果表示領域（常に確保） */}
         <Grid item xs={12}>
@@ -2196,17 +2289,66 @@ interface CustomerFormProps {
 }
 
 function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
+  const location = useLocation();
+  const customerId = isEdit ? location.pathname.split('/')[2] : null;
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     contractDate: '',
+    contractAmount: '',
     monthlyPremium: '',
     riskTolerance: 'balanced',
     investmentGoal: '',
     notes: ''
   });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCustomer = async () => {
+      if (isEdit && customerId) {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) {
+            navigate('/');
+            return;
+          }
+
+          const response = await fetch(`${API_BASE_URL}/api/customers/${customerId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setFormData({
+              name: data.name || '',
+              email: data.email || '',
+              phone: data.phone || '',
+              contractDate: data.contract_date || data.contractDate || '',
+              contractAmount: String(data.contract_amount || data.contractAmount || ''),
+              monthlyPremium: String(data.monthly_premium || data.monthlyPremium || ''),
+              riskTolerance: data.risk_tolerance || data.riskTolerance || 'balanced',
+              investmentGoal: data.investment_goal || data.investmentGoal || '',
+              notes: data.notes || ''
+            });
+          } else {
+            alert('顧客情報の取得に失敗しました');
+            navigate('/customers');
+          }
+        } catch (error) {
+          console.error('Fetch customer error:', error);
+          alert('エラーが発生しました');
+          navigate('/customers');
+        }
+      }
+    };
+
+    fetchCustomer();
+  }, [isEdit, customerId, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2221,7 +2363,7 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
       }
 
       const url = isEdit
-        ? `${API_BASE_URL}/api/customers/${id}`
+        ? `${API_BASE_URL}/api/customers/${customerId}`
         : `${API_BASE_URL}/api/customers`;
 
       const method = isEdit ? 'PUT' : 'POST';
@@ -2321,6 +2463,20 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
               <TextField
                 required
                 fullWidth
+                label="契約金額"
+                type="number"
+                value={formData.contractAmount}
+                onChange={handleChange('contractAmount')}
+                InputProps={{
+                  startAdornment: <Typography sx={{ mr: 1 }}>¥</Typography>,
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
                 label="月額保険料"
                 type="number"
                 value={formData.monthlyPremium}
@@ -2330,7 +2486,7 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
                 }}
               />
             </Grid>
-            
+
             <Grid item xs={12} sm={6}>
               <TextField
                 required
@@ -2405,6 +2561,42 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+
+  const handleRunAnalysis = async () => {
+    setAnalyzing(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('認証エラー: ログインしてください');
+        navigate('/');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/analysis/recommend/${customerId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAnalysisResult(data);
+        alert('分析が完了しました！');
+      } else {
+        const error = await response.json();
+        alert(`分析エラー: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Analysis error:', error);
+      alert('分析中にエラーが発生しました');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   useEffect(() => {
     const fetchCustomerDetail = async () => {
@@ -2488,9 +2680,11 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
           </Button>
           <Button
             variant="contained"
-            onClick={() => navigate(`/analysis/new/${customer.id}`)}
+            onClick={handleRunAnalysis}
+            disabled={analyzing}
+            startIcon={analyzing ? <CircularProgress size={20} /> : null}
           >
-            分析実行
+            {analyzing ? '分析中...' : '分析実行'}
           </Button>
         </Box>
       </Box>
@@ -2591,6 +2785,53 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
           </Grid>
         </Grid>
       </Paper>
+
+      {/* Analysis Result */}
+      {analysisResult && (
+        <Paper sx={{ mt: 3, p: 3, bgcolor: '#f5f9ff', border: '2px solid #2196f3' }}>
+          <Typography variant="h5" gutterBottom color="primary">
+            ✨ 最新の分析結果
+          </Typography>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            分析日時: {new Date(analysisResult.customer.contractMonths ? Date.now() : analysisResult.analysisDate).toLocaleString('ja-JP')}
+          </Typography>
+
+          <Grid container spacing={3} sx={{ mt: 2 }}>
+            <Grid item xs={12} md={6}>
+              <Card sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  推奨配分
+                </Typography>
+                {Object.entries(analysisResult.allocation || {}).map(([key, value]: [string, any]) => (
+                  <Box key={key} sx={{ mb: 2 }}>
+                    <Box display="flex" justifyContent="space-between" mb={0.5}>
+                      <Typography variant="body2">{key}</Typography>
+                      <Typography variant="body2" fontWeight="bold">{value}%</Typography>
+                    </Box>
+                    <LinearProgress variant="determinate" value={value} sx={{ height: 8, borderRadius: 1 }} />
+                  </Box>
+                ))}
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Card sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  市場分析
+                </Typography>
+                <Typography variant="body2">
+                  {analysisResult.marketAnalysis || '市場データに基づいた推奨配分を生成しました。'}
+                </Typography>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    信頼度スコア: {((analysisResult.confidenceScore || 0.85) * 100).toFixed(0)}%
+                  </Typography>
+                </Box>
+              </Card>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
 
       {/* Tabs for additional information */}
       <Paper sx={{ mt: 3 }}>
