@@ -1311,9 +1311,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                 </Grid>
                 </Box>
                 </>
-              )}
             </Paper>
-          )}
         </Grid>
 
         {/* Statistics Cards */}
