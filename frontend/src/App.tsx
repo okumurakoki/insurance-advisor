@@ -1744,6 +1744,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             </Box>
           </Paper>
         </Grid>
+        )}
 
         {/* Welcome Message */}
         <Grid item xs={12}>
