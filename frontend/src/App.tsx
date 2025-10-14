@@ -1683,7 +1683,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
               </Grid>
             </Paper>
           </Grid>
-        )}
 
         {/* Action Buttons */}
         {user.accountType !== 'grandchild' && (
