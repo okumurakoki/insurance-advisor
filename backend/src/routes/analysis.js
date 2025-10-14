@@ -78,16 +78,17 @@ router.post('/recommend/:customerId',
                 return res.status(403).json({ error: 'Access denied' });
             }
 
-            const canAnalyze = await AnalysisResult.checkAnalysisFrequency(
-                customerId, 
-                req.planFeature.feature_value
-            );
+            // Frequency check disabled - allow unlimited analysis
+            // const canAnalyze = await AnalysisResult.checkAnalysisFrequency(
+            //     customerId,
+            //     req.planFeature.feature_value
+            // );
 
-            if (!canAnalyze) {
-                return res.status(429).json({ 
-                    error: `Analysis frequency limit reached. Your ${req.user.planType} plan allows ${req.planFeature.feature_value} analysis.` 
-                });
-            }
+            // if (!canAnalyze) {
+            //     return res.status(429).json({
+            //         error: `Analysis frequency limit reached. Your ${req.user.planType} plan allows ${req.planFeature.feature_value} analysis.`
+            //     });
+            // }
 
             const latestMarketData = await MarketData.getLatest();
             
