@@ -1688,40 +1688,40 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         {user.accountType !== 'grandchild' && (
           <Grid item xs={12}>
             <Box display="flex" gap={2} flexWrap="wrap">
-              <Button 
-                variant="contained" 
+              <Button
+                variant="contained"
                 startIcon={<Add />}
                 onClick={() => navigate('/customers/new')}
               >
                 新規顧客登録
               </Button>
-              <Button 
+              <Button
                 variant="outlined"
                 onClick={() => navigate('/customers')}
               >
                 顧客一覧
               </Button>
               {user.accountType === 'admin' && (
-                <Button 
+                <Button
                   variant="outlined"
                   onClick={() => navigate('/products')}
                 >
                   ファンド管理
                 </Button>
               )}
-              <Button 
+              <Button
                 variant="outlined"
                 onClick={() => navigate('/reports')}
               >
                 分析レポート
               </Button>
-              <Button 
+              <Button
                 variant="outlined"
                 onClick={() => navigate('/reports/new')}
               >
                 新規分析実行
               </Button>
-              <Button 
+              <Button
                 variant="outlined"
                 color="secondary"
                 onClick={() => navigate('/portfolio-optimizer')}
@@ -1729,21 +1729,20 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
               >
                 ポートフォリオ最適化
               </Button>
-              <Button 
+              <Button
                 variant="outlined"
                 onClick={() => navigate('/backtest')}
               >
                 バックテスト
               </Button>
-              <Button 
+              <Button
                 variant="outlined"
                 onClick={() => navigate('/customer-comparison')}
               >
                 顧客比較分析
               </Button>
             </Box>
-          </Paper>
-        </Grid>
+          </Grid>
         )}
 
         {/* Welcome Message */}
