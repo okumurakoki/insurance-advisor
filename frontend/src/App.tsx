@@ -1197,8 +1197,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           ) : (
             // 最適化結果待機中の固定レイアウト
             <Paper sx={{ p: 2, mb: 2, border: '2px dashed #ccc', minHeight: '400px', backgroundColor: '#f8f9fa' }}>
-                <>
-                  <Box sx={{ textAlign: 'center', mb: 2 }}>
+              <Box sx={{ textAlign: 'center', mb: 2 }}>
                   <Typography variant="h5" gutterBottom color="text.secondary" sx={{ fontWeight: 'bold' }}>
                     最適化結果表示エリア
                   </Typography>
@@ -1309,9 +1308,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     </Card>
                   </Grid>
                 </Grid>
-                </Box>
-                </>
+              </Box>
             </Paper>
+          )}
         </Grid>
 
         {/* Statistics Cards */}
