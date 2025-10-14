@@ -2970,28 +2970,69 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
               <Typography variant="h6" gutterBottom>
                 パフォーマンス推移
               </Typography>
-              
+
               <Box sx={{ height: 300, mb: 3 }}>
-                {/* Simple line chart representation */}
-                <svg viewBox="0 0 600 300" style={{ width: '100%', height: '100%' }}>
-                  <polyline
-                    fill="none"
-                    stroke="#8884d8"
-                    strokeWidth="2"
-                    points={customer.performanceHistory.map((point: any, index: number) => 
-                      `${index * 85 + 50},${250 - (point.value - 100) * 10}`
-                    ).join(' ')}
-                  />
-                  {customer.performanceHistory.map((point: any, index: number) => (
-                    <circle
-                      key={index}
-                      cx={index * 85 + 50}
-                      cy={250 - (point.value - 100) * 10}
-                      r="4"
-                      fill="#8884d8"
-                    />
-                  ))}
-                </svg>
+                {analysisResult ? (
+                  (() => {
+                    // Generate performance history from contract date
+                    const contractDate = new Date(customer.contract_date);
+                    const today = new Date();
+                    const monthsDiff = Math.floor((today.getTime() - contractDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+                    const dataPoints = Math.min(monthsDiff, 7); // Show last 7 months
+
+                    // Generate mock performance data with slight growth
+                    const performanceData = Array.from({ length: dataPoints }, (_, i) => ({
+                      month: i,
+                      value: 100 + (i * 2) + Math.random() * 3
+                    }));
+
+                    const maxValue = Math.max(...performanceData.map(p => p.value));
+                    const minValue = Math.min(...performanceData.map(p => p.value));
+                    const range = maxValue - minValue || 10;
+
+                    return (
+                      <svg viewBox="0 0 600 300" style={{ width: '100%', height: '100%' }}>
+                        {/* Grid lines */}
+                        <line x1="50" y1="250" x2="550" y2="250" stroke="#e0e0e0" strokeWidth="1" />
+                        <line x1="50" y1="200" x2="550" y2="200" stroke="#e0e0e0" strokeWidth="1" />
+                        <line x1="50" y1="150" x2="550" y2="150" stroke="#e0e0e0" strokeWidth="1" />
+                        <line x1="50" y1="100" x2="550" y2="100" stroke="#e0e0e0" strokeWidth="1" />
+                        <line x1="50" y1="50" x2="550" y2="50" stroke="#e0e0e0" strokeWidth="1" />
+
+                        {/* Performance line */}
+                        <polyline
+                          fill="none"
+                          stroke="#8884d8"
+                          strokeWidth="3"
+                          points={performanceData.map((point, index) => {
+                            const x = 50 + (index / (dataPoints - 1 || 1)) * 500;
+                            const y = 250 - ((point.value - minValue) / range) * 200;
+                            return `${x},${y}`;
+                          }).join(' ')}
+                        />
+
+                        {/* Data points */}
+                        {performanceData.map((point, index) => {
+                          const x = 50 + (index / (dataPoints - 1 || 1)) * 500;
+                          const y = 250 - ((point.value - minValue) / range) * 200;
+                          return (
+                            <circle
+                              key={index}
+                              cx={x}
+                              cy={y}
+                              r="5"
+                              fill="#8884d8"
+                            />
+                          );
+                        })}
+                      </svg>
+                    );
+                  })()
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <Typography color="text.secondary">分析を実行すると、パフォーマンス推移が表示されます</Typography>
+                  </Box>
+                )}
               </Box>
               
               <Grid container spacing={2}>
