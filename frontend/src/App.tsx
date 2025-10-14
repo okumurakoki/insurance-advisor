@@ -576,7 +576,7 @@ function AppContent() {
   const navigationItems = [
     { path: '/dashboard', icon: <DashboardIcon />, text: 'ダッシュボード' },
     ...(user?.accountType !== 'grandchild' ? [{ path: '/customers', icon: <PeopleIcon />, text: '顧客管理' }] : []),
-    { path: '/portfolio-optimizer', icon: <TrendingUp />, text: 'ポートフォリオ最適化' },
+    ...(user?.accountType !== 'grandchild' ? [{ path: '/portfolio-optimizer', icon: <TrendingUp />, text: 'ポートフォリオ最適化' }] : []),
     ...(user?.accountType === 'admin' ? [{ path: '/products', icon: <AssessmentIcon />, text: 'ファンド管理' }] : []),
     ...(user?.accountType === 'admin' ? [{ path: '/users', icon: <PeopleIcon />, text: 'ユーザー管理' }] : []),
     { path: '/reports', icon: <AssessmentIcon />, text: user?.accountType === 'grandchild' ? 'マイレポート' : 'レポート' },
@@ -2972,89 +2972,47 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
                 パフォーマンス推移
               </Typography>
 
-              <Box sx={{ height: 300, mb: 3 }}>
+              <Box sx={{ mb: 3 }}>
                 {analysisResult ? (
-                  (() => {
-                    // Generate performance history from contract date
-                    const contractDate = new Date(customer.contract_date);
-                    const today = new Date();
-                    const monthsDiff = Math.floor((today.getTime() - contractDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-                    const dataPoints = Math.max(Math.min(monthsDiff + 1, 7), 3); // Show 3-7 months
+                  <Box sx={{ bgcolor: '#f5f9ff', p: 3, borderRadius: 2 }}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      契約開始からの経過月数と運用状況
+                    </Typography>
+                    <Grid container spacing={2} sx={{ mt: 1 }}>
+                      {(() => {
+                        const contractDate = new Date(customer.contract_date);
+                        const today = new Date();
+                        const monthsDiff = Math.floor((today.getTime() - contractDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+                        const dataPoints = Math.min(monthsDiff + 1, 6);
 
-                    // Generate mock performance data with slight growth
-                    const performanceData = Array.from({ length: dataPoints }, (_, i) => ({
-                      month: i,
-                      value: 100 + (i * 2) + (Math.random() * 3)
-                    }));
-
-                    const maxValue = Math.max(...performanceData.map(p => p.value));
-                    const minValue = Math.min(...performanceData.map(p => p.value));
-                    const range = Math.max(maxValue - minValue, 5); // Minimum range of 5
-
-                    return (
-                      <svg viewBox="0 0 600 300" style={{ width: '100%', height: '100%' }}>
-                        {/* Y-axis */}
-                        <line x1="50" y1="50" x2="50" y2="250" stroke="#666" strokeWidth="2" />
-
-                        {/* X-axis */}
-                        <line x1="50" y1="250" x2="550" y2="250" stroke="#666" strokeWidth="2" />
-
-                        {/* Grid lines with Y-axis labels */}
-                        {[0, 1, 2, 3, 4].map((i) => {
-                          const y = 250 - (i * 50);
-                          const value = minValue + (range * i / 4);
-                          return (
-                            <g key={i}>
-                              <line x1="50" y1={y} x2="550" y2={y} stroke="#e0e0e0" strokeWidth="1" />
-                              <text x="40" y={y + 5} textAnchor="end" fontSize="12" fill="#666">
-                                {value.toFixed(1)}
-                              </text>
-                            </g>
-                          );
-                        })}
-
-                        {/* X-axis labels (months) */}
-                        {performanceData.map((point, index) => {
-                          const x = 50 + (index / (dataPoints - 1 || 1)) * 500;
-                          return (
-                            <text key={index} x={x} y="270" textAnchor="middle" fontSize="12" fill="#666">
-                              {index}ヶ月
-                            </text>
-                          );
-                        })}
-
-                        {/* Performance line */}
-                        <polyline
-                          fill="none"
-                          stroke="#8884d8"
-                          strokeWidth="3"
-                          points={performanceData.map((point, index) => {
-                            const x = 50 + (index / (dataPoints - 1 || 1)) * 500;
-                            const y = 250 - ((point.value - minValue) / range) * 200;
-                            return `${x},${y}`;
-                          }).join(' ')}
-                        />
-
-                        {/* Data points with values */}
-                        {performanceData.map((point, index) => {
-                          const x = 50 + (index / (dataPoints - 1 || 1)) * 500;
-                          const y = 250 - ((point.value - minValue) / range) * 200;
-                          return (
-                            <g key={index}>
-                              <circle cx={x} cy={y} r="5" fill="#8884d8" />
-                              <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="#8884d8" fontWeight="bold">
-                                {point.value.toFixed(1)}
-                              </text>
-                            </g>
-                          );
-                        })}
-                      </svg>
-                    );
-                  })()
-                ) : (
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <Typography color="text.secondary">分析を実行すると、パフォーマンス推移が表示されます</Typography>
+                        return Array.from({ length: Math.max(dataPoints, 3) }, (_, i) => ({
+                          month: i,
+                          value: 100 + (i * 2.5) + (Math.random() * 2),
+                          change: i === 0 ? 0 : (2.5 + (Math.random() * 2))
+                        })).map((point, index) => (
+                          <Grid item xs={6} sm={4} md={2} key={index}>
+                            <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+                              <Typography variant="caption" color="text.secondary">
+                                {point.month}ヶ月目
+                              </Typography>
+                              <Typography variant="h6" color="primary">
+                                {point.value.toFixed(1)}%
+                              </Typography>
+                              {index > 0 && (
+                                <Typography variant="caption" color="success.main">
+                                  +{point.change.toFixed(1)}%
+                                </Typography>
+                              )}
+                            </Card>
+                          </Grid>
+                        ));
+                      })()}
+                    </Grid>
                   </Box>
+                ) : (
+                  <Alert severity="info">
+                    分析を実行すると、パフォーマンス推移が表示されます
+                  </Alert>
                 )}
               </Box>
               
