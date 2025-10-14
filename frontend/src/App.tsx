@@ -2884,14 +2884,42 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                   <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {/* Simple pie chart representation */}
-                    <svg viewBox="0 0 100 100" style={{ width: 250, height: 250 }}>
-                      <circle cx="50" cy="50" r="40" fill="#8884d8" />
-                      <path d={`M 50 50 L 50 10 A 40 40 0 0 1 90 50 Z`} fill="#82ca9d" />
-                      <path d={`M 50 50 L 90 50 A 40 40 0 0 1 50 90 Z`} fill="#ffc658" />
-                      <path d={`M 50 50 L 50 90 A 40 40 0 0 1 10 50 Z`} fill="#ff7c7c" />
-                      <path d={`M 50 50 L 10 50 A 40 40 0 0 1 50 10 Z`} fill="#8dd1e1" />
-                    </svg>
+                    {analysisResult ? (
+                      (() => {
+                        const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1'];
+                        const allocation = Object.entries(analysisResult.allocation || {});
+                        let cumulativeAngle = 0;
+
+                        return (
+                          <svg viewBox="0 0 100 100" style={{ width: 250, height: 250 }}>
+                            {allocation.map(([fund, percentage]: [string, any], index: number) => {
+                              const angle = (percentage / 100) * 360;
+                              const startAngle = cumulativeAngle;
+                              const endAngle = cumulativeAngle + angle;
+
+                              cumulativeAngle += angle;
+
+                              const startX = 50 + 40 * Math.cos((startAngle - 90) * Math.PI / 180);
+                              const startY = 50 + 40 * Math.sin((startAngle - 90) * Math.PI / 180);
+                              const endX = 50 + 40 * Math.cos((endAngle - 90) * Math.PI / 180);
+                              const endY = 50 + 40 * Math.sin((endAngle - 90) * Math.PI / 180);
+
+                              const largeArcFlag = angle > 180 ? 1 : 0;
+
+                              return (
+                                <path
+                                  key={fund}
+                                  d={`M 50 50 L ${startX} ${startY} A 40 40 0 ${largeArcFlag} 1 ${endX} ${endY} Z`}
+                                  fill={colors[index % colors.length]}
+                                />
+                              );
+                            })}
+                          </svg>
+                        );
+                      })()
+                    ) : (
+                      <Typography color="text.secondary">分析を実行してください</Typography>
+                    )}
                   </Box>
                 </Grid>
                 
@@ -3013,58 +3041,69 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
                 </Alert>
 
                 {(() => {
-                  // Generate transaction history from contract date
-                  const transactions = [];
-                  const contractDate = new Date(customer.contract_date);
-                  const today = new Date();
-                  const monthlyPremium = parseFloat(customer.monthly_premium) || 0;
+                  try {
+                    // Generate transaction history from contract date
+                    const transactions = [];
+                    const contractDate = new Date(customer.contract_date);
+                    const today = new Date();
+                    const monthlyPremium = parseFloat(String(customer.monthly_premium)) || 0;
 
-                  // Generate monthly transactions from contract date to today
-                  let currentDate = new Date(contractDate);
-                  while (currentDate <= today) {
-                    transactions.push({
-                      date: currentDate.toISOString().split('T')[0],
-                      type: '月次積立',
-                      amount: monthlyPremium,
-                      status: '完了'
-                    });
-                    currentDate.setMonth(currentDate.getMonth() + 1);
+                    // Generate monthly transactions from contract date to today (limit to 50 months)
+                    let currentDate = new Date(contractDate);
+                    let monthCount = 0;
+                    while (currentDate <= today && monthCount < 50) {
+                      transactions.push({
+                        date: currentDate.toISOString().split('T')[0],
+                        type: '月次積立',
+                        amount: monthlyPremium,
+                        status: '完了'
+                      });
+                      currentDate.setMonth(currentDate.getMonth() + 1);
+                      monthCount++;
+                    }
+
+                    // Add rebalance if analysis was done
+                    if (analysisResult) {
+                      transactions.push({
+                        date: today.toISOString().split('T')[0],
+                        type: 'リバランス',
+                        amount: 0,
+                        status: '完了'
+                      });
+                    }
+
+                    // Sort by date descending and take last 4
+                    return transactions
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .slice(0, 4)
+                      .map((transaction, index) => (
+                        <Card key={index} variant="outlined" sx={{ mb: 1, p: 2 }}>
+                          <Grid container alignItems="center">
+                            <Grid item xs={3}>
+                              <Typography variant="body2">{transaction.date}</Typography>
+                            </Grid>
+                            <Grid item xs={3}>
+                              <Typography variant="body1">{transaction.type}</Typography>
+                            </Grid>
+                            <Grid item xs={3}>
+                              <Typography variant="body1" color="primary">
+                                ¥{transaction.amount.toLocaleString()}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={3}>
+                              <Chip label={transaction.status} color="success" size="small" />
+                            </Grid>
+                          </Grid>
+                        </Card>
+                      ));
+                  } catch (error) {
+                    console.error('Transaction history error:', error);
+                    return (
+                      <Alert severity="error">
+                        取引履歴の生成中にエラーが発生しました
+                      </Alert>
+                    );
                   }
-
-                  // Add rebalance if analysis was done
-                  if (analysisResult) {
-                    transactions.push({
-                      date: new Date(analysisResult.customer?.contractMonths ? today : contractDate).toISOString().split('T')[0],
-                      type: 'リバランス',
-                      amount: 0,
-                      status: '完了'
-                    });
-                  }
-
-                  // Sort by date descending and take last 4
-                  return transactions
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .slice(0, 4)
-                    .map((transaction, index) => (
-                      <Card key={index} variant="outlined" sx={{ mb: 1, p: 2 }}>
-                        <Grid container alignItems="center">
-                          <Grid item xs={3}>
-                            <Typography variant="body2">{transaction.date}</Typography>
-                          </Grid>
-                          <Grid item xs={3}>
-                            <Typography variant="body1">{transaction.type}</Typography>
-                          </Grid>
-                          <Grid item xs={3}>
-                            <Typography variant="body1" color="primary">
-                              ¥{transaction.amount.toLocaleString()}
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={3}>
-                            <Chip label={transaction.status} color="success" size="small" />
-                          </Grid>
-                        </Grid>
-                      </Card>
-                    ));
                 })()}
               </Box>
             </Box>
