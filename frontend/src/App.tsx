@@ -1406,7 +1406,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         </Grid>
 
         {/* Fund Performance Analysis */}
-        {user.accountType !== 'grandchild' ? (
+        {user.accountType !== 'grandchild' && (
         <Grid item xs={12}>
           <Paper sx={{ p: 3, mb: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
