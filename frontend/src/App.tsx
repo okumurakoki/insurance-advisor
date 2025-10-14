@@ -1407,6 +1407,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
         {/* Fund Performance Analysis */}
         {user.accountType !== 'grandchild' && (
+          <>
         <Grid item xs={12}>
           <Paper sx={{ p: 3, mb: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -1640,6 +1641,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             )}
           </Paper>
         </Grid>
+          </>
+        )}
         <Grid item xs={12}>
             <Paper sx={{ p: 3, mb: 2 }}>
               <Typography variant="h6" gutterBottom sx={{ textAlign: 'center' }}>
