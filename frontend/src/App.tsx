@@ -2979,17 +2979,17 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
                     const contractDate = new Date(customer.contract_date);
                     const today = new Date();
                     const monthsDiff = Math.floor((today.getTime() - contractDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-                    const dataPoints = Math.min(monthsDiff, 7); // Show last 7 months
+                    const dataPoints = Math.max(Math.min(monthsDiff + 1, 7), 3); // Show 3-7 months
 
                     // Generate mock performance data with slight growth
                     const performanceData = Array.from({ length: dataPoints }, (_, i) => ({
                       month: i,
-                      value: 100 + (i * 2) + Math.random() * 3
+                      value: 100 + (i * 2) + (Math.random() * 3)
                     }));
 
                     const maxValue = Math.max(...performanceData.map(p => p.value));
                     const minValue = Math.min(...performanceData.map(p => p.value));
-                    const range = maxValue - minValue || 10;
+                    const range = Math.max(maxValue - minValue, 5); // Minimum range of 5
 
                     return (
                       <svg viewBox="0 0 600 300" style={{ width: '100%', height: '100%' }}>
