@@ -20,7 +20,8 @@ class AnalysisResult {
                 base_allocation, adjusted_allocation, adjustment_factors,
                 recommendation_text, confidence_score, created_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING id
         `;
 
         const result = await db.query(sql, [
@@ -35,12 +36,12 @@ class AnalysisResult {
             created_by
         ]);
 
-        return result.insertId;
+        return result[0]?.id || result.insertId;
     }
 
     static async findById(id) {
         const sql = `
-            SELECT 
+            SELECT
                 ar.*,
                 c.name as customer_name,
                 c.contract_date,
@@ -50,37 +51,65 @@ class AnalysisResult {
             FROM analysis_results ar
             JOIN customers c ON ar.customer_id = c.id
             JOIN users u ON ar.created_by = u.id
-            WHERE ar.id = ?
+            WHERE ar.id = $1
         `;
         const results = await db.query(sql, [id]);
-        
+
         if (results[0]) {
             results[0].base_allocation = JSON.parse(results[0].base_allocation);
             results[0].adjusted_allocation = JSON.parse(results[0].adjusted_allocation);
             results[0].adjustment_factors = JSON.parse(results[0].adjustment_factors);
         }
-        
+
         return results[0] || null;
     }
 
     static async getByCustomerId(customerId, limit = 10) {
         const sql = `
-            SELECT 
+            SELECT
                 ar.*,
                 u.user_id as created_by_user_id
             FROM analysis_results ar
             JOIN users u ON ar.created_by = u.id
-            WHERE ar.customer_id = ?
+            WHERE ar.customer_id = $1
             ORDER BY ar.analysis_date DESC
-            LIMIT ?
+            LIMIT $2
         `;
         const results = await db.query(sql, [customerId, limit]);
-        
+
         return results.map(result => ({
             ...result,
             base_allocation: JSON.parse(result.base_allocation),
             adjusted_allocation: JSON.parse(result.adjusted_allocation),
             adjustment_factors: JSON.parse(result.adjustment_factors)
+        }));
+    }
+
+    static async getByUserId(userId) {
+        const sql = `
+            SELECT
+                ar.id,
+                ar.customer_id,
+                ar.analysis_date,
+                ar.base_allocation as recommended_allocation,
+                ar.adjusted_allocation as current_allocation,
+                ar.adjustment_factors,
+                ar.recommendation_text,
+                ar.confidence_score,
+                ar.created_at,
+                c.name as customer_name
+            FROM analysis_results ar
+            JOIN customers c ON ar.customer_id = c.id
+            WHERE c.user_id = $1
+            ORDER BY ar.created_at DESC
+        `;
+        const results = await db.query(sql, [userId]);
+
+        return results.map(result => ({
+            ...result,
+            recommended_allocation: result.recommended_allocation ? JSON.parse(result.recommended_allocation) : {},
+            current_allocation: result.current_allocation ? JSON.parse(result.current_allocation) : {},
+            adjustment_factors: result.adjustment_factors ? JSON.parse(result.adjustment_factors) : {}
         }));
     }
 
@@ -93,53 +122,56 @@ class AnalysisResult {
 
         const days = frequencyDays[frequency] || 30;
 
+        // Use string interpolation for interval since PostgreSQL doesn't support parameterized intervals well
         const sql = `
             SELECT COUNT(*) as count
             FROM analysis_results
-            WHERE customer_id = ?
-            AND analysis_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+            WHERE customer_id = $1
+            AND analysis_date >= NOW() - INTERVAL '${days} days'
         `;
 
-        const results = await db.query(sql, [customerId, days]);
-        return results[0].count === 0;
+        const results = await db.query(sql, [customerId]);
+        const count = parseInt(results[0].count) || 0;
+        console.log('checkAnalysisFrequency - customerId:', customerId, 'frequency:', frequency, 'days:', days, 'count:', count);
+        return count === 0;
     }
 
     static async getLatestByCustomerId(customerId) {
         const sql = `
             SELECT * FROM analysis_results
-            WHERE customer_id = ?
+            WHERE customer_id = $1
             ORDER BY analysis_date DESC
             LIMIT 1
         `;
         const results = await db.query(sql, [customerId]);
-        
+
         if (results[0]) {
             results[0].base_allocation = JSON.parse(results[0].base_allocation);
             results[0].adjusted_allocation = JSON.parse(results[0].adjusted_allocation);
             results[0].adjustment_factors = JSON.parse(results[0].adjustment_factors);
         }
-        
+
         return results[0] || null;
     }
 
     static async deleteByCustomerId(customerId) {
-        const sql = 'DELETE FROM analysis_results WHERE customer_id = ?';
+        const sql = 'DELETE FROM analysis_results WHERE customer_id = $1';
         await db.query(sql, [customerId]);
     }
 
     static async getStatistics(userId, dateFrom, dateTo) {
         const sql = `
-            SELECT 
+            SELECT
                 COUNT(DISTINCT ar.id) as total_analyses,
                 COUNT(DISTINCT ar.customer_id) as unique_customers,
                 AVG(ar.confidence_score) as avg_confidence_score,
                 COUNT(DISTINCT DATE(ar.created_at)) as analysis_days
             FROM analysis_results ar
             JOIN customers c ON ar.customer_id = c.id
-            WHERE c.user_id = ?
-            AND ar.analysis_date BETWEEN ? AND ?
+            WHERE c.user_id = $1
+            AND ar.analysis_date BETWEEN $2 AND $3
         `;
-        
+
         const results = await db.query(sql, [userId, dateFrom, dateTo]);
         return results[0];
     }
