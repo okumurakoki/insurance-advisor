@@ -56,9 +56,16 @@ class AnalysisResult {
         const results = await db.query(sql, [id]);
 
         if (results[0]) {
-            results[0].base_allocation = JSON.parse(results[0].base_allocation);
-            results[0].adjusted_allocation = JSON.parse(results[0].adjusted_allocation);
-            results[0].adjustment_factors = JSON.parse(results[0].adjustment_factors);
+            // Handle PostgreSQL JSONB columns (already objects) vs JSON strings
+            results[0].base_allocation = typeof results[0].base_allocation === 'string'
+                ? JSON.parse(results[0].base_allocation)
+                : results[0].base_allocation;
+            results[0].adjusted_allocation = typeof results[0].adjusted_allocation === 'string'
+                ? JSON.parse(results[0].adjusted_allocation)
+                : results[0].adjusted_allocation;
+            results[0].adjustment_factors = typeof results[0].adjustment_factors === 'string'
+                ? JSON.parse(results[0].adjustment_factors)
+                : results[0].adjustment_factors;
         }
 
         return results[0] || null;
@@ -79,9 +86,15 @@ class AnalysisResult {
 
         return results.map(result => ({
             ...result,
-            base_allocation: JSON.parse(result.base_allocation),
-            adjusted_allocation: JSON.parse(result.adjusted_allocation),
-            adjustment_factors: JSON.parse(result.adjustment_factors)
+            base_allocation: typeof result.base_allocation === 'string'
+                ? JSON.parse(result.base_allocation)
+                : (result.base_allocation || {}),
+            adjusted_allocation: typeof result.adjusted_allocation === 'string'
+                ? JSON.parse(result.adjusted_allocation)
+                : (result.adjusted_allocation || {}),
+            adjustment_factors: typeof result.adjustment_factors === 'string'
+                ? JSON.parse(result.adjustment_factors)
+                : (result.adjustment_factors || {})
         }));
     }
 
@@ -107,9 +120,15 @@ class AnalysisResult {
 
         return results.map(result => ({
             ...result,
-            recommended_allocation: result.recommended_allocation ? JSON.parse(result.recommended_allocation) : {},
-            current_allocation: result.current_allocation ? JSON.parse(result.current_allocation) : {},
-            adjustment_factors: result.adjustment_factors ? JSON.parse(result.adjustment_factors) : {}
+            recommended_allocation: typeof result.recommended_allocation === 'string'
+                ? JSON.parse(result.recommended_allocation)
+                : (result.recommended_allocation || {}),
+            current_allocation: typeof result.current_allocation === 'string'
+                ? JSON.parse(result.current_allocation)
+                : (result.current_allocation || {}),
+            adjustment_factors: typeof result.adjustment_factors === 'string'
+                ? JSON.parse(result.adjustment_factors)
+                : (result.adjustment_factors || {})
         }));
     }
 
@@ -146,9 +165,15 @@ class AnalysisResult {
         const results = await db.query(sql, [customerId]);
 
         if (results[0]) {
-            results[0].base_allocation = JSON.parse(results[0].base_allocation);
-            results[0].adjusted_allocation = JSON.parse(results[0].adjusted_allocation);
-            results[0].adjustment_factors = JSON.parse(results[0].adjustment_factors);
+            results[0].base_allocation = typeof results[0].base_allocation === 'string'
+                ? JSON.parse(results[0].base_allocation)
+                : results[0].base_allocation;
+            results[0].adjusted_allocation = typeof results[0].adjusted_allocation === 'string'
+                ? JSON.parse(results[0].adjusted_allocation)
+                : results[0].adjusted_allocation;
+            results[0].adjustment_factors = typeof results[0].adjustment_factors === 'string'
+                ? JSON.parse(results[0].adjustment_factors)
+                : results[0].adjustment_factors;
         }
 
         return results[0] || null;
