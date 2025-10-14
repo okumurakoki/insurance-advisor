@@ -4032,15 +4032,17 @@ function ReportList({ user, navigate }: ReportListProps) {
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1">
-          分析レポート管理
+          {user?.accountType === 'grandchild' ? 'マイレポート' : '分析レポート管理'}
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate('/reports/new')}
-        >
-          新規レポート作成
-        </Button>
+        {user?.accountType !== 'grandchild' && (
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => navigate('/reports/new')}
+          >
+            新規レポート作成
+          </Button>
+        )}
       </Box>
 
       {/* 検索・フィルター */}
@@ -4221,24 +4223,60 @@ function ReportForm({ user, navigate }: ReportFormProps) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Mock customer data for selection
-    const mockCustomers = [
-      { id: 1, name: '田中太郎' },
-      { id: 2, name: '佐藤花子' },
-      { id: 3, name: '山田次郎' }
-    ];
-    setCustomers(mockCustomers);
-  }, []);
+    // Fetch actual customers from API
+    const fetchCustomers = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/api/customers`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setCustomers(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch customers:', error);
+      }
+    };
+
+    // Only fetch customers if user is not grandchild
+    if (user?.accountType !== 'grandchild') {
+      fetchCustomers();
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const token = localStorage.getItem('token');
+
+      // Call analysis API instead of mock
+      const response = await fetch(`${API_BASE_URL}/api/analysis/recommend/${formData.customerId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        alert('レポート生成が完了しました');
+        navigate('/reports');
+      } else {
+        const error = await response.json();
+        alert('レポート生成に失敗しました: ' + (error.error || '不明なエラー'));
+      }
+    } catch (error) {
+      console.error('Report creation error:', error);
+      alert('レポート生成に失敗しました');
+    } finally {
       setLoading(false);
-      alert('レポート生成を開始しました。完了までお待ちください。');
-      navigate('/reports');
-    }, 2000);
+    }
   };
 
   const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -4248,13 +4286,32 @@ function ReportForm({ user, navigate }: ReportFormProps) {
     }));
   };
 
+  // Redirect if grandchild tries to access
+  if (user?.accountType === 'grandchild') {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+        <Paper sx={{ p: 4 }}>
+          <Alert severity="error">
+            <Typography variant="h6">アクセス権限がありません</Typography>
+            <Typography variant="body2">
+              顧客アカウントはレポートを作成できません。担当者にお問い合わせください。
+            </Typography>
+          </Alert>
+          <Button variant="contained" onClick={() => navigate('/reports')} sx={{ mt: 2 }}>
+            レポート一覧に戻る
+          </Button>
+        </Paper>
+      </Container>
+    );
+  }
+
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           新規レポート作成
         </Typography>
-        
+
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6}>
