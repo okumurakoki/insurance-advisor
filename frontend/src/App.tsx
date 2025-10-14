@@ -1630,37 +1630,48 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             </Grid>
 
             {/* Market Summary */}
-            <Box sx={{ mt: 3, p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
-              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                📈 市場サマリー & 投資アドバイス
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={4}>
-                  <Typography variant="body2" color="success.main" fontWeight="bold">
-                    💡 買い推奨: 米国株式型
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    市場調整により絶好の買い場。長期投資に最適。
-                  </Typography>
+            {fundPerformance.length > 0 && (
+              <Box sx={{ mt: 3, p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                  📈 市場サマリー & 投資アドバイス
+                </Typography>
+                <Grid container spacing={2}>
+                  {fundPerformance
+                    .filter((fund: any) => fund.recommendation !== 'neutral')
+                    .slice(0, 3)
+                    .map((fund: any) => {
+                      const isRecommended = fund.recommendation === 'recommended';
+                      const isOverpriced = fund.recommendation === 'overpriced';
+
+                      return (
+                        <Grid item xs={12} md={4} key={fund.fundType}>
+                          <Typography
+                            variant="body2"
+                            color={isRecommended ? 'success.main' : isOverpriced ? 'error.main' : 'primary.main'}
+                            fontWeight="bold"
+                          >
+                            {isRecommended ? '💡 買い推奨' : isOverpriced ? '⚠️ 様子見' : '安定運用'}: {fund.fundType.replace('型', '')}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {isRecommended
+                              ? `パフォーマンス${fund.performance > 10 ? '好調' : '良好'}。積極的な投資を推奨。`
+                              : isOverpriced
+                              ? '市場調整により一時的な慎重姿勢を推奨。'
+                              : '安定したパフォーマンス継続中。'}
+                          </Typography>
+                        </Grid>
+                      );
+                    })}
+                  {fundPerformance.filter((fund: any) => fund.recommendation !== 'neutral').length === 0 && (
+                    <Grid item xs={12}>
+                      <Typography variant="body2" color="text.secondary" textAlign="center">
+                        現在、特に推奨するファンドはありません。バランスの取れた配分を維持してください。
+                      </Typography>
+                    </Grid>
+                  )}
                 </Grid>
-                <Grid item xs={12} md={4}>
-                  <Typography variant="body2" color="primary.main" fontWeight="bold">
-                    安定運用: 米国債券型
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    金利上昇局面でも安定したパフォーマンス。
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Typography variant="body2" color="error.main" fontWeight="bold">
-                    ⚠️ 様子見: REIT型
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    不動産市場の不透明感により一時的な調整が必要。
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Box>
+              </Box>
+            )}
           </Paper>
         </Grid>
         ) : (
