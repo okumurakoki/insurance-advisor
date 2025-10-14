@@ -576,6 +576,7 @@ function AppContent() {
   const navigationItems = [
     { path: '/dashboard', icon: <DashboardIcon />, text: 'ダッシュボード' },
     ...(user?.accountType !== 'grandchild' ? [{ path: '/customers', icon: <PeopleIcon />, text: '顧客管理' }] : []),
+    { path: '/portfolio-optimizer', icon: <TrendingUp />, text: 'ポートフォリオ最適化' },
     ...(user?.accountType === 'admin' ? [{ path: '/products', icon: <AssessmentIcon />, text: 'ファンド管理' }] : []),
     ...(user?.accountType === 'admin' ? [{ path: '/users', icon: <PeopleIcon />, text: 'ユーザー管理' }] : []),
     { path: '/reports', icon: <AssessmentIcon />, text: user?.accountType === 'grandchild' ? 'マイレポート' : 'レポート' },
@@ -4783,37 +4784,45 @@ function PortfolioOptimizer({ user, navigate }: PortfolioOptimizerProps) {
               
               <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Box sx={{ width: 300, height: 300 }}>
-                  {/* 簡易的な円グラフ表示 */}
-                  <svg viewBox="0 0 100 100">
-                    {data.reduce((acc, item, index) => {
-                      const startAngle = acc;
-                      const endAngle = acc + (item.value / 100) * 360;
-                      const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
-                      const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
-                      const x2 = 50 + 40 * Math.cos((endAngle * Math.PI) / 180);
-                      const y2 = 50 + 40 * Math.sin((endAngle * Math.PI) / 180);
-                      const largeArcFlag = item.value > 50 ? 1 : 0;
-                      
-                      return (
-                        <g key={index}>
-                          <path
-                            d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
-                            fill={item.color}
-                            stroke="white"
-                            strokeWidth="0.5"
-                          />
-                          <text
-                            x={50 + 25 * Math.cos(((startAngle + endAngle) / 2 * Math.PI) / 180)}
-                            y={50 + 25 * Math.sin(((startAngle + endAngle) / 2 * Math.PI) / 180)}
-                            textAnchor="middle"
-                            fontSize="4"
-                            fill="white"
-                          >
-                            {item.value}%
-                          </text>
-                        </g>
-                      );
-                    }, 0)}
+                  <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+                    {(() => {
+                      let cumulativeAngle = 0;
+                      return data.map((item, index) => {
+                        const angle = (item.value / 100) * 360;
+                        const startAngle = cumulativeAngle;
+                        const endAngle = cumulativeAngle + angle;
+
+                        const startX = 50 + 40 * Math.cos((startAngle - 90) * Math.PI / 180);
+                        const startY = 50 + 40 * Math.sin((startAngle - 90) * Math.PI / 180);
+                        const endX = 50 + 40 * Math.cos((endAngle - 90) * Math.PI / 180);
+                        const endY = 50 + 40 * Math.sin((endAngle - 90) * Math.PI / 180);
+
+                        const largeArcFlag = angle > 180 ? 1 : 0;
+
+                        cumulativeAngle += angle;
+
+                        return (
+                          <g key={index}>
+                            <path
+                              d={`M 50 50 L ${startX} ${startY} A 40 40 0 ${largeArcFlag} 1 ${endX} ${endY} Z`}
+                              fill={item.color}
+                              stroke="white"
+                              strokeWidth="0.5"
+                            />
+                            <text
+                              x={50 + 25 * Math.cos(((startAngle + endAngle) / 2 - 90) * Math.PI / 180)}
+                              y={50 + 25 * Math.sin(((startAngle + endAngle) / 2 - 90) * Math.PI / 180)}
+                              textAnchor="middle"
+                              fontSize="4"
+                              fill="white"
+                              fontWeight="bold"
+                            >
+                              {item.value}%
+                            </text>
+                          </g>
+                        );
+                      });
+                    })()}
                   </svg>
                 </Box>
               </Box>
