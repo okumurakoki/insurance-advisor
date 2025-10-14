@@ -9,6 +9,8 @@ const NotebookLMService = require('../services/notebookLM.service');
 const AllocationCalculator = require('../services/calculator.service');
 const logger = require('../utils/logger');
 const { authenticateToken, authorizePlanFeature, authorizeAccountType } = require('../middleware/auth');
+const PDFReportGenerator = require('../utils/pdf-generator');
+const ExcelReportGenerator = require('../utils/excel-generator');
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -496,8 +498,8 @@ router.get('/optimization-summary', authenticateToken, async (req, res) => {
         res.json({
             recommendations,
             summary: {
-                totalChanges: Object.values(recommendations).filter((fund: any) => Math.abs(fund.change) >= 3).length,
-                majorRebalancing: Object.values(recommendations).some((fund: any) => Math.abs(fund.change) >= 8),
+                totalChanges: Object.values(recommendations).filter(fund => Math.abs(fund.change) >= 3).length,
+                majorRebalancing: Object.values(recommendations).some(fund => Math.abs(fund.change) >= 8),
                 lastUpdated: results[0].created_at
             }
         });
@@ -511,7 +513,7 @@ router.get('/optimization-summary', authenticateToken, async (req, res) => {
 router.get('/statistics', authenticateToken, async (req, res) => {
     try {
         // Get all customers for this user
-        const customers = await Customer.findByUserId(req.user.id);
+        const customers = await Customer.getByUserId(req.user.id);
         const customerCount = customers.length;
 
         // Get all analysis results for this user
@@ -520,7 +522,8 @@ router.get('/statistics', authenticateToken, async (req, res) => {
 
         // Calculate total assets (sum of all customer contract amounts)
         const totalAssets = customers.reduce((sum, customer) => {
-            return sum + (customer.contract_amount || 0);
+            const amount = parseFloat(customer.contract_amount) || 0;
+            return sum + amount;
         }, 0);
 
         // Calculate average return from all analysis results
@@ -564,7 +567,72 @@ router.get('/statistics', authenticateToken, async (req, res) => {
         });
     } catch (error) {
         logger.error('Failed to fetch statistics:', error);
-        res.status(500).json({ error: 'Failed to fetch statistics' });
+        res.status(500).json({
+            error: 'Failed to fetch statistics',
+            details: process.env.NODE_ENV === 'production' ? undefined : error.message
+        });
+    }
+});
+
+// Export report as PDF
+router.get('/report/:analysisId/pdf', authenticateToken, async (req, res) => {
+    const { analysisId } = req.params;
+
+    try {
+        const analysis = await AnalysisResult.findById(analysisId);
+
+        if (!analysis) {
+            return res.status(404).json({ error: 'Analysis not found' });
+        }
+
+        const customer = await Customer.findById(analysis.customer_id);
+
+        if (!customer || customer.user_id !== req.user.id) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const pdfGenerator = new PDFReportGenerator();
+        const pdfBuffer = await pdfGenerator.generateAnalysisReport(analysis, customer);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=analysis-report-${analysisId}.pdf`);
+        res.send(pdfBuffer);
+
+        logger.info(`PDF report generated for analysis ${analysisId} by user ${req.user.userId}`);
+    } catch (error) {
+        logger.error('Failed to generate PDF report:', error);
+        res.status(500).json({ error: 'Failed to generate PDF report' });
+    }
+});
+
+// Export report as Excel
+router.get('/report/:analysisId/excel', authenticateToken, async (req, res) => {
+    const { analysisId } = req.params;
+
+    try {
+        const analysis = await AnalysisResult.findById(analysisId);
+
+        if (!analysis) {
+            return res.status(404).json({ error: 'Analysis not found' });
+        }
+
+        const customer = await Customer.findById(analysis.customer_id);
+
+        if (!customer || customer.user_id !== req.user.id) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const excelGenerator = new ExcelReportGenerator();
+        const excelBuffer = await excelGenerator.generateAnalysisReport(analysis, customer);
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=analysis-report-${analysisId}.xlsx`);
+        res.send(excelBuffer);
+
+        logger.info(`Excel report generated for analysis ${analysisId} by user ${req.user.userId}`);
+    } catch (error) {
+        logger.error('Failed to generate Excel report:', error);
+        res.status(500).json({ error: 'Failed to generate Excel report' });
     }
 });
 

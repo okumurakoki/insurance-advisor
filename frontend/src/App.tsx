@@ -48,6 +48,7 @@ import {
   BarChart as BarChartIcon,
   Menu as MenuIcon,
   CloudUpload as CloudUploadIcon,
+  TableChart as TableIcon,
 } from '@mui/icons-material';
 
 // API Configuration
@@ -1172,11 +1173,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                       currentAllocation: optimizationResults.recommendations,
                       content: {
                         recommendations: [
-                          `市場センチメント: ${optimizationResults.marketAnalysis.marketSentiment}`,
-                          `期待月次リターン: +${optimizationResults.marketAnalysis.expectedMonthlyReturn}%`,
-                          `推奨変更ファンド数: ${optimizationResults.summary.totalChanges}`,
-                          `期待効果: ${optimizationResults.summary.expectedImpact}`,
-                          `実行信頼度: ${optimizationResults.summary.confidence}`,
+                          `推奨変更ファンド数: ${optimizationResults.summary.totalChanges}件`,
+                          `大幅リバランス: ${optimizationResults.summary.majorRebalancing ? '必要' : '不要'}`,
+                          `最終更新: ${new Date(optimizationResults.summary.lastUpdated).toLocaleString('ja-JP')}`,
                           '月次リバランスにより最適なリスク・リターンバランスを維持'
                         ]
                       }
@@ -1414,186 +1413,92 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
               <Typography variant="h6">
                 プルデンシャル変額保険ファンド分析 (リアルタイム)
               </Typography>
-              <Chip label="最終更新: 1分前" color="success" size="small" />
+              <Chip label="最終更新: リアルタイム" color="success" size="small" />
             </Box>
-            
+
             <Grid container spacing={3}>
-              {/* 株式型ファンド */}
-              <Grid item xs={12} md={4}>
-                <Card variant="outlined" sx={{ height: '100%', position: 'relative' }}>
-                  <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                      <Box>
-                        <Typography variant="h6" color="primary">株式型ファンド</Typography>
-                        <Typography variant="body2" color="text.secondary">国内株式中心</Typography>
-                      </Box>
-                      <Chip label="通常" size="small" />
-                    </Box>
-                    
-                    <Typography variant="h4" color="success.main" gutterBottom>
-                      +6.8% (年率)
-                    </Typography>
-                    
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="text.secondary">期待収益率</Typography>
-                      <Typography variant="h6" fontWeight="bold" color="success.main">6.8% (年率)</Typography>
-                    </Box>
-                    
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="caption" color="text.secondary">投資推奨度</Typography>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Box sx={{ width: '100%', height: 6, backgroundColor: 'grey.300', borderRadius: 1 }}>
-                          <Box sx={{ width: '75%', height: '100%', backgroundColor: 'success.main', borderRadius: 1 }} />
+              {fundPerformance.map((fund: any) => {
+                const isRecommended = fund.recommendation === 'recommended';
+                const isOverpriced = fund.recommendation === 'overpriced';
+                const chipColor = isRecommended ? 'success' : isOverpriced ? 'error' : 'default';
+                const chipLabel = isRecommended ? '今月の割安' : isOverpriced ? '今月の割高' : '通常';
+                const performanceColor = fund.performance >= 0 ? 'success.main' : 'error.main';
+                const recommendationScore = isRecommended ? 90 : isOverpriced ? 30 : 70;
+
+                return (
+                  <Grid item xs={12} md={4} key={fund.fundType}>
+                    <Card
+                      variant="outlined"
+                      sx={{
+                        height: '100%',
+                        border: isRecommended ? '2px solid' : isOverpriced ? '2px solid' : '1px solid',
+                        borderColor: isRecommended ? 'success.main' : isOverpriced ? 'error.main' : 'divider'
+                      }}
+                    >
+                      <CardContent>
+                        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                          <Box>
+                            <Typography variant="h6" color="primary">{fund.fundType}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {fund.fundType.includes('米国株式') ? '米国株式市場' :
+                               fund.fundType.includes('米国債券') ? '米国債券中心' :
+                               fund.fundType.includes('株式') ? '国内株式中心' :
+                               fund.fundType.includes('REIT') ? '不動産投資信託' : '世界株式分散'}
+                            </Typography>
+                          </Box>
+                          <Chip label={chipLabel} color={chipColor} size="small" />
                         </Box>
-                        <Typography variant="caption">75%</Typography>
-                      </Box>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
 
-              {/* 米国株式型ファンド */}
-              <Grid item xs={12} md={4}>
-                <Card variant="outlined" sx={{ height: '100%', position: 'relative', border: '2px solid', borderColor: 'success.main' }}>
-                  <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                      <Box>
-                        <Typography variant="h6" color="primary">米国株式型ファンド</Typography>
-                        <Typography variant="body2" color="text.secondary">米国株式市場</Typography>
-                      </Box>
-                      <Chip label="今月の割安" color="success" size="small" />
-                    </Box>
-                    
-                    <Typography variant="h4" color="success.main" gutterBottom>
-                      +12.3% (年率)
-                    </Typography>
-                    
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="text.secondary">期待収益率</Typography>
-                      <Typography variant="h6" fontWeight="bold" color="success.main">7.5% (年率)</Typography>
-                    </Box>
-                    
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="caption" color="text.secondary">投資推奨度</Typography>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Box sx={{ width: '100%', height: 6, backgroundColor: 'grey.300', borderRadius: 1 }}>
-                          <Box sx={{ width: '95%', height: '100%', backgroundColor: 'success.main', borderRadius: 1 }} />
+                        <Typography variant="h4" color={performanceColor} gutterBottom>
+                          {fund.performance >= 0 ? '+' : ''}{fund.performance}% (年率)
+                        </Typography>
+
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="caption" color="text.secondary">期待収益率</Typography>
+                          <Typography variant="h6" fontWeight="bold" color={performanceColor}>
+                            {fund.performance >= 0 ? '+' : ''}{fund.performance}% (年率)
+                          </Typography>
                         </Box>
-                        <Typography variant="caption" color="success.main" fontWeight="bold">95%</Typography>
-                      </Box>
-                    </Box>
-                    
-                    <Alert severity="success" sx={{ mt: 1, py: 0 }}>
-                      <Typography variant="caption">💡 買い時: 市場下落による絶好の投資機会</Typography>
-                    </Alert>
-                  </CardContent>
-                </Card>
-              </Grid>
 
-              {/* 米国債券型ファンド */}
-              <Grid item xs={12} md={4}>
-                <Card variant="outlined" sx={{ height: '100%' }}>
-                  <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                      <Box>
-                        <Typography variant="h6" color="primary">米国債券型ファンド</Typography>
-                        <Typography variant="body2" color="text.secondary">米国債券中心</Typography>
-                      </Box>
-                      <Chip label="安定" color="primary" size="small" />
-                    </Box>
-                    
-                    <Typography variant="h4" color="primary.main" gutterBottom>
-                      +3.2% (年率)
-                    </Typography>
-                    
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="caption" color="text.secondary">期待収益率</Typography>
-                      <Typography variant="h6" fontWeight="bold" color="primary.main">4.2% (年率)</Typography>
-                    </Box>
-                    
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="caption" color="text.secondary">投資推奨度</Typography>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Box sx={{ width: '100%', height: 6, backgroundColor: 'grey.300', borderRadius: 1 }}>
-                          <Box sx={{ width: '60%', height: '100%', backgroundColor: 'primary.main', borderRadius: 1 }} />
+                        <Box sx={{ mt: 2 }}>
+                          <Typography variant="caption" color="text.secondary">投資推奨度</Typography>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Box sx={{ width: '100%', height: 6, backgroundColor: 'grey.300', borderRadius: 1 }}>
+                              <Box
+                                sx={{
+                                  width: `${recommendationScore}%`,
+                                  height: '100%',
+                                  backgroundColor: isRecommended ? 'success.main' : isOverpriced ? 'error.main' : 'primary.main',
+                                  borderRadius: 1
+                                }}
+                              />
+                            </Box>
+                            <Typography
+                              variant="caption"
+                              color={isRecommended ? 'success.main' : isOverpriced ? 'error.main' : 'text.primary'}
+                              fontWeight="bold"
+                            >
+                              {recommendationScore}%
+                            </Typography>
+                          </Box>
                         </Box>
-                        <Typography variant="caption">60%</Typography>
-                      </Box>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
 
-              {/* REIT型ファンド */}
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined" sx={{ border: '2px solid', borderColor: 'error.main' }}>
-                  <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                      <Box>
-                        <Typography variant="h6" color="primary">REIT型ファンド</Typography>
-                        <Typography variant="body2" color="text.secondary">不動産投資信託</Typography>
-                      </Box>
-                      <Chip label="今月の割高" color="error" size="small" />
-                    </Box>
-                    
-                    <Typography variant="h4" color="error.main" gutterBottom>
-                      -1.5% (年率)
-                    </Typography>
-                    
-                    <Grid container spacing={2}>
-                      <Grid item xs={4}>
-                        <Typography variant="caption" color="text.secondary">期待収益率</Typography>
-                        <Typography variant="body2" fontWeight="bold">5.5% (年率)</Typography>
-                      </Grid>
-                      {/* 管理手数料削除 */}
-                      <Grid item xs={4}>
-                        <Typography variant="caption" color="text.secondary">投資推奨度</Typography>
-                        <Typography variant="body2" color="error.main" fontWeight="bold">25%</Typography>
-                      </Grid>
-                    </Grid>
-                    
-                    <Alert severity="warning" sx={{ mt: 1, py: 0 }}>
-                      <Typography variant="caption">⚠️ 様子見: 不動産市場の調整局面</Typography>
-                    </Alert>
-                  </CardContent>
-                </Card>
-              </Grid>
+                        {isRecommended && (
+                          <Alert severity="success" sx={{ mt: 1, py: 0 }}>
+                            <Typography variant="caption">💡 買い推奨: パフォーマンス好調</Typography>
+                          </Alert>
+                        )}
 
-              {/* 世界株式型ファンド */}
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                      <Box>
-                        <Typography variant="h6" color="primary">世界株式型ファンド</Typography>
-                        <Typography variant="body2" color="text.secondary">世界株式分散</Typography>
-                      </Box>
-                      <Chip label="好調" color="success" size="small" />
-                    </Box>
-                    
-                    <Typography variant="h4" color="success.main" gutterBottom>
-                      +8.7% (年率)
-                    </Typography>
-                    
-                    <Grid container spacing={2}>
-                      <Grid item xs={4}>
-                        <Typography variant="caption" color="text.secondary">期待収益率</Typography>
-                        <Typography variant="body2" fontWeight="bold">7.2% (年率)</Typography>
-                      </Grid>
-                      {/* 管理手数料削除 */}
-                      <Grid item xs={4}>
-                        <Typography variant="caption" color="text.secondary">投資推奨度</Typography>
-                        <Typography variant="body2" color="success.main" fontWeight="bold">85%</Typography>
-                      </Grid>
-                    </Grid>
-                    
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="caption" color="text.secondary">地域別構成</Typography>
-                      <Typography variant="body2">米国45% | 欧州25% | アジア20% | その他10%</Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
+                        {isOverpriced && (
+                          <Alert severity="warning" sx={{ mt: 1, py: 0 }}>
+                            <Typography variant="caption">⚠️ 様子見: 市場調整局面</Typography>
+                          </Alert>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                );
+              })}
             </Grid>
 
             {/* Market Summary */}
@@ -2442,6 +2347,8 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [performanceData, setPerformanceData] = useState<any[]>([]);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadingExcel, setDownloadingExcel] = useState(false);
 
   const handleRunAnalysis = async () => {
     setAnalyzing(true);
@@ -2487,6 +2394,78 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
       alert('分析中にエラーが発生しました');
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!analysisResult || !analysisResult.id) {
+      alert('ダウンロード可能な分析結果がありません');
+      return;
+    }
+
+    setDownloadingPdf(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/analysis/report/${analysisResult.id}/pdf`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `analysis-report-${analysisResult.id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('PDFダウンロードに失敗しました');
+      }
+    } catch (error) {
+      console.error('PDF download error:', error);
+      alert('PDFダウンロード中にエラーが発生しました');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const handleDownloadExcel = async () => {
+    if (!analysisResult || !analysisResult.id) {
+      alert('ダウンロード可能な分析結果がありません');
+      return;
+    }
+
+    setDownloadingExcel(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/analysis/report/${analysisResult.id}/excel`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `analysis-report-${analysisResult.id}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Excelダウンロードに失敗しました');
+      }
+    } catch (error) {
+      console.error('Excel download error:', error);
+      alert('Excelダウンロード中にエラーが発生しました');
+    } finally {
+      setDownloadingExcel(false);
     }
   };
 
@@ -2681,12 +2660,36 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
       {/* Analysis Result */}
       {analysisResult && (
         <Paper sx={{ mt: 3, p: 3, bgcolor: '#f5f9ff', border: '2px solid #2196f3' }}>
-          <Typography variant="h5" gutterBottom color="primary">
-            ✨ 最新の分析結果
-          </Typography>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            分析日時: {new Date(analysisResult.customer.contractMonths ? Date.now() : analysisResult.analysisDate).toLocaleString('ja-JP')}
-          </Typography>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Box>
+              <Typography variant="h5" color="primary">
+                ✨ 最新の分析結果
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                分析日時: {new Date(analysisResult.customer.contractMonths ? Date.now() : analysisResult.analysisDate).toLocaleString('ja-JP')}
+              </Typography>
+            </Box>
+            <Box display="flex" gap={1}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={downloadingPdf ? <CircularProgress size={16} /> : <PdfIcon />}
+                onClick={handleDownloadPdf}
+                disabled={downloadingPdf || downloadingExcel}
+              >
+                PDF出力
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={downloadingExcel ? <CircularProgress size={16} /> : <TableIcon />}
+                onClick={handleDownloadExcel}
+                disabled={downloadingPdf || downloadingExcel}
+              >
+                Excel出力
+              </Button>
+            </Box>
+          </Box>
 
           <Grid container spacing={3} sx={{ mt: 2 }}>
             <Grid item xs={12} md={6}>
@@ -4820,87 +4823,36 @@ function AlertCenter({ user, navigate }: AlertCenterProps) {
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
   useEffect(() => {
-    // Mock alert data
-    const mockAlerts: AlertItem[] = [
-      {
-        id: 1,
-        type: 'warning',
-        title: 'ポートフォリオ配分バランス注意',
-        message: '田中太郎様のポートフォリオでREIT型ファンドが推奨配分を20%上回っています。リバランスを検討してください。',
-        createdAt: '2024-01-25T09:30:00',
-        isRead: false,
-        customerId: 1,
-        customerName: '田中太郎',
-        actionType: 'rebalance',
-        priority: 'high'
-      },
-      {
-        id: 2,
-        type: 'success',
-        title: '市場機会アラート',
-        message: '米国株式型ファンドが月間安値を更新しました。積極投資家向けの買い増し機会です。',
-        createdAt: '2024-01-25T08:15:00',
-        isRead: false,
-        customerId: 3,
-        customerName: '山田次郎',
-        actionType: 'buy_opportunity',
-        priority: 'medium'
-      },
-      {
-        id: 3,
-        type: 'error',
-        title: '損失限界アラート',
-        message: '佐藤花子様のポートフォリオが設定した損失限界5%に到達しました。緊急の見直しが必要です。',
-        createdAt: '2024-01-24T16:45:00',
-        isRead: true,
-        customerId: 2,
-        customerName: '佐藤花子',
-        actionType: 'risk_management',
-        priority: 'high'
-      },
-      {
-        id: 4,
-        type: 'info',
-        title: 'レポート生成完了',
-        message: '田中太郎様のリスク分析レポートが完成しました。確認してください。',
-        createdAt: '2024-01-24T14:20:00',
-        isRead: true,
-        customerId: 1,
-        customerName: '田中太郎',
-        actionType: 'report_ready',
-        priority: 'low'
-      },
-      {
-        id: 5,
-        type: 'warning',
-        title: '月次積立遅延',
-        message: '鈴木一郎様の月次積立が予定日を3日経過しています。顧客へ確認をお願いします。',
-        createdAt: '2024-01-23T11:00:00',
-        isRead: false,
-        customerId: 4,
-        customerName: '鈴木一郎',
-        actionType: 'payment_delay',
-        priority: 'medium'
-      },
-      {
-        id: 6,
-        type: 'success',
-        title: '目標達成通知',
-        message: '高橋美咲様のポートフォリオが年間目標収益率7%を達成しました！',
-        createdAt: '2024-01-22T10:30:00',
-        isRead: true,
-        customerId: 5,
-        customerName: '高橋美咲',
-        actionType: 'goal_achieved',
-        priority: 'low'
+    const fetchAlerts = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/alerts`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAlerts(data);
+        } else {
+          console.error('Failed to fetch alerts');
+          setAlerts([]);
+        }
+      } catch (error) {
+        console.error('Error fetching alerts:', error);
+        setAlerts([]);
+      } finally {
+        setLoading(false);
       }
-    ];
-    
-    setTimeout(() => {
-      setAlerts(mockAlerts);
-      setFilteredAlerts(mockAlerts);
-      setLoading(false);
-    }, 500);
+    };
+
+    fetchAlerts();
   }, []);
 
   // フィルタリング機能
@@ -4930,18 +4882,60 @@ function AlertCenter({ user, navigate }: AlertCenterProps) {
     setFilteredAlerts(filtered);
   }, [alerts, filterType, filterPriority, showUnreadOnly]);
 
-  const markAsRead = (alertId: number) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId ? { ...alert, isRead: true } : alert
-    ));
+  const markAsRead = async (alertId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/alerts/${alertId}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setAlerts(prev => prev.map(alert =>
+          alert.id === alertId ? { ...alert, isRead: true } : alert
+        ));
+      }
+    } catch (error) {
+      console.error('Error marking alert as read:', error);
+    }
   };
 
-  const markAllAsRead = () => {
-    setAlerts(prev => prev.map(alert => ({ ...alert, isRead: true })));
+  const markAllAsRead = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/alerts/read-all`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setAlerts(prev => prev.map(alert => ({ ...alert, isRead: true })));
+      }
+    } catch (error) {
+      console.error('Error marking all alerts as read:', error);
+    }
   };
 
-  const deleteAlert = (alertId: number) => {
-    setAlerts(prev => prev.filter(alert => alert.id !== alertId));
+  const deleteAlert = async (alertId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/alerts/${alertId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setAlerts(prev => prev.filter(alert => alert.id !== alertId));
+      }
+    } catch (error) {
+      console.error('Error deleting alert:', error);
+    }
   };
 
   const getAlertIcon = (type: string) => {

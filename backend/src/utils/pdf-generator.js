@@ -1,0 +1,144 @@
+const PDFDocument = require('pdfkit');
+const path = require('path');
+const fs = require('fs');
+
+class PDFReportGenerator {
+    constructor() {
+        // Load font if available - fallback to default if not
+        this.fontPath = path.join(__dirname, '../assets/fonts');
+    }
+
+    async generateAnalysisReport(analysisData, customerData) {
+        return new Promise((resolve, reject) => {
+            try {
+                const doc = new PDFDocument({
+                    size: 'A4',
+                    margins: {
+                        top: 50,
+                        bottom: 50,
+                        left: 50,
+                        right: 50
+                    }
+                });
+
+                const chunks = [];
+                doc.on('data', chunk => chunks.push(chunk));
+                doc.on('end', () => resolve(Buffer.concat(chunks)));
+                doc.on('error', reject);
+
+                // Header
+                doc.fontSize(20)
+                   .text('Portfolio Analysis Report', { align: 'center' })
+                   .moveDown();
+
+                doc.fontSize(10)
+                   .text(`Generated: ${new Date().toLocaleDateString('ja-JP')}`, { align: 'right' })
+                   .moveDown(2);
+
+                // Customer Information Section
+                doc.fontSize(14)
+                   .text('Customer Information', { underline: true })
+                   .moveDown(0.5);
+
+                doc.fontSize(10)
+                   .text(`Name: ${customerData.name}`)
+                   .text(`Contract Date: ${new Date(customerData.contract_date).toLocaleDateString('ja-JP')}`)
+                   .text(`Monthly Premium: ¥${customerData.monthly_premium.toLocaleString()}`)
+                   .text(`Risk Tolerance: ${this.getRiskToleranceLabel(customerData.risk_tolerance)}`)
+                   .text(`Contract Amount: ¥${customerData.contract_amount.toLocaleString()}`)
+                   .moveDown(2);
+
+                // Analysis Information
+                doc.fontSize(14)
+                   .text('Analysis Summary', { underline: true })
+                   .moveDown(0.5);
+
+                doc.fontSize(10)
+                   .text(`Analysis Date: ${new Date(analysisData.analysis_date).toLocaleDateString('ja-JP')}`)
+                   .text(`Confidence Score: ${analysisData.confidence_score}%`)
+                   .text(`Market Data Source: ${analysisData.market_data_source}`)
+                   .moveDown(2);
+
+                // Current Allocation
+                doc.fontSize(14)
+                   .text('Current Asset Allocation', { underline: true })
+                   .moveDown(0.5);
+
+                const currentAllocation = analysisData.adjusted_allocation || {};
+                doc.fontSize(10);
+                Object.entries(currentAllocation).forEach(([fundType, percentage]) => {
+                    doc.text(`${fundType}: ${percentage}%`);
+                });
+                doc.moveDown(2);
+
+                // Recommended Allocation
+                doc.fontSize(14)
+                   .text('Recommended Asset Allocation', { underline: true })
+                   .moveDown(0.5);
+
+                const recommendedAllocation = analysisData.base_allocation || {};
+                doc.fontSize(10);
+                Object.entries(recommendedAllocation).forEach(([fundType, percentage]) => {
+                    const current = currentAllocation[fundType] || 0;
+                    const change = percentage - current;
+                    const changeText = change > 0 ? `(+${change.toFixed(1)}%)` : change < 0 ? `(${change.toFixed(1)}%)` : '';
+                    doc.text(`${fundType}: ${percentage}% ${changeText}`);
+                });
+                doc.moveDown(2);
+
+                // Adjustment Factors
+                if (analysisData.adjustment_factors && Object.keys(analysisData.adjustment_factors).length > 0) {
+                    doc.fontSize(14)
+                       .text('Adjustment Factors', { underline: true })
+                       .moveDown(0.5);
+
+                    doc.fontSize(10);
+                    Object.entries(analysisData.adjustment_factors).forEach(([factor, value]) => {
+                        doc.text(`${factor}: ${value}`);
+                    });
+                    doc.moveDown(2);
+                }
+
+                // Recommendations
+                if (analysisData.recommendation_text) {
+                    doc.fontSize(14)
+                       .text('Investment Recommendations', { underline: true })
+                       .moveDown(0.5);
+
+                    doc.fontSize(10)
+                       .text(analysisData.recommendation_text, {
+                           align: 'justify',
+                           width: 500
+                       })
+                       .moveDown(2);
+                }
+
+                // Footer
+                doc.fontSize(8)
+                   .text('This report is generated by Prudential Insurance Optimizer AI System', {
+                       align: 'center'
+                   })
+                   .text('For internal use only - Confidential', {
+                       align: 'center'
+                   });
+
+                doc.end();
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    getRiskToleranceLabel(level) {
+        const labels = {
+            1: 'Very Conservative',
+            2: 'Conservative',
+            3: 'Moderate',
+            4: 'Aggressive',
+            5: 'Very Aggressive'
+        };
+        return labels[level] || 'Unknown';
+    }
+}
+
+module.exports = PDFReportGenerator;

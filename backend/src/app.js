@@ -64,12 +64,14 @@ const userRoutes = require('./routes/users');
 const customerRoutes = require('./routes/customers');
 const analysisRoutes = require('./routes/analysis');
 const lineRoutes = require('./routes/line');
+const alertRoutes = require('./routes/alerts');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/line', lineRoutes);
+app.use('/api/alerts', alertRoutes);
 
 // Add basic root route
 app.get('/', (req, res) => {
