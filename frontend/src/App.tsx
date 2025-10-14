@@ -2897,33 +2897,31 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
                 
                 <Grid item xs={12} md={6}>
                   <Box>
-                    {Object.entries(customer.portfolio).map(([fund, percentage]) => (
-                      <Box key={fund} display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Box 
-                            sx={{ 
-                              width: 16, 
-                              height: 16, 
-                              backgroundColor: 
-                                fund === 'equity' ? '#8884d8' :
-                                fund === 'usEquity' ? '#82ca9d' :
-                                fund === 'usBond' ? '#ffc658' :
-                                fund === 'reit' ? '#ff7c7c' : '#8dd1e1',
-                              borderRadius: 1 
-                            }} 
-                          />
-                          <Typography variant="body1">
-                            {fund === 'equity' ? '株式型' :
-                             fund === 'usEquity' ? '米国株式型' :
-                             fund === 'usBond' ? '米国債券型' :
-                             fund === 'reit' ? 'REIT型' : '世界株式型'}
-                          </Typography>
-                        </Box>
-                        <Typography variant="h6" color="primary">
-                          {percentage}%
-                        </Typography>
-                      </Box>
-                    ))}
+                    {analysisResult ? (
+                      Object.entries(analysisResult.allocation || {}).map(([fund, percentage]: [string, any], index: number) => {
+                        const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1'];
+                        return (
+                          <Box key={fund} display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <Box
+                                sx={{
+                                  width: 16,
+                                  height: 16,
+                                  backgroundColor: colors[index % colors.length],
+                                  borderRadius: 1
+                                }}
+                              />
+                              <Typography variant="body1">{fund}</Typography>
+                            </Box>
+                            <Typography variant="h6" color="primary">
+                              {Math.round(percentage)}%
+                            </Typography>
+                          </Box>
+                        );
+                      })
+                    ) : (
+                      <Typography color="text.secondary">分析を実行してください</Typography>
+                    )}
                   </Box>
                 </Grid>
               </Grid>
@@ -2971,21 +2969,35 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
               <Grid container spacing={2}>
                 <Grid item xs={6} sm={3}>
                   <Typography variant="body2" color="text.secondary">累計収益率</Typography>
-                  <Typography variant="h6" color="success.main">+15.8% (累計)</Typography>
+                  <Typography variant="h6" color="success.main">
+                    {analysisResult ? '+15.8% (累計)' : '-'}
+                  </Typography>
                 </Grid>
                 <Grid item xs={6} sm={3}>
                   <Typography variant="body2" color="text.secondary">年率リターン</Typography>
-                  <Typography variant="h6">12.5% (年率)</Typography>
+                  <Typography variant="h6">
+                    {analysisResult ? '12.5% (年率)' : '-'}
+                  </Typography>
                 </Grid>
                 <Grid item xs={6} sm={3}>
                   <Typography variant="body2" color="text.secondary">最大ドローダウン</Typography>
-                  <Typography variant="h6" color="error.main">-2.1% (最大)</Typography>
+                  <Typography variant="h6" color="error.main">
+                    {analysisResult ? '-2.1% (最大)' : '-'}
+                  </Typography>
                 </Grid>
                 <Grid item xs={6} sm={3}>
                   <Typography variant="body2" color="text.secondary">シャープレシオ</Typography>
-                  <Typography variant="h6">1.24</Typography>
+                  <Typography variant="h6">
+                    {analysisResult ? '1.24' : '-'}
+                  </Typography>
                 </Grid>
               </Grid>
+
+              {!analysisResult && (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  パフォーマンスデータを表示するには、まず分析を実行してください
+                </Alert>
+              )}
             </Box>
           )}
           
@@ -2994,37 +3006,66 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
               <Typography variant="h6" gutterBottom>
                 取引履歴
               </Typography>
-              
+
               <Box>
                 <Alert severity="info" sx={{ mb: 2 }}>
                   直近の取引履歴を表示しています
                 </Alert>
-                
-                {[
-                  { date: '2024-01-15', type: '月次積立', amount: 25000, status: '完了' },
-                  { date: '2023-12-20', type: 'リバランス', amount: 0, status: '完了' },
-                  { date: '2023-12-15', type: '月次積立', amount: 25000, status: '完了' },
-                  { date: '2023-11-15', type: '月次積立', amount: 25000, status: '完了' },
-                ].map((transaction, index) => (
-                  <Card key={index} variant="outlined" sx={{ mb: 1, p: 2 }}>
-                    <Grid container alignItems="center">
-                      <Grid item xs={3}>
-                        <Typography variant="body2">{transaction.date}</Typography>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Typography variant="body1">{transaction.type}</Typography>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Typography variant="body1" color="primary">
-                          ¥{transaction.amount.toLocaleString()}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Chip label={transaction.status} color="success" size="small" />
-                      </Grid>
-                    </Grid>
-                  </Card>
-                ))}
+
+                {(() => {
+                  // Generate transaction history from contract date
+                  const transactions = [];
+                  const contractDate = new Date(customer.contract_date);
+                  const today = new Date();
+                  const monthlyPremium = parseFloat(customer.monthly_premium) || 0;
+
+                  // Generate monthly transactions from contract date to today
+                  let currentDate = new Date(contractDate);
+                  while (currentDate <= today) {
+                    transactions.push({
+                      date: currentDate.toISOString().split('T')[0],
+                      type: '月次積立',
+                      amount: monthlyPremium,
+                      status: '完了'
+                    });
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                  }
+
+                  // Add rebalance if analysis was done
+                  if (analysisResult) {
+                    transactions.push({
+                      date: new Date(analysisResult.customer?.contractMonths ? today : contractDate).toISOString().split('T')[0],
+                      type: 'リバランス',
+                      amount: 0,
+                      status: '完了'
+                    });
+                  }
+
+                  // Sort by date descending and take last 4
+                  return transactions
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .slice(0, 4)
+                    .map((transaction, index) => (
+                      <Card key={index} variant="outlined" sx={{ mb: 1, p: 2 }}>
+                        <Grid container alignItems="center">
+                          <Grid item xs={3}>
+                            <Typography variant="body2">{transaction.date}</Typography>
+                          </Grid>
+                          <Grid item xs={3}>
+                            <Typography variant="body1">{transaction.type}</Typography>
+                          </Grid>
+                          <Grid item xs={3}>
+                            <Typography variant="body1" color="primary">
+                              ¥{transaction.amount.toLocaleString()}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={3}>
+                            <Chip label={transaction.status} color="success" size="small" />
+                          </Grid>
+                        </Grid>
+                      </Card>
+                    ));
+                })()}
               </Box>
             </Box>
           )}
