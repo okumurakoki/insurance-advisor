@@ -755,6 +755,31 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [uploadingMarketData, setUploadingMarketData] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fundPerformance, setFundPerformance] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchFundPerformance = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/analysis/fund-performance`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setFundPerformance(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch fund performance:', error);
+      }
+    };
+
+    fetchFundPerformance();
+  }, []);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -1757,51 +1782,37 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                 プルデンシャル変額保険ファンドパフォーマンス
               </Typography>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={2.4}>
-                  <Card sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50' }}>
-                    <Typography variant="subtitle2" color="text.secondary">国内株式型</Typography>
-                    <Typography variant="h5" color="success.main" sx={{ fontWeight: 'bold', my: 1 }}>
-                      +6.8%
-                    </Typography>
-                    <Typography variant="caption">(年率)</Typography>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2.4}>
-                  <Card sx={{ textAlign: 'center', p: 2, bgcolor: 'success.50', border: '2px solid', borderColor: 'success.main' }}>
-                    <Typography variant="subtitle2" color="text.secondary">米国株式型</Typography>
-                    <Typography variant="h5" color="success.main" sx={{ fontWeight: 'bold', my: 1 }}>
-                      +12.3%
-                    </Typography>
-                    <Typography variant="caption" color="success.main">今月のおすすめ</Typography>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2.4}>
-                  <Card sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50' }}>
-                    <Typography variant="subtitle2" color="text.secondary">米国債券型</Typography>
-                    <Typography variant="h5" color="primary.main" sx={{ fontWeight: 'bold', my: 1 }}>
-                      +3.2%
-                    </Typography>
-                    <Typography variant="caption">(年率)</Typography>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2.4}>
-                  <Card sx={{ textAlign: 'center', p: 2, bgcolor: 'error.50', border: '2px solid', borderColor: 'error.main' }}>
-                    <Typography variant="subtitle2" color="text.secondary">REIT型</Typography>
-                    <Typography variant="h5" color="error.main" sx={{ fontWeight: 'bold', my: 1 }}>
-                      -1.5%
-                    </Typography>
-                    <Typography variant="caption" color="error.main">割高</Typography>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2.4}>
-                  <Card sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50' }}>
-                    <Typography variant="subtitle2" color="text.secondary">世界株式型</Typography>
-                    <Typography variant="h5" color="success.main" sx={{ fontWeight: 'bold', my: 1 }}>
-                      +8.7%
-                    </Typography>
-                    <Typography variant="caption">(年率)</Typography>
-                  </Card>
-                </Grid>
+                {fundPerformance.map((fund: any) => {
+                  const isRecommended = fund.recommendation === 'recommended';
+                  const isOverpriced = fund.recommendation === 'overpriced';
+                  const isPositive = fund.performance > 0;
+
+                  return (
+                    <Grid item xs={12} sm={6} md={2.4} key={fund.fundType}>
+                      <Card sx={{
+                        textAlign: 'center',
+                        p: 2,
+                        bgcolor: isRecommended ? 'success.50' : isOverpriced ? 'error.50' : 'grey.50',
+                        border: (isRecommended || isOverpriced) ? '2px solid' : 'none',
+                        borderColor: isRecommended ? 'success.main' : isOverpriced ? 'error.main' : 'transparent'
+                      }}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          {fund.fundType.replace('型', '')}
+                        </Typography>
+                        <Typography variant="h5" color={isPositive ? 'success.main' : 'error.main'} sx={{ fontWeight: 'bold', my: 1 }}>
+                          {isPositive ? '+' : ''}{fund.performance}%
+                        </Typography>
+                        {isRecommended ? (
+                          <Typography variant="caption" color="success.main">今月のおすすめ</Typography>
+                        ) : isOverpriced ? (
+                          <Typography variant="caption" color="error.main">割高</Typography>
+                        ) : (
+                          <Typography variant="caption">(年率)</Typography>
+                        )}
+                      </Card>
+                    </Grid>
+                  );
+                })}
               </Grid>
             </Paper>
           </Grid>
@@ -2564,6 +2575,7 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
   const [activeTab, setActiveTab] = useState(0);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [performanceData, setPerformanceData] = useState<any[]>([]);
 
   const handleRunAnalysis = async () => {
     setAnalyzing(true);
@@ -2586,6 +2598,19 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
       if (response.ok) {
         const data = await response.json();
         setAnalysisResult(data);
+
+        // Fetch performance data
+        const perfResponse = await fetch(`${API_BASE_URL}/api/analysis/performance/${customerId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (perfResponse.ok) {
+          const perfData = await perfResponse.json();
+          setPerformanceData(perfData);
+        }
+
         alert('分析が完了しました！');
       } else {
         const error = await response.json();
@@ -2973,40 +2998,29 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
               </Typography>
 
               <Box sx={{ mb: 3 }}>
-                {analysisResult ? (
+                {analysisResult && performanceData.length > 0 ? (
                   <Box sx={{ bgcolor: '#f5f9ff', p: 3, borderRadius: 2 }}>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       契約開始からの経過月数と運用状況
                     </Typography>
                     <Grid container spacing={2} sx={{ mt: 1 }}>
-                      {(() => {
-                        const contractDate = new Date(customer.contract_date);
-                        const today = new Date();
-                        const monthsDiff = Math.floor((today.getTime() - contractDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-                        const dataPoints = Math.min(monthsDiff + 1, 6);
-
-                        return Array.from({ length: Math.max(dataPoints, 3) }, (_, i) => ({
-                          month: i,
-                          value: 100 + (i * 2.5) + (Math.random() * 2),
-                          change: i === 0 ? 0 : (2.5 + (Math.random() * 2))
-                        })).map((point, index) => (
-                          <Grid item xs={6} sm={4} md={2} key={index}>
-                            <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
-                              <Typography variant="caption" color="text.secondary">
-                                {point.month}ヶ月目
+                      {performanceData.slice(0, 6).map((point: any, index: number) => (
+                        <Grid item xs={6} sm={4} md={2} key={index}>
+                          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+                            <Typography variant="caption" color="text.secondary">
+                              {point.month}ヶ月目
+                            </Typography>
+                            <Typography variant="h6" color="primary">
+                              {point.value.toFixed(1)}%
+                            </Typography>
+                            {index > 0 && (
+                              <Typography variant="caption" color={point.monthlyReturn >= 0 ? 'success.main' : 'error.main'}>
+                                {point.monthlyReturn >= 0 ? '+' : ''}{point.monthlyReturn.toFixed(1)}%
                               </Typography>
-                              <Typography variant="h6" color="primary">
-                                {point.value.toFixed(1)}%
-                              </Typography>
-                              {index > 0 && (
-                                <Typography variant="caption" color="success.main">
-                                  +{point.change.toFixed(1)}%
-                                </Typography>
-                              )}
-                            </Card>
-                          </Grid>
-                        ));
-                      })()}
+                            )}
+                          </Card>
+                        </Grid>
+                      ))}
                     </Grid>
                   </Box>
                 ) : (
