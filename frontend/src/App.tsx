@@ -2993,12 +2993,35 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
 
                     return (
                       <svg viewBox="0 0 600 300" style={{ width: '100%', height: '100%' }}>
-                        {/* Grid lines */}
-                        <line x1="50" y1="250" x2="550" y2="250" stroke="#e0e0e0" strokeWidth="1" />
-                        <line x1="50" y1="200" x2="550" y2="200" stroke="#e0e0e0" strokeWidth="1" />
-                        <line x1="50" y1="150" x2="550" y2="150" stroke="#e0e0e0" strokeWidth="1" />
-                        <line x1="50" y1="100" x2="550" y2="100" stroke="#e0e0e0" strokeWidth="1" />
-                        <line x1="50" y1="50" x2="550" y2="50" stroke="#e0e0e0" strokeWidth="1" />
+                        {/* Y-axis */}
+                        <line x1="50" y1="50" x2="50" y2="250" stroke="#666" strokeWidth="2" />
+
+                        {/* X-axis */}
+                        <line x1="50" y1="250" x2="550" y2="250" stroke="#666" strokeWidth="2" />
+
+                        {/* Grid lines with Y-axis labels */}
+                        {[0, 1, 2, 3, 4].map((i) => {
+                          const y = 250 - (i * 50);
+                          const value = minValue + (range * i / 4);
+                          return (
+                            <g key={i}>
+                              <line x1="50" y1={y} x2="550" y2={y} stroke="#e0e0e0" strokeWidth="1" />
+                              <text x="40" y={y + 5} textAnchor="end" fontSize="12" fill="#666">
+                                {value.toFixed(1)}
+                              </text>
+                            </g>
+                          );
+                        })}
+
+                        {/* X-axis labels (months) */}
+                        {performanceData.map((point, index) => {
+                          const x = 50 + (index / (dataPoints - 1 || 1)) * 500;
+                          return (
+                            <text key={index} x={x} y="270" textAnchor="middle" fontSize="12" fill="#666">
+                              {index}ヶ月
+                            </text>
+                          );
+                        })}
 
                         {/* Performance line */}
                         <polyline
@@ -3012,18 +3035,17 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
                           }).join(' ')}
                         />
 
-                        {/* Data points */}
+                        {/* Data points with values */}
                         {performanceData.map((point, index) => {
                           const x = 50 + (index / (dataPoints - 1 || 1)) * 500;
                           const y = 250 - ((point.value - minValue) / range) * 200;
                           return (
-                            <circle
-                              key={index}
-                              cx={x}
-                              cy={y}
-                              r="5"
-                              fill="#8884d8"
-                            />
+                            <g key={index}>
+                              <circle cx={x} cy={y} r="5" fill="#8884d8" />
+                              <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="#8884d8" fontWeight="bold">
+                                {point.value.toFixed(1)}
+                              </text>
+                            </g>
                           );
                         })}
                       </svg>
