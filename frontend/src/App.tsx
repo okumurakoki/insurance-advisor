@@ -1197,73 +1197,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           ) : (
             // 最適化結果待機中の固定レイアウト
             <Paper sx={{ p: 2, mb: 2, border: '2px dashed #ccc', minHeight: '400px', backgroundColor: '#f8f9fa' }}>
-              {isOptimizing ? (
-                // 分析中のアニメーション
-                <Box sx={{ textAlign: 'center', py: 8 }}>
-                  <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', mb: 4 }}>
-                    AI分析中
-                  </Typography>
-                  <Box sx={{ position: 'relative', display: 'inline-block', mb: 3 }}>
-                    <CircularProgress 
-                      size={120} 
-                      thickness={4}
-                      sx={{ color: 'primary.light' }}
-                    />
-                    <CircularProgress 
-                      size={120} 
-                      thickness={4}
-                      variant="indeterminate"
-                      sx={{ 
-                        color: 'primary.main',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        animationDuration: '1500ms'
-                      }}
-                    />
-                  </Box>
-                  <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-                    市場データを解析しています...
-                  </Typography>
-                  <Box sx={{ width: '60%', mx: 'auto', mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Box sx={{ width: '100%', mr: 1 }}>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={30} 
-                          sx={{ height: 8, borderRadius: 4, bgcolor: 'grey.300' }}
-                        />
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
-                        市場分析
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Box sx={{ width: '100%', mr: 1 }}>
-                        <LinearProgress 
-                          variant="indeterminate" 
-                          sx={{ height: 8, borderRadius: 4, bgcolor: 'grey.300' }}
-                        />
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
-                        リスク計算
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Box sx={{ width: '100%', mr: 1 }}>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={0} 
-                          sx={{ height: 8, borderRadius: 4, bgcolor: 'grey.300' }}
-                        />
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
-                        最適化完了
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-              ) : (
                 <>
                   <Box sx={{ textAlign: 'center', mb: 2 }}>
                   <Typography variant="h5" gutterBottom color="text.secondary" sx={{ fontWeight: 'bold' }}>
@@ -1710,8 +1643,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             )}
           </Paper>
         </Grid>
-        ) : (
-          <Grid item xs={12}>
+        <Grid item xs={12}>
             <Paper sx={{ p: 3, mb: 2 }}>
               <Typography variant="h6" gutterBottom sx={{ textAlign: 'center' }}>
                 プルデンシャル変額保険ファンドパフォーマンス
@@ -1811,8 +1743,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                 顧客比較分析
               </Button>
             </Box>
-          </Grid>
-        )}
+          </Paper>
+        </Grid>
 
         {/* Welcome Message */}
         <Grid item xs={12}>
