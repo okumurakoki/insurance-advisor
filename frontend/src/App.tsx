@@ -756,6 +756,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fundPerformance, setFundPerformance] = useState<any[]>([]);
   const [statistics, setStatistics] = useState<any>(null);
+  const [latestMarketData, setLatestMarketData] = useState<any>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -801,6 +802,18 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             setShowRecommendations(true);
           }
         }
+
+        // Fetch latest market data
+        const marketDataResponse = await fetch(`${API_BASE_URL}/api/analysis/market-data/latest`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (marketDataResponse.ok) {
+          const data = await marketDataResponse.json();
+          setLatestMarketData(data);
+        }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       }
@@ -842,6 +855,13 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
       if (response.ok) {
         const data = await response.json();
+
+        // Update latest market data state
+        setLatestMarketData({
+          fileName: data.fileName,
+          uploadedAt: data.uploadedAt
+        });
+
         alert(`マーケットデータをアップロードしました: ${data.fileName}`);
         setSelectedFile(null);
         // Reset file input
@@ -893,6 +913,22 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 月次マーケットレポート（PDF）をアップロードして、顧客への推奨配分を生成できます。
               </Typography>
+
+              {latestMarketData && (
+                <Box sx={{ mt: 2, mb: 2, p: 2, bgcolor: 'success.50', borderRadius: 1, border: '1px solid', borderColor: 'success.main' }}>
+                  <Typography variant="body2" color="success.dark" sx={{ fontWeight: 'bold' }}>
+                    ✓ 最新マーケットデータ
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    ファイル名: {latestMarketData.fileName}
+                  </Typography>
+                  <br />
+                  <Typography variant="caption" color="text.secondary">
+                    アップロード日時: {new Date(latestMarketData.uploadedAt).toLocaleString('ja-JP')}
+                  </Typography>
+                </Box>
+              )}
+
               <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   id="market-data-file"

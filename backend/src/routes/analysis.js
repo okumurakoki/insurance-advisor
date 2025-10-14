@@ -22,9 +22,31 @@ const upload = multer({
     }
 });
 
-router.post('/upload-market-data', 
-    authenticateToken, 
-    authorizeAccountType('parent'), 
+// Get latest market data info
+router.get('/market-data/latest', authenticateToken, async (req, res) => {
+    try {
+        const latest = await MarketData.getLatest();
+
+        if (!latest) {
+            return res.json(null);
+        }
+
+        res.json({
+            id: latest.id,
+            fileName: latest.source_file,
+            uploadedAt: latest.created_at,
+            uploadedBy: latest.uploaded_by,
+            dataDate: latest.data_date
+        });
+    } catch (error) {
+        logger.error('Failed to get latest market data:', error);
+        res.status(500).json({ error: 'Failed to get market data' });
+    }
+});
+
+router.post('/upload-market-data',
+    authenticateToken,
+    authorizeAccountType('parent'),
     upload.single('marketData'),
     async (req, res) => {
         if (!req.file) {
@@ -52,7 +74,8 @@ router.post('/upload-market-data',
             res.json({
                 message: 'Market data uploaded successfully',
                 id: result,
-                fileName: req.file.originalname
+                fileName: req.file.originalname,
+                uploadedAt: new Date().toISOString()
             });
         } catch (error) {
             logger.error('Market data upload error:', error);
