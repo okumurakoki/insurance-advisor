@@ -756,29 +756,43 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [uploadingMarketData, setUploadingMarketData] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fundPerformance, setFundPerformance] = useState<any[]>([]);
+  const [statistics, setStatistics] = useState<any>(null);
 
   useEffect(() => {
-    const fetchFundPerformance = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const response = await fetch(`${API_BASE_URL}/api/analysis/fund-performance`, {
+        // Fetch fund performance
+        const perfResponse = await fetch(`${API_BASE_URL}/api/analysis/fund-performance`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
 
-        if (response.ok) {
-          const data = await response.json();
+        if (perfResponse.ok) {
+          const data = await perfResponse.json();
           setFundPerformance(data);
         }
+
+        // Fetch statistics
+        const statsResponse = await fetch(`${API_BASE_URL}/api/analysis/statistics`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (statsResponse.ok) {
+          const data = await statsResponse.json();
+          setStatistics(data);
+        }
       } catch (error) {
-        console.error('Failed to fetch fund performance:', error);
+        console.error('Failed to fetch dashboard data:', error);
       }
     };
 
-    fetchFundPerformance();
+    fetchData();
   }, []);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1475,10 +1489,10 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                         管理中の顧客数
                       </Typography>
                       <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                        5人
+                        {statistics ? `${statistics.customerCount}人` : '読込中...'}
                       </Typography>
-                      <Typography variant="body2" color="success.main">
-                        今月+2人追加
+                      <Typography variant="body2" color="text.secondary">
+                        登録済み顧客
                       </Typography>
                     </Box>
                     <Person color="primary" sx={{ fontSize: 40 }} />
@@ -1495,10 +1509,10 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                         作成済みレポート数
                       </Typography>
                       <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                        3件
+                        {statistics ? `${statistics.reportCount}件` : '読込中...'}
                       </Typography>
-                      <Typography variant="body2" color="primary.main">
-                        1件 作成中
+                      <Typography variant="body2" color="text.secondary">
+                        分析完了
                       </Typography>
                     </Box>
                     <AssessmentIcon color="secondary" sx={{ fontSize: 40 }} />
@@ -1518,10 +1532,12 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     {user.accountType === 'grandchild' ? '現在の運用額' : 'お客様の総運用資産'}
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                    {user.accountType === 'grandchild' ? '2,500万円' : '1億2,500万円'}
+                    {statistics
+                      ? `${(statistics.totalAssets / 10000).toLocaleString('ja-JP')}万円`
+                      : '読込中...'}
                   </Typography>
-                  <Typography variant="body2" color="success.main">
-                    今月+8.2%増加
+                  <Typography variant="body2" color="text.secondary">
+                    契約金額の合計
                   </Typography>
                 </Box>
                 <TrendingUp color="success" sx={{ fontSize: 40 }} />
@@ -1538,11 +1554,13 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                   <Typography color="textSecondary" gutterBottom>
                     {user.accountType === 'grandchild' ? '現在の運用利回り' : 'お客様の平均利回り'}
                   </Typography>
-                  <Typography variant="h5" color="success.main" sx={{ fontWeight: 'bold' }}>
-                    +6.8%
+                  <Typography variant="h5" color={statistics && statistics.averageReturn >= 0 ? "success.main" : "error.main"} sx={{ fontWeight: 'bold' }}>
+                    {statistics
+                      ? `${statistics.averageReturn >= 0 ? '+' : ''}${statistics.averageReturn}%`
+                      : '読込中...'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    今年の年率収益率
+                    年率収益率（推定）
                   </Typography>
                 </Box>
                 <Add color="success" sx={{ fontSize: 40 }} />

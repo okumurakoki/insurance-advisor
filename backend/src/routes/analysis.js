@@ -410,4 +410,65 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
     }
 });
 
+// Get dashboard statistics for current user
+router.get('/statistics', authenticateToken, async (req, res) => {
+    try {
+        // Get all customers for this user
+        const customers = await Customer.findByUserId(req.user.id);
+        const customerCount = customers.length;
+
+        // Get all analysis results for this user
+        const results = await AnalysisResult.getByUserId(req.user.id);
+        const reportCount = results.length;
+
+        // Calculate total assets (sum of all customer contract amounts)
+        const totalAssets = customers.reduce((sum, customer) => {
+            return sum + (customer.contract_amount || 0);
+        }, 0);
+
+        // Calculate average return from all analysis results
+        let totalReturn = 0;
+        let returnCount = 0;
+
+        for (const result of results) {
+            const customer = customers.find(c => c.id === result.customer_id);
+            if (!customer) continue;
+
+            // Calculate return based on adjusted allocation
+            const allocation = result.current_allocation || result.adjusted_allocation;
+            if (!allocation) continue;
+
+            const fundReturns = {
+                '株式型': 6.8,
+                '米国株式型': 12.3,
+                '米国債券型': 3.2,
+                'REIT型': -1.5,
+                '世界株式型': 8.7
+            };
+
+            let customerReturn = 0;
+            Object.keys(allocation).forEach(fundType => {
+                const weight = allocation[fundType] / 100;
+                const fundReturn = fundReturns[fundType] || 0;
+                customerReturn += weight * fundReturn;
+            });
+
+            totalReturn += customerReturn;
+            returnCount++;
+        }
+
+        const averageReturn = returnCount > 0 ? totalReturn / returnCount : 0;
+
+        res.json({
+            customerCount,
+            reportCount,
+            totalAssets,
+            averageReturn: parseFloat(averageReturn.toFixed(1))
+        });
+    } catch (error) {
+        logger.error('Failed to fetch statistics:', error);
+        res.status(500).json({ error: 'Failed to fetch statistics' });
+    }
+});
+
 module.exports = router;
