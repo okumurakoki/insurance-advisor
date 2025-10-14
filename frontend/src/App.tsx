@@ -751,7 +751,6 @@ interface DashboardProps {
 
 function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [optimizationResults, setOptimizationResults] = useState<any>(null);
-  const [isOptimizing, setIsOptimizing] = useState(false);
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [uploadingMarketData, setUploadingMarketData] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -786,6 +785,21 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         if (statsResponse.ok) {
           const data = await statsResponse.json();
           setStatistics(data);
+        }
+
+        // Fetch optimization summary
+        const optResponse = await fetch(`${API_BASE_URL}/api/analysis/optimization-summary`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (optResponse.ok) {
+          const data = await optResponse.json();
+          if (data) {
+            setOptimizationResults(data);
+            setShowRecommendations(true);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
@@ -854,162 +868,18 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
     return labels[type as keyof typeof labels] || type;
   };
 
-  // 月次最適化エンジン
-  const runMonthlyOptimization = () => {
-    setIsOptimizing(true);
-    
-    setTimeout(() => {
-      // 現在の市場状況と各ファンドのパフォーマンスに基づく推奨配分
-      const currentDate = new Date();
-      const month = currentDate.getMonth();
-      
-      // 市場サイクルを考慮した動的配分計算
-      const marketCycle = Math.sin((month / 12) * 2 * Math.PI); // -1 to 1
-      const volatilityIndex = 0.15 + (marketCycle * 0.1); // 0.05 to 0.25
-      
-      const recommendations = {
-        equity: {
-          current: 30, // 10%刻みに調整
-          recommended: Math.max(10, Math.min(40, 30 + (marketCycle * 8))),
-          change: 0,
-          reason: '',
-          priority: 'medium'
-        },
-        usEquity: {
-          current: 20,
-          recommended: Math.max(10, Math.min(40, 20 + (marketCycle * 12))),
-          change: 0,
-          reason: '',
-          priority: 'high'
-        },
-        usBond: {
-          current: 30,
-          recommended: Math.max(20, Math.min(50, 30 - (marketCycle * 10))),
-          change: 0,
-          reason: '',
-          priority: 'medium'
-        },
-        reit: {
-          current: 10, // 10%刻みに調整
-          recommended: Math.max(0, Math.min(30, 10 - (marketCycle * 5))),
-          change: 0,
-          reason: '',
-          priority: 'low'
-        },
-        globalEquity: {
-          current: 10,
-          recommended: Math.max(0, Math.min(20, 10 + (marketCycle * 6))),
-          change: 0,
-          reason: '',
-          priority: 'medium'
-        }
-      };
-
-      // 推奨配分を10%刻みに調整して100%に正規化
-      const totalRecommended = Object.values(recommendations).reduce((sum, fund) => sum + fund.recommended, 0);
-      Object.keys(recommendations).forEach(key => {
-        const fund = recommendations[key as keyof typeof recommendations];
-        fund.recommended = Math.round((fund.recommended / totalRecommended) * 10) * 10; // 10%刻み
-      });
-      
-      // 100%になるよう微調整
-      const adjustedTotal = Object.values(recommendations).reduce((sum, fund) => sum + fund.recommended, 0);
-      if (adjustedTotal !== 100) {
-        const diff = 100 - adjustedTotal;
-        // 最も配分の多いファンドで調整
-        const maxFund = Object.keys(recommendations).reduce((a, b) => 
-          recommendations[a as keyof typeof recommendations].recommended > 
-          recommendations[b as keyof typeof recommendations].recommended ? a : b
-        );
-        recommendations[maxFund as keyof typeof recommendations].recommended += diff;
-      }
-      
-      // 変更量を計算
-      Object.keys(recommendations).forEach(key => {
-        const fund = recommendations[key as keyof typeof recommendations];
-        fund.change = fund.recommended - fund.current;
-      });
-
-      // 各ファンドの理由を設定
-      recommendations.equity.reason = recommendations.equity.change > 0 ? 
-        '国内株式市場の底値圏での投資機会' : '利益確定のタイミング';
-      
-      recommendations.usEquity.reason = recommendations.usEquity.change > 0 ? 
-        '米国株式の強気相場継続、積極投資推奨' : '高値警戒、一部利益確定推奨';
-      
-      recommendations.usBond.reason = recommendations.usBond.change > 0 ? 
-        '金利上昇局面での債券投資機会' : '金利リスク回避、配分縮小';
-      
-      recommendations.reit.reason = recommendations.reit.change > 0 ? 
-        '不動産市場回復の兆し' : '不動産市場調整局面、慎重姿勢';
-      
-      recommendations.globalEquity.reason = recommendations.globalEquity.change > 0 ? 
-        '新興国市場の成長機会' : '地政学リスク考慮、配分見直し';
-
-      // 優先度設定
-      Object.keys(recommendations).forEach(key => {
-        const fund = recommendations[key as keyof typeof recommendations];
-        if (Math.abs(fund.change) >= 8) fund.priority = 'high';
-        else if (Math.abs(fund.change) >= 4) fund.priority = 'medium';
-        else fund.priority = 'low';
-      });
-
-      const results = {
-        recommendations,
-        marketAnalysis: {
-          volatilityIndex: (volatilityIndex * 100).toFixed(1),
-          marketSentiment: marketCycle > 0.3 ? 'strong_bullish' : marketCycle > 0 ? 'bullish' : marketCycle > -0.3 ? 'bearish' : 'strong_bearish',
-          expectedMonthlyReturn: (1.2 + (marketCycle * 0.8)).toFixed(1),
-          riskLevel: volatilityIndex > 0.2 ? 'high' : volatilityIndex > 0.15 ? 'medium' : 'low'
-        },
-        summary: {
-          totalChanges: Object.values(recommendations).filter(fund => Math.abs(fund.change) >= 3).length,
-          majorRebalancing: Object.values(recommendations).some(fund => Math.abs(fund.change) >= 8),
-          expectedImpact: '+1.2% 〜 +2.1% (月次)',
-          confidence: '85%'
-        }
-      };
-
-      setOptimizationResults(results);
-      setIsOptimizing(false);
-      setShowRecommendations(true);
-    }, 3000); // 3秒のアニメーション
-  };
-
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4, flexGrow: 1 }}>
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-            <Box>
-              <Typography variant="h4" component="h1" gutterBottom>
-                {user.accountType === 'grandchild' ? 'マイ投資ダッシュボード' : '投資ダッシュボード'}
-              </Typography>
-              <Typography variant="subtitle1" gutterBottom>
-                ようこそ、{user.userId} さん ({user.accountType === 'grandchild' ? '顧客' : getPlanTypeLabel(user.planType)})
-              </Typography>
-            </Box>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={runMonthlyOptimization}
-              disabled={isOptimizing}
-              startIcon={isOptimizing ? <CircularProgress size={20} color="inherit" /> : <TrendingUp />}
-              sx={{
-                px: 4,
-                py: 2,
-                fontSize: '16px',
-                fontWeight: 'bold',
-                borderRadius: 2,
-                boxShadow: 3,
-                '&:hover': {
-                  boxShadow: 6,
-                }
-              }}
-            >
-              {isOptimizing ? 'AI分析中...' : '今月の最適化を実行する'}
-            </Button>
+          <Box>
+            <Typography variant="h4" component="h1" gutterBottom>
+              {user.accountType === 'grandchild' ? 'マイ投資ダッシュボード' : '投資ダッシュボード'}
+            </Typography>
+            <Typography variant="subtitle1" gutterBottom>
+              ようこそ、{user.userId} さん ({user.accountType === 'grandchild' ? '顧客' : getPlanTypeLabel(user.planType)})
+            </Typography>
           </Box>
         </Grid>
 
@@ -1364,7 +1234,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     最適化結果表示エリア
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
-                    「今月の最適化を実行する」ボタンを押すと、AI分析が開始されます
+                    顧客の分析を実行すると、ここに集計された推奨配分が表示されます
                   </Typography>
                   </Box>
                   

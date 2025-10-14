@@ -410,6 +410,80 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
     }
 });
 
+// Get optimization recommendations based on latest analysis results
+router.get('/optimization-summary', authenticateToken, async (req, res) => {
+    try {
+        // Get all analysis results for this user
+        const results = await AnalysisResult.getByUserId(req.user.id);
+
+        if (results.length === 0) {
+            return res.json(null);
+        }
+
+        // Aggregate current and recommended allocations from all customers
+        const fundTypes = ['株式型', '米国株式型', '米国債券型', 'REIT型', '世界株式型'];
+        const fundKeyMap = {
+            '株式型': 'equity',
+            '米国株式型': 'usEquity',
+            '米国債券型': 'usBond',
+            'REIT型': 'reit',
+            '世界株式型': 'global'
+        };
+
+        const aggregatedCurrent = {};
+        const aggregatedRecommended = {};
+        let count = 0;
+
+        fundTypes.forEach(fundType => {
+            aggregatedCurrent[fundType] = 0;
+            aggregatedRecommended[fundType] = 0;
+        });
+
+        // Calculate average allocations
+        for (const result of results) {
+            const current = result.current_allocation || {};
+            const recommended = result.recommended_allocation || {};
+
+            fundTypes.forEach(fundType => {
+                aggregatedCurrent[fundType] += (current[fundType] || 0);
+                aggregatedRecommended[fundType] += (recommended[fundType] || 0);
+            });
+
+            count++;
+        }
+
+        // Convert to percentage averages
+        const recommendations = {};
+        fundTypes.forEach(fundType => {
+            const currentAvg = count > 0 ? aggregatedCurrent[fundType] / count : 0;
+            const recommendedAvg = count > 0 ? aggregatedRecommended[fundType] / count : 0;
+            const change = recommendedAvg - currentAvg;
+
+            recommendations[fundKeyMap[fundType]] = {
+                current: parseFloat(currentAvg.toFixed(1)),
+                recommended: parseFloat(recommendedAvg.toFixed(1)),
+                change: parseFloat(change.toFixed(1)),
+                reason: change > 5 ? `市場環境が良好なため増額推奨` :
+                       change < -5 ? `リスク調整のため減額推奨` :
+                       change > 0 ? `バランス調整のため微増推奨` :
+                       change < 0 ? `バランス調整のため微減推奨` : 'バランス維持'
+            };
+        });
+
+        res.json({
+            recommendations,
+            summary: {
+                totalChanges: Object.values(recommendations).filter((fund: any) => Math.abs(fund.change) >= 3).length,
+                majorRebalancing: Object.values(recommendations).some((fund: any) => Math.abs(fund.change) >= 8),
+                lastUpdated: results[0].created_at
+            }
+        });
+    } catch (error) {
+        logger.error('Failed to fetch optimization summary:', error);
+        res.status(500).json({ error: 'Failed to fetch optimization summary' });
+    }
+});
+
 // Get dashboard statistics for current user
 router.get('/statistics', authenticateToken, async (req, res) => {
     try {
