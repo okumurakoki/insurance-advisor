@@ -4799,6 +4799,449 @@ interface AlertCenterProps {
   navigate: (path: string) => void;
 }
 
+// AlertCenter component removed
+
+function RemovedAlertCenter({ user, navigate }: AlertCenterProps) {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [filteredAlerts, setFilteredAlerts] = useState<AlertItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState('all');
+  const [filterPriority, setFilterPriority] = useState('all');
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/alerts`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAlerts(data);
+        } else {
+          console.error('Failed to fetch alerts');
+          setAlerts([]);
+        }
+      } catch (error) {
+        console.error('Error fetching alerts:', error);
+        setAlerts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAlerts();
+  }, []);
+
+  // フィルタリング機能
+  useEffect(() => {
+    let filtered = alerts;
+
+    if (filterType !== 'all') {
+      filtered = filtered.filter(alert => alert.type === filterType);
+    }
+
+    if (filterPriority !== 'all') {
+      filtered = filtered.filter(alert => alert.priority === filterPriority);
+    }
+
+    if (showUnreadOnly) {
+      filtered = filtered.filter(alert => !alert.isRead);
+    }
+
+    // 未読を先に、次に作成日時の新しい順
+    filtered.sort((a, b) => {
+      if (a.isRead !== b.isRead) {
+        return a.isRead ? 1 : -1;
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    setFilteredAlerts(filtered);
+  }, [alerts, filterType, filterPriority, showUnreadOnly]);
+
+  const markAsRead = async (alertId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/alerts/${alertId}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setAlerts(prev => prev.map(alert =>
+          alert.id === alertId ? { ...alert, isRead: true } : alert
+        ));
+      }
+    } catch (error) {
+      console.error('Error marking alert as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/alerts/read-all`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setAlerts(prev => prev.map(alert => ({ ...alert, isRead: true })));
+      }
+    } catch (error) {
+      console.error('Error marking all alerts as read:', error);
+    }
+  };
+
+  const deleteAlert = async (alertId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/alerts/${alertId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setAlerts(prev => prev.filter(alert => alert.id !== alertId));
+      }
+    } catch (error) {
+      console.error('Error deleting alert:', error);
+    }
+  };
+
+  const getAlertIcon = (type: string) => {
+    switch (type) {
+      case 'success': return '✅';
+      case 'warning': return '⚠️';
+      case 'error': return '🚨';
+      default: return 'ℹ️';
+    }
+  };
+
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return '#f44336';
+      case 'medium': return '#ff9800';
+      default: return '#4caf50';
+    }
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case 'high': return '高';
+      case 'medium': return '中';
+      default: return '低';
+    }
+  };
+
+  const handleAlertAction = (alert: AlertItem) => {
+    markAsRead(alert.id);
+    
+    switch (alert.actionType) {
+      case 'rebalance':
+        navigate(`/portfolio-optimizer?customerId=${alert.customerId}`);
+        break;
+      case 'report_ready':
+        navigate('/reports');
+        break;
+      case 'buy_opportunity':
+      case 'risk_management':
+        navigate(`/customers/${alert.customerId}`);
+        break;
+      default:
+        // 通常のアラート詳細表示
+        break;
+    }
+  };
+
+  const unreadCount = alerts.filter(alert => !alert.isRead).length;
+
+  if (loading) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="300px">
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box>
+          <Typography variant="h4" component="h1">
+            🔔 通知・アラートセンター
+          </Typography>
+          <Typography variant="subtitle1" color="text.secondary">
+            {unreadCount > 0 ? `${unreadCount}件の未読通知があります` : 'すべての通知を確認済みです'}
+          </Typography>
+        </Box>
+        {unreadCount > 0 && (
+          <Button
+            variant="outlined"
+            startIcon={<CheckCircleIcon />}
+            onClick={markAllAsRead}
+          >
+            すべて既読にする
+          </Button>
+        )}
+      </Box>
+
+      {/* フィルター */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Grid container spacing={3} alignItems="center">
+          <Grid item xs={12} sm={3}>
+            <TextField
+              fullWidth
+              select
+              label="通知タイプ"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              SelectProps={{ native: true }}
+            >
+              <option value="all">すべて</option>
+              <option value="info">情報</option>
+              <option value="success">成功</option>
+              <option value="warning">警告</option>
+              <option value="error">エラー</option>
+            </TextField>
+          </Grid>
+          
+          <Grid item xs={12} sm={3}>
+            <TextField
+              fullWidth
+              select
+              label="優先度"
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+              SelectProps={{ native: true }}
+            >
+              <option value="all">すべて</option>
+              <option value="high">高</option>
+              <option value="medium">中</option>
+              <option value="low">低</option>
+            </TextField>
+          </Grid>
+          
+          <Grid item xs={12} sm={3}>
+            <Box display="flex" alignItems="center">
+              <input
+                type="checkbox"
+                checked={showUnreadOnly}
+                onChange={(e) => setShowUnreadOnly(e.target.checked)}
+                style={{ marginRight: 8 }}
+              />
+              <Typography variant="body2">未読のみ表示</Typography>
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} sm={3}>
+            <Typography variant="body2" color="text.secondary">
+              {filteredAlerts.length}件 / {alerts.length}件
+            </Typography>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* アラート一覧 */}
+      <Paper sx={{ p: 0, overflow: 'hidden' }}>
+        {filteredAlerts.length === 0 ? (
+          <Box textAlign="center" py={8}>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              {alerts.length === 0 ? '通知がありません' : '条件に一致する通知がありません'}
+            </Typography>
+            {alerts.length > 0 && (
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setFilterType('all');
+                  setFilterPriority('all');
+                  setShowUnreadOnly(false);
+                }}
+              >
+                フィルターをリセット
+              </Button>
+            )}
+          </Box>
+        ) : (
+          <Box>
+            {filteredAlerts.map((alert) => (
+              <Card
+                key={alert.id}
+                variant="outlined"
+                sx={{
+                  m: 1,
+                  backgroundColor: alert.isRead ? 'inherit' : 'action.hover',
+                  borderLeft: `4px solid ${getPriorityColor(alert.priority)}`,
+                  cursor: 'pointer',
+                  '&:hover': {
+                    backgroundColor: 'action.selected',
+                    transform: 'translateY(-1px)',
+                    transition: 'all 0.2s ease-in-out'
+                  }
+                }}
+                onClick={() => handleAlertAction(alert)}
+              >
+                <CardContent>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={8}>
+                      <Box display="flex" alignItems="flex-start" gap={2}>
+                        <Typography variant="h5" sx={{ mt: 0.5 }}>
+                          {getAlertIcon(alert.type)}
+                        </Typography>
+                        <Box>
+                          <Box display="flex" alignItems="center" gap={1} mb={1}>
+                            <Typography variant="h6" component="div">
+                              {alert.title}
+                            </Typography>
+                            {!alert.isRead && (
+                              <Chip label="NEW" color="primary" size="small" />
+                            )}
+                            <Chip
+                              label={getPriorityLabel(alert.priority)}
+                              size="small"
+                              sx={{
+                                backgroundColor: getPriorityColor(alert.priority),
+                                color: 'white'
+                              }}
+                            />
+                          </Box>
+                          <Typography variant="body1" color="text.primary" gutterBottom>
+                            {alert.message}
+                          </Typography>
+                          {alert.customerName && (
+                            <Typography variant="body2" color="text.secondary">
+                              関連顧客: {alert.customerName}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    </Grid>
+                    
+                    <Grid item xs={12} sm={4}>
+                      <Box display="flex" flexDirection="column" alignItems="flex-end" gap={1}>
+                        <Typography variant="body2" color="text.secondary">
+                          {new Date(alert.createdAt).toLocaleString('ja-JP')}
+                        </Typography>
+                        <Box display="flex" gap={1}>
+                          {!alert.isRead && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markAsRead(alert.id);
+                              }}
+                              startIcon={<CheckCircleIcon />}
+                            >
+                              既読
+                            </Button>
+                          )}
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteAlert(alert.id);
+                            }}
+                            startIcon={<DeleteIcon />}
+                          >
+                            削除
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+        )}
+      </Paper>
+
+      {/* アラート設定 */}
+      <Paper sx={{ p: 3, mt: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          📋 アラート設定
+        </Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6}>
+            <Typography variant="subtitle2" gutterBottom>
+              通知条件
+            </Typography>
+            <Box sx={{ pl: 2 }}>
+              <Typography variant="body2" gutterBottom>
+                • ポートフォリオ配分が推奨値から±20%以上乖離
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                • 損失限界（-5%）到達時
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                • 月次積立遅延（3日以上）
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                • 市場機会（ファンド月間安値更新）
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                • レポート生成完了
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                • 目標収益率達成
+              </Typography>
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <Typography variant="subtitle2" gutterBottom>
+              通知方法
+            </Typography>
+            <Box sx={{ pl: 2 }}>
+              <Typography variant="body2" gutterBottom>
+                • システム内通知（このページ）
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                • メール通知（実装予定）
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                • LINE通知（実装予定）
+              </Typography>
+              <Typography variant="body2" gutterBottom>
+                • Slack通知（実装予定）
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
+        
+        <Button
+          variant="outlined"
+          sx={{ mt: 2 }}
+          onClick={() => alert('詳細なアラート設定画面は実装予定です')}
+        >
+          詳細設定
+        </Button>
+      </Paper>
+    </Container>
+  );
+}
 
 // Backtest Engine Component
 interface BacktestEngineProps {

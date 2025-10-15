@@ -152,22 +152,6 @@ class DatabasePostgreSQL {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
-        -- Create alerts table
-        CREATE TABLE IF NOT EXISTS alerts (
-            id SERIAL PRIMARY KEY,
-            user_id VARCHAR(255) NOT NULL,
-            customer_id INTEGER,
-            type VARCHAR(50) NOT NULL,
-            priority VARCHAR(50) NOT NULL,
-            title VARCHAR(255) NOT NULL,
-            message TEXT NOT NULL,
-            action_type VARCHAR(100),
-            is_read BOOLEAN DEFAULT false,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
-        );
-
         -- Create indexes
         CREATE INDEX IF NOT EXISTS idx_users_account_plan ON users(account_type, plan_type);
         CREATE INDEX IF NOT EXISTS idx_users_parent_id ON users(parent_id);
@@ -179,9 +163,6 @@ class DatabasePostgreSQL {
         CREATE INDEX IF NOT EXISTS idx_sessions_expires ON user_sessions(expires_at);
         CREATE INDEX IF NOT EXISTS idx_audit_user_date ON audit_logs(user_id, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_line_logs_user ON line_webhook_logs(line_user_id);
-        CREATE INDEX IF NOT EXISTS idx_alerts_user_id ON alerts(user_id);
-        CREATE INDEX IF NOT EXISTS idx_alerts_is_read ON alerts(is_read);
-        CREATE INDEX IF NOT EXISTS idx_alerts_created_at ON alerts(created_at DESC);
         `;
 
         const client = await this.pool.connect();
@@ -315,9 +296,6 @@ class DatabasePostgreSQL {
             `;
             
             await client.query(demoCustomers);
-
-            // Note: Demo alerts are NOT inserted automatically
-            // Alerts will be created dynamically based on actual customer data and analysis results
             console.log('Initial demo data inserted');
         } catch (error) {
             // Ignore conflicts on demo data

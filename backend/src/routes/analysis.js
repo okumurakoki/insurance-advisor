@@ -11,7 +11,6 @@ const logger = require('../utils/logger');
 const { authenticateToken, authorizePlanFeature, authorizeAccountType } = require('../middleware/auth');
 const PDFReportGenerator = require('../utils/pdf-generator');
 const ExcelReportGenerator = require('../utils/excel-generator');
-const Alert = require('../models/Alert');
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -163,14 +162,6 @@ router.post('/recommend/:customerId',
             });
 
             logger.info(`Analysis generated for customer: ${customer.name} by user: ${req.user.userId}`);
-
-            // Create alert for completed analysis
-            try {
-                await Alert.createReportReady(String(req.user.id), customerId, customer.name);
-            } catch (alertError) {
-                logger.error('Failed to create alert:', alertError);
-                // Don't fail the request if alert creation fails
-            }
 
             res.json({
                 analysisId,
