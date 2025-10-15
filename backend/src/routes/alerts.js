@@ -110,4 +110,17 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 });
 
+// Delete all alerts for current user (for testing)
+router.delete('/all', authenticateToken, async (req, res) => {
+    try {
+        const db = require('../utils/database-factory');
+        const sql = 'DELETE FROM alerts WHERE user_id = $1';
+        await db.query(sql, [req.user.id]);
+        res.json({ message: 'すべてのアラートを削除しました' });
+    } catch (error) {
+        console.error('Error deleting all alerts:', error);
+        res.status(500).json({ error: 'アラートの削除に失敗しました' });
+    }
+});
+
 module.exports = router;
