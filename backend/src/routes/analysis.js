@@ -46,6 +46,30 @@ router.get('/market-data/latest', authenticateToken, async (req, res) => {
     }
 });
 
+// Get historical market data (past 24 months)
+router.get('/market-data/history', authenticateToken, async (req, res) => {
+    try {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setFullYear(startDate.getFullYear() - 2); // 2 years ago
+
+        const historyData = await MarketData.getByDateRange(startDate, endDate, 'monthly_report');
+
+        const formattedData = historyData.map(data => ({
+            id: data.id,
+            fileName: data.data_content?.fileName || data.source_file,
+            uploadedAt: data.created_at,
+            dataDate: data.data_date,
+            uploadedBy: data.uploaded_by
+        }));
+
+        res.json(formattedData);
+    } catch (error) {
+        logger.error('Failed to get market data history:', error);
+        res.status(500).json({ error: 'Failed to get market data history' });
+    }
+});
+
 router.post('/upload-market-data',
     authenticateToken,
     authorizeAccountType('parent'),
@@ -571,6 +595,35 @@ router.get('/statistics', authenticateToken, async (req, res) => {
             error: 'Failed to fetch statistics',
             details: process.env.NODE_ENV === 'production' ? undefined : error.message
         });
+    }
+});
+
+// Get historical analysis results for a customer
+router.get('/history/:customerId/detailed', authenticateToken, async (req, res) => {
+    try {
+        const { customerId } = req.params;
+        const customer = await Customer.findById(customerId);
+
+        if (!customer || customer.user_id !== req.user.id) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        // Get all analysis results for this customer
+        const analyses = await AnalysisResult.getByCustomerId(customerId);
+
+        // Get past 24 months of data
+        const twoYearsAgo = new Date();
+        twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+
+        const filteredAnalyses = analyses.filter(analysis => {
+            const analysisDate = new Date(analysis.analysis_date);
+            return analysisDate >= twoYearsAgo;
+        });
+
+        res.json(filteredAnalyses);
+    } catch (error) {
+        logger.error('Failed to get historical analysis:', error);
+        res.status(500).json({ error: 'Failed to get historical analysis' });
     }
 });
 
