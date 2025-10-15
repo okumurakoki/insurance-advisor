@@ -877,7 +877,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   };
 
   const handleAutoUpdateMarketData = async () => {
-    if (!confirm('プルデンシャルのウェブサイトから最新のディスクロージャー資料を自動ダウンロードしますか？')) {
+    if (!window.confirm('プルデンシャルのウェブサイトから最新のディスクロージャー資料を自動ダウンロードしますか？')) {
       return;
     }
 
