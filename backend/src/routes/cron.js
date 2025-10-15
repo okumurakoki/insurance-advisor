@@ -66,7 +66,10 @@ router.post('/update-market-data', async (req, res) => {
 
         // 4. 各PDFをマーケットデータとして保存
         const savedResults = [];
-        const uploadsDir = path.join(__dirname, '../../uploads');
+        // Vercelのサーバーレス環境では /tmp のみ書き込み可能
+        const uploadsDir = process.env.NODE_ENV === 'production'
+            ? '/tmp/uploads'
+            : path.join(__dirname, '../../uploads');
 
         // uploadsディレクトリが存在しない場合は作成
         try {
