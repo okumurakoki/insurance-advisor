@@ -1,4 +1,4 @@
-const pdf = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 const logger = require('./logger');
 
 /**
@@ -11,12 +11,15 @@ class PDFParser {
      * @returns {Promise<string>}
      */
     async extractText(pdfBuffer) {
+        const parser = new PDFParse({ data: pdfBuffer });
         try {
-            const data = await pdf(pdfBuffer);
-            return data.text;
+            const result = await parser.getText();
+            return result.text;
         } catch (error) {
             logger.error('PDF text extraction failed:', error);
             throw error;
+        } finally {
+            await parser.destroy();
         }
     }
 
@@ -28,32 +31,32 @@ class PDFParser {
     async extractFundPerformance(pdfBuffer) {
         try {
             const text = await this.extractText(pdfBuffer);
-            const funds = {};
+            let funds = {};
 
             // プルデンシャルのPDFフォーマットに基づいて解析
             // 特別勘定名と騰落率のパターンを検索
 
-            // パターン1: "特別勘定名 ... 騰落率 X.X%"
+            // パターン1: PDFから実際のフォーマットに基づいたパターン
+            // 例: "S&P500 6.80%" or "REIT 5.76%"
             const patterns = [
-                // 株式型
-                { regex: /株式型.*?(?:騰落率|収益率|運用実績).*?([-+]?\d+\.?\d*)%/i, name: '株式型' },
-                { regex: /国内株式.*?(?:騰落率|収益率|運用実績).*?([-+]?\d+\.?\d*)%/i, name: '株式型' },
+                // S&P500 (株式型として扱う)
+                { regex: /S&P500\s+([-+]?\d+\.?\d*)%/i, name: '株式型' },
+                { regex: /株式型\s+[^\d]*([-+]?\d+\.?\d*)%/i, name: '株式型' },
 
                 // 米国株式型
-                { regex: /米国株式.*?(?:騰落率|収益率|運用実績).*?([-+]?\d+\.?\d*)%/i, name: '米国株式型' },
-                { regex: /US.*?株式.*?(?:騰落率|収益率|運用実績).*?([-+]?\d+\.?\d*)%/i, name: '米国株式型' },
+                { regex: /米国株式.*?\s+([-+]?\d+\.?\d*)%/i, name: '米国株式型' },
 
                 // 米国債券型
-                { regex: /米国債券.*?(?:騰落率|収益率|運用実績).*?([-+]?\d+\.?\d*)%/i, name: '米国債券型' },
-                { regex: /US.*?債券.*?(?:騰落率|収益率|運用実績).*?([-+]?\d+\.?\d*)%/i, name: '米国債券型' },
+                { regex: /米国債券.*?\s+([-+]?\d+\.?\d*)%/i, name: '米国債券型' },
 
                 // REIT型
-                { regex: /REIT.*?(?:騰落率|収益率|運用実績).*?([-+]?\d+\.?\d*)%/i, name: 'REIT型' },
-                { regex: /不動産.*?(?:騰落率|収益率|運用実績).*?([-+]?\d+\.?\d*)%/i, name: 'REIT型' },
+                { regex: /REIT\s+([-+]?\d+\.?\d*)%/i, name: 'REIT型' },
+                { regex: /不動産.*?\s+([-+]?\d+\.?\d*)%/i, name: 'REIT型' },
 
                 // 世界株式型
-                { regex: /世界株式.*?(?:騰落率|収益率|運用実績).*?([-+]?\d+\.?\d*)%/i, name: '世界株式型' },
-                { regex: /グローバル.*?株式.*?(?:騰落率|収益率|運用実績).*?([-+]?\d+\.?\d*)%/i, name: '世界株式型' }
+                { regex: /世界株式.*?\s+([-+]?\d+\.?\d*)%/i, name: '世界株式型' },
+                { regex: /グローバル.*?株式.*?\s+([-+]?\d+\.?\d*)%/i, name: '世界株式型' },
+                { regex: /MSCI.*?\s+([-+]?\d+\.?\d*)%/i, name: '世界株式型' }
             ];
 
             for (const pattern of patterns) {
