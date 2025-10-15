@@ -6,7 +6,7 @@ const { authenticateToken } = require('../middleware/auth');
 // Get all alerts for current user
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        const alerts = await Alert.getByUserId(req.user.id);
+        const alerts = await Alert.getByUserId(String(req.user.id));
 
         // Format response to match frontend expectations
         const formattedAlerts = alerts.map(alert => ({
@@ -32,7 +32,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // Get unread count
 router.get('/unread-count', authenticateToken, async (req, res) => {
     try {
-        const count = await Alert.getUnreadCount(req.user.id);
+        const count = await Alert.getUnreadCount(String(req.user.id));
         res.json({ count });
     } catch (error) {
         console.error('Error fetching unread count:', error);
@@ -43,7 +43,7 @@ router.get('/unread-count', authenticateToken, async (req, res) => {
 // Mark alert as read
 router.patch('/:id/read', authenticateToken, async (req, res) => {
     try {
-        const alert = await Alert.markAsRead(req.params.id, req.user.id);
+        const alert = await Alert.markAsRead(req.params.id, String(req.user.id));
 
         if (!alert) {
             return res.status(404).json({ error: 'アラートが見つかりません' });
@@ -65,7 +65,7 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
 // Mark all alerts as read
 router.patch('/read-all', authenticateToken, async (req, res) => {
     try {
-        await Alert.markAllAsRead(req.user.id);
+        await Alert.markAllAsRead(String(req.user.id));
         res.json({ message: 'すべてのアラートを既読にしました' });
     } catch (error) {
         console.error('Error marking all alerts as read:', error);
@@ -76,7 +76,7 @@ router.patch('/read-all', authenticateToken, async (req, res) => {
 // Delete alert
 router.delete('/:id', authenticateToken, async (req, res) => {
     try {
-        const result = await Alert.delete(req.params.id, req.user.id);
+        const result = await Alert.delete(req.params.id, String(req.user.id));
 
         if (!result) {
             return res.status(404).json({ error: 'アラートが見つかりません' });
@@ -93,7 +93,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
     try {
         const alertData = {
-            user_id: req.user.id,
+            user_id: String(req.user.id),
             customer_id: req.body.customerId,
             type: req.body.type || 'info',
             priority: req.body.priority || 'medium',
@@ -115,7 +115,7 @@ router.delete('/all', authenticateToken, async (req, res) => {
     try {
         const db = require('../utils/database-factory');
         const sql = 'DELETE FROM alerts WHERE user_id = $1';
-        await db.query(sql, [req.user.id]);
+        await db.query(sql, [String(req.user.id)]);
         res.json({ message: 'すべてのアラートを削除しました' });
     } catch (error) {
         console.error('Error deleting all alerts:', error);

@@ -166,7 +166,7 @@ router.post('/recommend/:customerId',
 
             // Create alert for completed analysis
             try {
-                await Alert.createReportReady(req.user.id, customerId, customer.name);
+                await Alert.createReportReady(String(req.user.id), customerId, customer.name);
             } catch (alertError) {
                 logger.error('Failed to create alert:', alertError);
                 // Don't fail the request if alert creation fails
