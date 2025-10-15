@@ -4502,10 +4502,35 @@ interface PortfolioOptimizerProps {
 
 function PortfolioOptimizer({ user, navigate }: PortfolioOptimizerProps) {
   const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [customers, setCustomers] = useState<any[]>([]);
   const [riskTolerance, setRiskTolerance] = useState('balanced');
   const [investmentAmount, setInvestmentAmount] = useState('1000000');
   const [optimizedPortfolio, setOptimizedPortfolio] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/customers`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setCustomers(data);
+        }
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
 
   const calculateOptimalPortfolio = () => {
     setLoading(true);
@@ -4582,9 +4607,11 @@ function PortfolioOptimizer({ user, navigate }: PortfolioOptimizerProps) {
                 sx={{ mb: 2 }}
               >
                 <option value="">新規シミュレーション</option>
-                <option value="1">田中太郎</option>
-                <option value="2">佐藤花子</option>
-                <option value="3">山田次郎</option>
+                {customers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </option>
+                ))}
               </TextField>
               
               <TextField
