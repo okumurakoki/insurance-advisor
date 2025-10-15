@@ -67,7 +67,8 @@ router.post('/update-market-data', async (req, res) => {
         // 4. 各PDFをマーケットデータとして保存
         const savedResults = [];
         // Vercelのサーバーレス環境では /tmp のみ書き込み可能
-        const uploadsDir = process.env.NODE_ENV === 'production'
+        // VERCEL環境変数で判定
+        const uploadsDir = process.env.VERCEL
             ? '/tmp/uploads'
             : path.join(__dirname, '../../uploads');
 
