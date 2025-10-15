@@ -87,20 +87,14 @@ router.post('/update-market-data', async (req, res) => {
                 const filePath = path.join(uploadsDir, fileName);
                 await fs.writeFile(filePath, marketData.buffer);
 
-                // PDFを解析して実際の運用実績データを抽出
-                logger.info(`Parsing PDF: ${fileName}`);
-                const extractedData = await pdfParser.extractAllData(marketData.buffer);
+                // PDFをダウンロードして保存（解析はマニュアルアップロード時に実行）
+                logger.info(`Saving PDF without parsing: ${fileName}`);
 
-                logger.info(`Extracted fund performance data:`, extractedData.fundPerformance);
-
-                // データベースに登録
+                // データベースに登録（解析なし）
                 const dataContent = {
                     fileName: marketData.fileName,
                     ...marketData.metadata,
-                    fundPerformance: extractedData.fundPerformance || {},
-                    reportDate: extractedData.reportDate,
-                    extractedText: extractedData.text.substring(0, 5000), // 最初の5000文字のみ保存
-                    extractedAt: extractedData.extractedAt
+                    note: 'PDFは保存されました。運用実績データを抽出するには、ダッシュボードから手動でアップロードしてください。'
                 };
 
                 const marketDataId = await MarketData.create({
@@ -108,17 +102,18 @@ router.post('/update-market-data', async (req, res) => {
                     data_type: marketData.dataType,
                     source_file: fileName,
                     data_content: dataContent,
+                    pdf_content: marketData.buffer,
                     uploaded_by: systemUser.id
                 });
 
                 savedResults.push({
                     id: marketDataId,
                     fileName: fileName,
-                    fundPerformance: extractedData.fundPerformance,
-                    success: true
+                    success: true,
+                    note: 'PDF saved, parsing skipped (parse manually via dashboard)'
                 });
 
-                logger.info(`Market data saved: ${fileName} (ID: ${marketDataId}), Fund data:`, extractedData.fundPerformance);
+                logger.info(`Market data saved without parsing: ${fileName} (ID: ${marketDataId})`);
             } catch (error) {
                 logger.error(`Failed to save market data ${marketData.fileName}:`, error);
                 savedResults.push({

@@ -859,14 +859,45 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           uploadedAt: data.uploadedAt
         });
 
-        alert(`マーケットデータをアップロードしました: ${data.fileName}`);
+        // 抽出された運用実績データを表示
+        const fundPerformance = data.fundPerformance || {};
+        const fundKeys = Object.keys(fundPerformance);
+
+        let message = `マーケットデータをアップロードしました！\nファイル: ${data.fileName}`;
+
+        if (fundKeys.length > 0) {
+          message += '\n\n抽出された運用実績:';
+          fundKeys.forEach(fundName => {
+            message += `\n・${fundName}: ${fundPerformance[fundName]}%`;
+          });
+        } else {
+          message += '\n\n注意: 運用実績データを抽出できませんでした。PDFの形式を確認してください。';
+        }
+
+        if (data.reportDate) {
+          message += `\n\nレポート日付: ${data.reportDate}`;
+        }
+
+        alert(message);
         setSelectedFile(null);
         // Reset file input
         const fileInput = document.getElementById('market-data-file') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
+
+        // 最新データを再取得してダッシュボードを更新
+        const marketDataResponse = await fetch(`${API_BASE_URL}/api/analysis/market-data/latest`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (marketDataResponse.ok) {
+          const latestData = await marketDataResponse.json();
+          setLatestMarketData(latestData);
+        }
       } else {
         const error = await response.json();
-        alert(`アップロードエラー: ${error.error}`);
+        alert(`アップロードエラー: ${error.error}\n${error.details || ''}`);
       }
     } catch (error) {
       console.error('Upload error:', error);

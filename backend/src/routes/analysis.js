@@ -11,6 +11,7 @@ const logger = require('../utils/logger');
 const { authenticateToken, authorizePlanFeature, authorizeAccountType } = require('../middleware/auth');
 const PDFReportGenerator = require('../utils/pdf-generator');
 const ExcelReportGenerator = require('../utils/excel-generator');
+const pdfParser = require('../utils/pdf-parser');
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -82,30 +83,48 @@ router.post('/upload-market-data',
         try {
             const pdfBuffer = req.file.buffer;
 
+            // PDFを解析して運用実績データを抽出
+            logger.info(`Parsing PDF: ${req.file.originalname}`);
+            const extractedData = await pdfParser.extractAllData(pdfBuffer);
+
+            logger.info(`Extracted fund performance data:`, extractedData.fundPerformance);
+
+            // データベースに保存
+            const dataContent = {
+                fileName: req.file.originalname,
+                fileSize: req.file.size,
+                uploadedAt: new Date().toISOString(),
+                fundPerformance: extractedData.fundPerformance || {},
+                reportDate: extractedData.reportDate,
+                extractedText: extractedData.text.substring(0, 5000), // 最初の5000文字のみ保存
+                extractedAt: extractedData.extractedAt
+            };
+
             const result = await MarketData.create({
-                data_date: new Date(),
+                data_date: extractedData.reportDate ? new Date(extractedData.reportDate) : new Date(),
                 data_type: 'monthly_report',
                 source_file: req.file.originalname,
-                data_content: {
-                    fileName: req.file.originalname,
-                    fileSize: req.file.size,
-                    uploadedAt: new Date().toISOString()
-                },
+                data_content: dataContent,
                 pdf_content: pdfBuffer,
                 uploaded_by: req.user.id
             });
 
-            logger.info(`Market data uploaded by user: ${req.user.userId}, file: ${req.file.originalname}`);
+            logger.info(`Market data uploaded and parsed by user: ${req.user.userId}, file: ${req.file.originalname}`);
 
             res.json({
-                message: 'Market data uploaded successfully',
+                message: 'Market data uploaded and parsed successfully',
                 id: result,
                 fileName: req.file.originalname,
+                fundPerformance: extractedData.fundPerformance,
+                reportDate: extractedData.reportDate,
                 uploadedAt: new Date().toISOString()
             });
         } catch (error) {
             logger.error('Market data upload error:', error);
-            res.status(500).json({ error: 'Failed to upload market data' });
+            res.status(500).json({
+                error: 'Failed to upload market data',
+                details: error.message
+            });
         }
     }
 );
