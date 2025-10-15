@@ -316,61 +316,8 @@ class DatabasePostgreSQL {
             
             await client.query(demoCustomers);
 
-            // Insert demo alerts
-            const demoAlerts = `
-            INSERT INTO alerts (user_id, customer_id, type, priority, title, message, action_type, is_read, created_at)
-            SELECT
-                u.user_id,
-                c.id,
-                'warning',
-                'high',
-                'ポートフォリオ配分バランス注意',
-                c.name || '様のポートフォリオでREIT型ファンドが推奨配分を20%上回っています。リバランスを検討してください。',
-                'rebalance',
-                false,
-                NOW() - INTERVAL '2 hours'
-            FROM users u
-            CROSS JOIN customers c
-            WHERE u.user_id = 'agent_tanaka' AND c.name = '山田太郎'
-            LIMIT 1
-            ON CONFLICT DO NOTHING;
-
-            INSERT INTO alerts (user_id, customer_id, type, priority, title, message, action_type, is_read, created_at)
-            SELECT
-                u.user_id,
-                c.id,
-                'success',
-                'medium',
-                '市場機会アラート',
-                '米国株式型ファンドが月間安値を更新しました。積極投資家向けの買い増し機会です。',
-                'buy_opportunity',
-                false,
-                NOW() - INTERVAL '5 hours'
-            FROM users u
-            CROSS JOIN customers c
-            WHERE u.user_id = 'agent_tanaka' AND c.name = '高橋花子'
-            LIMIT 1
-            ON CONFLICT DO NOTHING;
-
-            INSERT INTO alerts (user_id, customer_id, type, priority, title, message, action_type, is_read, created_at)
-            SELECT
-                u.user_id,
-                c.id,
-                'info',
-                'low',
-                'レポート生成完了',
-                c.name || '様のリスク分析レポートが完成しました。確認してください。',
-                'report_ready',
-                true,
-                NOW() - INTERVAL '1 day'
-            FROM users u
-            CROSS JOIN customers c
-            WHERE u.user_id = 'agent_tanaka' AND c.name = '山田太郎'
-            LIMIT 1
-            ON CONFLICT DO NOTHING;
-            `;
-
-            await client.query(demoAlerts);
+            // Note: Demo alerts are NOT inserted automatically
+            // Alerts will be created dynamically based on actual customer data and analysis results
             console.log('Initial demo data inserted');
         } catch (error) {
             // Ignore conflicts on demo data
