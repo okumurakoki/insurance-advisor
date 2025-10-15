@@ -5346,7 +5346,6 @@ interface CustomerComparisonData {
 
 function CustomerComparison({ user, navigate }: CustomerComparisonProps) {
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
-  const [availableCustomers, setAvailableCustomers] = useState<any[]>([]);
   const [comparisonData, setComparisonData] = useState<CustomerComparisonData[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'overview' | 'portfolio' | 'performance'>('overview');
@@ -5366,7 +5365,6 @@ function CustomerComparison({ user, navigate }: CustomerComparisonProps) {
 
         if (response.ok) {
           const data = await response.json();
-          setAvailableCustomers(data);
           // Select first 2 customers by default
           if (data.length >= 2) {
             setSelectedCustomers([data[0].id, data[1].id]);
