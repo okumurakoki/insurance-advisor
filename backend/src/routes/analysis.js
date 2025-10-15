@@ -35,7 +35,7 @@ router.get('/market-data/latest', authenticateToken, async (req, res) => {
 
         res.json({
             id: latest.id,
-            fileName: latest.source_file,
+            fileName: latest.data_content?.fileName || latest.source_file,
             uploadedAt: latest.created_at,
             uploadedBy: latest.uploaded_by,
             dataDate: latest.data_date
