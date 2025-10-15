@@ -4821,12 +4821,6 @@ function PortfolioOptimizer({ user, navigate }: PortfolioOptimizerProps) {
 }
 
 // Alert Center Component
-interface AlertCenterProps {
-  user: User;
-  navigate: (path: string) => void;
-}
-
-
 // Backtest Engine Component
 interface BacktestEngineProps {
   user: User;
