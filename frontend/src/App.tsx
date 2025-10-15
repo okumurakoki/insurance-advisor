@@ -2344,6 +2344,8 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
   const [performanceData, setPerformanceData] = useState<any[]>([]);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingExcel, setDownloadingExcel] = useState(false);
+  const [historicalAnalyses, setHistoricalAnalyses] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const handleRunAnalysis = async () => {
     setAnalyzing(true);
@@ -2377,6 +2379,18 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
         if (perfResponse.ok) {
           const perfData = await perfResponse.json();
           setPerformanceData(perfData);
+        }
+
+        // Refresh historical data
+        const historyResponse = await fetch(`${API_BASE_URL}/api/analysis/history/${customerId}/detailed`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          setHistoricalAnalyses(historyData);
         }
 
         alert('分析が完了しました！');
@@ -2512,6 +2526,36 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
 
     fetchCustomerDetail();
   }, [customerId, navigate]);
+
+  // Fetch historical analysis data
+  useEffect(() => {
+    const fetchHistoricalData = async () => {
+      if (!customerId) return;
+
+      setLoadingHistory(true);
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/analysis/history/${customerId}/detailed`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setHistoricalAnalyses(data);
+        }
+      } catch (error) {
+        console.error('Error fetching historical data:', error);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+
+    fetchHistoricalData();
+  }, [customerId]);
 
   if (loading) {
     return (
@@ -2752,7 +2796,7 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
           </Button>
           <Button
             onClick={() => setActiveTab(2)}
-            sx={{ 
+            sx={{
               borderBottom: activeTab === 2 ? 2 : 0,
               borderColor: 'primary.main',
               borderRadius: 0,
@@ -2761,6 +2805,18 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
             }}
           >
             取引履歴
+          </Button>
+          <Button
+            onClick={() => setActiveTab(3)}
+            sx={{
+              borderBottom: activeTab === 3 ? 2 : 0,
+              borderColor: 'primary.main',
+              borderRadius: 0,
+              px: 3,
+              py: 2
+            }}
+          >
+            履歴データ
           </Button>
         </Box>
         
@@ -3006,6 +3062,152 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
                   }
                 })()}
               </Box>
+            </Box>
+          )}
+
+          {activeTab === 3 && (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                過去の分析履歴（過去2年分）
+              </Typography>
+
+              {loadingHistory ? (
+                <Box display="flex" justifyContent="center" p={4}>
+                  <CircularProgress />
+                </Box>
+              ) : historicalAnalyses.length > 0 ? (
+                <Box>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    過去2年分の分析結果を表示しています。各分析結果のPDFをダウンロードできます。
+                  </Alert>
+
+                  <Grid container spacing={2}>
+                    {historicalAnalyses.map((analysis: any, index: number) => (
+                      <Grid item xs={12} key={analysis.id || index}>
+                        <Card variant="outlined" sx={{ p: 2 }}>
+                          <Grid container alignItems="center" spacing={2}>
+                            <Grid item xs={12} sm={3}>
+                              <Typography variant="body2" color="text.secondary">
+                                分析日
+                              </Typography>
+                              <Typography variant="body1" fontWeight="bold">
+                                {new Date(analysis.analysis_date).toLocaleDateString('ja-JP', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </Typography>
+                            </Grid>
+
+                            <Grid item xs={12} sm={5}>
+                              <Typography variant="body2" color="text.secondary" gutterBottom>
+                                推奨配分
+                              </Typography>
+                              <Box display="flex" gap={1} flexWrap="wrap">
+                                {Object.entries(analysis.adjusted_allocation || {}).slice(0, 3).map(([fund, percentage]: [string, any]) => (
+                                  <Chip
+                                    key={fund}
+                                    label={`${fund}: ${percentage}%`}
+                                    size="small"
+                                    color="primary"
+                                    variant="outlined"
+                                  />
+                                ))}
+                              </Box>
+                            </Grid>
+
+                            <Grid item xs={12} sm={2}>
+                              <Typography variant="body2" color="text.secondary">
+                                信頼度
+                              </Typography>
+                              <Typography variant="body1">
+                                {analysis.confidence_score ? `${(analysis.confidence_score * 100).toFixed(0)}%` : '-'}
+                              </Typography>
+                            </Grid>
+
+                            <Grid item xs={12} sm={2}>
+                              <Box display="flex" gap={1} flexDirection="column">
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  startIcon={<PdfIcon />}
+                                  onClick={async () => {
+                                    try {
+                                      const token = localStorage.getItem('token');
+                                      const response = await fetch(`${API_BASE_URL}/api/analysis/report/${analysis.id}/pdf`, {
+                                        headers: {
+                                          'Authorization': `Bearer ${token}`
+                                        }
+                                      });
+
+                                      if (response.ok) {
+                                        const blob = await response.blob();
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `analysis-${new Date(analysis.analysis_date).toISOString().split('T')[0]}.pdf`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(url);
+                                        document.body.removeChild(a);
+                                      } else {
+                                        alert('PDFダウンロードに失敗しました');
+                                      }
+                                    } catch (error) {
+                                      console.error('PDF download error:', error);
+                                      alert('PDFダウンロード中にエラーが発生しました');
+                                    }
+                                  }}
+                                >
+                                  PDF
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  startIcon={<TableIcon />}
+                                  onClick={async () => {
+                                    try {
+                                      const token = localStorage.getItem('token');
+                                      const response = await fetch(`${API_BASE_URL}/api/analysis/report/${analysis.id}/excel`, {
+                                        headers: {
+                                          'Authorization': `Bearer ${token}`
+                                        }
+                                      });
+
+                                      if (response.ok) {
+                                        const blob = await response.blob();
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `analysis-${new Date(analysis.analysis_date).toISOString().split('T')[0]}.xlsx`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(url);
+                                        document.body.removeChild(a);
+                                      } else {
+                                        alert('Excelダウンロードに失敗しました');
+                                      }
+                                    } catch (error) {
+                                      console.error('Excel download error:', error);
+                                      alert('Excelダウンロード中にエラーが発生しました');
+                                    }
+                                  }}
+                                >
+                                  Excel
+                                </Button>
+                              </Box>
+                            </Grid>
+                          </Grid>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              ) : (
+                <Alert severity="info">
+                  過去2年分の分析履歴がありません。分析を実行すると、履歴がここに表示されます。
+                </Alert>
+              )}
             </Box>
           )}
         </Box>
