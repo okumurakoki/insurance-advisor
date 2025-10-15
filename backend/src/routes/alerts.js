@@ -114,9 +114,24 @@ router.post('/', authenticateToken, async (req, res) => {
 router.delete('/all', authenticateToken, async (req, res) => {
     try {
         const db = require('../utils/database-factory');
+
+        // If admin user, allow deleting ALL alerts (including mock data)
+        if (req.user.accountType === 'admin' || req.user.accountType === 'parent') {
+            const sql = 'DELETE FROM alerts';
+            const result = await db.query(sql, []);
+            return res.json({
+                message: 'すべてのアラートを削除しました',
+                deleted: result.affectedRows || result.rowCount || 0
+            });
+        }
+
+        // Otherwise only delete user's own alerts
         const sql = 'DELETE FROM alerts WHERE user_id = $1';
-        await db.query(sql, [String(req.user.id)]);
-        res.json({ message: 'すべてのアラートを削除しました' });
+        const result = await db.query(sql, [String(req.user.id)]);
+        res.json({
+            message: 'すべてのアラートを削除しました',
+            deleted: result.affectedRows || result.rowCount || 0
+        });
     } catch (error) {
         console.error('Error deleting all alerts:', error);
         res.status(500).json({ error: 'アラートの削除に失敗しました' });
