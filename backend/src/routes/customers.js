@@ -162,4 +162,61 @@ router.get('/:id/analysis-history', authenticateToken, async (req, res) => {
     }
 });
 
+// Get customer comparison data (admin and parent only)
+router.get('/comparison', authenticateToken, async (req, res) => {
+    try {
+        // Only allow admin and parent users
+        if (req.user.accountType !== 'admin' && req.user.accountType !== 'parent') {
+            return res.status(403).json({ error: 'Access denied. Admin or parent account required.' });
+        }
+
+        const { customerIds } = req.query;
+
+        if (!customerIds) {
+            return res.status(400).json({ error: 'customerIds parameter is required' });
+        }
+
+        const ids = customerIds.split(',').map(id => parseInt(id));
+
+        // Get customers with their latest analysis results
+        const customers = await Promise.all(
+            ids.map(async (customerId) => {
+                const customer = await Customer.findById(customerId);
+
+                if (!customer) {
+                    return null;
+                }
+
+                // Check access rights
+                if (customer.user_id !== req.user.id) {
+                    return null;
+                }
+
+                // Get latest analysis result
+                const analysisResults = await AnalysisResult.getByCustomerId(customerId);
+                const latestAnalysis = analysisResults[0];
+
+                return {
+                    id: customer.id,
+                    name: customer.name,
+                    monthlyPremium: parseFloat(customer.monthly_premium),
+                    contractAmount: parseFloat(customer.contract_amount),
+                    riskTolerance: customer.risk_tolerance,
+                    contractDate: customer.contract_date,
+                    portfolio: latestAnalysis ? latestAnalysis.adjusted_allocation : null,
+                    latestAnalysisDate: latestAnalysis ? latestAnalysis.analysis_date : null
+                };
+            })
+        );
+
+        // Filter out null entries (customers not found or no access)
+        const validCustomers = customers.filter(c => c !== null);
+
+        res.json(validCustomers);
+    } catch (error) {
+        logger.error('Customer comparison error:', error);
+        res.status(500).json({ error: 'Failed to fetch comparison data' });
+    }
+});
+
 module.exports = router;

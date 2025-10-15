@@ -5351,13 +5351,97 @@ interface CustomerComparisonData {
 }
 
 function CustomerComparison({ user, navigate }: CustomerComparisonProps) {
-  const [selectedCustomers, setSelectedCustomers] = useState<number[]>([1, 2]);
+  const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
+  const [availableCustomers, setAvailableCustomers] = useState<any[]>([]);
   const [comparisonData, setComparisonData] = useState<CustomerComparisonData[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'overview' | 'portfolio' | 'performance'>('overview');
 
+  // Fetch available customers
   useEffect(() => {
-    // Mock comparison data
+    const fetchCustomers = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/customers`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableCustomers(data);
+          // Select first 2 customers by default
+          if (data.length >= 2) {
+            setSelectedCustomers([data[0].id, data[1].id]);
+          } else if (data.length === 1) {
+            setSelectedCustomers([data[0].id]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
+
+  // Fetch comparison data when selected customers change
+  useEffect(() => {
+    if (selectedCustomers.length === 0) {
+      setComparisonData([]);
+      setLoading(false);
+      return;
+    }
+
+    const fetchComparisonData = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const customerIds = selectedCustomers.join(',');
+        const response = await fetch(`${API_BASE_URL}/api/customers/comparison?customerIds=${customerIds}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+
+          // Transform data to match component expectations
+          const transformedData = data.map((customer: any) => ({
+            id: customer.id,
+            name: customer.name,
+            portfolio: customer.portfolio || { equity: 0, usEquity: 0, usBond: 0, reit: 0, globalEquity: 0 },
+            performance: {
+              totalReturn: 0, // Would need historical data to calculate
+              annualizedReturn: 0,
+              volatility: 0,
+              sharpeRatio: 0,
+              monthlyPremium: customer.monthlyPremium,
+              contractAmount: customer.contractAmount,
+              riskTolerance: customer.riskTolerance
+            },
+            timeSeriesData: [] // Would need historical performance data
+          }));
+
+          setComparisonData(transformedData);
+        }
+      } catch (error) {
+        console.error('Error fetching comparison data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchComparisonData();
+  }, [selectedCustomers]);
+
+  // Remove mock data
     const mockData: CustomerComparisonData[] = [
       {
         id: 1,
