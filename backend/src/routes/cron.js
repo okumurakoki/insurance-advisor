@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pdfDownloader = require('../utils/pdf-downloader');
+const pdfParser = require('../utils/pdf-parser');
 const MarketData = require('../models/MarketData');
 const User = require('../models/User');
 const logger = require('../utils/logger');
@@ -86,10 +87,20 @@ router.post('/update-market-data', async (req, res) => {
                 const filePath = path.join(uploadsDir, fileName);
                 await fs.writeFile(filePath, marketData.buffer);
 
+                // PDFを解析して実際の運用実績データを抽出
+                logger.info(`Parsing PDF: ${fileName}`);
+                const extractedData = await pdfParser.extractAllData(marketData.buffer);
+
+                logger.info(`Extracted fund performance data:`, extractedData.fundPerformance);
+
                 // データベースに登録
                 const dataContent = {
                     fileName: marketData.fileName,
-                    ...marketData.metadata
+                    ...marketData.metadata,
+                    fundPerformance: extractedData.fundPerformance || {},
+                    reportDate: extractedData.reportDate,
+                    extractedText: extractedData.text.substring(0, 5000), // 最初の5000文字のみ保存
+                    extractedAt: extractedData.extractedAt
                 };
 
                 const marketDataId = await MarketData.create({
@@ -103,10 +114,11 @@ router.post('/update-market-data', async (req, res) => {
                 savedResults.push({
                     id: marketDataId,
                     fileName: fileName,
+                    fundPerformance: extractedData.fundPerformance,
                     success: true
                 });
 
-                logger.info(`Market data saved: ${fileName} (ID: ${marketDataId})`);
+                logger.info(`Market data saved: ${fileName} (ID: ${marketDataId}), Fund data:`, extractedData.fundPerformance);
             } catch (error) {
                 logger.error(`Failed to save market data ${marketData.fileName}:`, error);
                 savedResults.push({

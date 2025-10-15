@@ -416,42 +416,45 @@ router.get('/performance/:customerId', authenticateToken, async (req, res) => {
 // Get fund performance data
 router.get('/fund-performance', authenticateToken, async (req, res) => {
     try {
-        // Calculate fund performance based on actual market data and analysis results
+        // 最新のマーケットデータから実際の運用実績を取得
+        const latestMarketData = await MarketData.getLatest();
+
+        if (!latestMarketData || !latestMarketData.data_content || !latestMarketData.data_content.fundPerformance) {
+            // フォールバック: データがない場合は空配列を返す
+            logger.warn('No fund performance data available in latest market data');
+            return res.json([]);
+        }
+
+        const fundPerformanceData = latestMarketData.data_content.fundPerformance;
         const fundTypes = ['株式型', '米国株式型', '米国債券型', 'REIT型', '世界株式型'];
 
-        // Get all analysis results to calculate average allocations
-        const results = await AnalysisResult.getByUserId(req.user.id);
-
-        // Calculate performance based on fund type and time
+        // 実際の運用実績データをフォーマット
         const performance = fundTypes.map(fundType => {
-            // Simple performance calculation (can be enhanced with real market data)
-            const basePerformance = {
-                '株式型': 6.8,
-                '米国株式型': 12.3,
-                '米国債券型': 3.2,
-                'REIT型': -1.5,
-                '世界株式型': 8.7
-            };
+            const performanceValue = fundPerformanceData[fundType];
 
-            // Add some variance based on recent analysis count
-            const variance = (Math.random() - 0.5) * 2;
-            const performance = (basePerformance[fundType] || 0) + variance;
+            // データが存在しない場合は0を使用
+            const performance = performanceValue !== undefined ? performanceValue : 0;
 
-            // Determine recommendation
+            // レコメンデーションを決定
             let recommendation = 'neutral';
-            if (fundType === '米国株式型' && performance > 10) {
+            if (performance > 8) {
                 recommendation = 'recommended';
-            } else if (fundType === 'REIT型' && performance < 0) {
+            } else if (performance < 0) {
                 recommendation = 'overpriced';
+            } else if (performance > 5) {
+                recommendation = 'neutral';
             }
 
             return {
                 fundType,
                 performance: parseFloat(performance.toFixed(1)),
-                recommendation
+                recommendation,
+                dataSource: 'prudential',
+                updatedAt: latestMarketData.data_content.extractedAt || latestMarketData.created_at
             };
         });
 
+        logger.info('Fund performance data served from actual market data');
         res.json(performance);
     } catch (error) {
         logger.error('Failed to fetch fund performance:', error);
