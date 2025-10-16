@@ -432,6 +432,28 @@ router.get('/performance/:customerId', authenticateToken, async (req, res) => {
     }
 });
 
+// Test endpoint without authentication for debugging
+router.get('/fund-performance-test', async (req, res) => {
+    try {
+        logger.info('Testing fund-performance endpoint without auth');
+        const MarketData = require('../models/MarketData');
+        const latestMarketData = await MarketData.getLatest();
+
+        res.json({
+            success: true,
+            hasData: !!latestMarketData,
+            dataContent: latestMarketData ? latestMarketData.data_content : null
+        });
+    } catch (error) {
+        logger.error('Test endpoint error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            stack: error.stack
+        });
+    }
+});
+
 // Get fund performance data
 router.get('/fund-performance', authenticateToken, async (req, res) => {
     try {
