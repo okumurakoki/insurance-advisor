@@ -64,6 +64,15 @@ app.options('*', cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Handle OPTIONS requests early, before any other middleware
+app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(204);
+    }
+    next();
+});
+
 app.use('/api/', limiter);
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
