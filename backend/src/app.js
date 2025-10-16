@@ -62,7 +62,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const customerRoutes = require('./routes/customers');
-const analysisRoutes = require('./routes/analysis');
+// const analysisRoutes = require('./routes/analysis');
+const analysisRoutes = require('./routes/analysis-minimal'); // Temporarily use minimal version
 const lineRoutes = require('./routes/line');
 const cronRoutes = require('./routes/cron');
 
