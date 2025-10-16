@@ -36,7 +36,9 @@ class DatabasePostgreSQL {
             } catch (error) {
                 console.error('❌ Database connection failed:', error.message);
                 console.error('Connection string (masked):', connectionString.substring(0, 30) + '...');
-                throw error;
+                // Don't throw error - allow app to start even if DB connection fails initially
+                // The connection will be retried on each query
+                console.warn('⚠️  App starting without database connection. Queries may fail until connection is established.');
             }
         }
         return this.pool;
