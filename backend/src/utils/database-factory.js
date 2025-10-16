@@ -12,12 +12,26 @@ console.log('Database configuration:', {
 if (useSupabase) {
     console.log('Using Supabase PostgreSQL database');
     const db = require('./database-postgres');
-    db.initialize().catch(console.error);
+
+    // Initialize database asynchronously without blocking module load
+    // Don't wait for initialization to complete
+    setImmediate(() => {
+        db.initialize().catch(err => {
+            console.error('Database initialization failed (non-blocking):', err.message);
+        });
+    });
+
     module.exports = db;
 } else {
     // Fallback to simple in-memory database
     console.log('Using simple in-memory database (fallback)');
     const db = require('./database-simple');
-    db.initialize().catch(console.error);
+
+    setImmediate(() => {
+        db.initialize().catch(err => {
+            console.error('Database initialization failed (non-blocking):', err.message);
+        });
+    });
+
     module.exports = db;
 }
