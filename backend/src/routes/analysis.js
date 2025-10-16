@@ -477,7 +477,12 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
         res.json(performance);
     } catch (error) {
         logger.error('Failed to fetch fund performance:', error);
-        res.status(500).json({ error: 'Failed to fetch fund performance' });
+        // Return detailed error in development/production for debugging
+        res.status(500).json({
+            error: 'Failed to fetch fund performance',
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
