@@ -12,27 +12,7 @@ console.log('Database configuration:', {
 if (useSupabase) {
     console.log('Using Supabase PostgreSQL database');
     const db = require('./database-postgres');
-
-    // Initialize database synchronously to ensure it's ready before handling requests
-    let initPromise = null;
-    const originalQuery = db.query;
-
-    db.query = async function(...args) {
-        // Wait for initialization if it hasn't completed
-        if (!db.pool) {
-            if (!initPromise) {
-                initPromise = db.initialize();
-            }
-            await initPromise;
-        }
-        return originalQuery.apply(db, args);
-    };
-
-    // Start initialization immediately but don't block module export
-    db.initialize().catch(err => {
-        console.error('Database initialization error:', err);
-    });
-
+    db.initialize().catch(console.error);
     module.exports = db;
 } else {
     // Fallback to simple in-memory database
