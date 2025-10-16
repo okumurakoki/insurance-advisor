@@ -11,7 +11,7 @@ const logger = require('../utils/logger');
 const { authenticateToken, authorizePlanFeature, authorizeAccountType } = require('../middleware/auth');
 const PDFReportGenerator = require('../utils/pdf-generator');
 const ExcelReportGenerator = require('../utils/excel-generator');
-const pdfParser = require('../utils/pdf-parser');
+// const pdfParser = require('../utils/pdf-parser'); // Temporarily disabled for debugging
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -85,6 +85,9 @@ router.post('/upload-market-data',
 
             // PDFを解析して運用実績データを抽出
             logger.info(`Parsing PDF: ${req.file.originalname}`);
+            // Temporarily disabled pdf-parse for debugging Vercel issues
+            // const extractedData = await pdfParser.extractAllData(pdfBuffer);
+            const pdfParser = require('../utils/pdf-parser');
             const extractedData = await pdfParser.extractAllData(pdfBuffer);
 
             logger.info(`Extracted fund performance data:`, extractedData.fundPerformance);
@@ -96,7 +99,7 @@ router.post('/upload-market-data',
                 uploadedAt: new Date().toISOString(),
                 fundPerformance: extractedData.fundPerformance || {},
                 reportDate: extractedData.reportDate,
-                extractedText: extractedData.text.substring(0, 5000), // 最初の5000文字のみ保存
+                extractedText: extractedData.text ? extractedData.text.substring(0, 5000) : '', // 最初の5000文字のみ保存
                 extractedAt: extractedData.extractedAt
             };
 
