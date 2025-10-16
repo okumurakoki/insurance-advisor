@@ -435,11 +435,15 @@ router.get('/performance/:customerId', authenticateToken, async (req, res) => {
     }
 });
 
+// Simple test endpoint
+router.get('/ping', (req, res) => {
+    res.json({ message: 'pong', timestamp: new Date().toISOString() });
+});
+
 // Test endpoint without authentication for debugging
 router.get('/fund-performance-test', async (req, res) => {
     try {
         logger.info('Testing fund-performance endpoint without auth');
-        const MarketData = require('../models/MarketData');
         const latestMarketData = await MarketData.getLatest();
 
         res.json({
