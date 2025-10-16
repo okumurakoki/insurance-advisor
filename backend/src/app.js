@@ -17,7 +17,8 @@ app.set('trust proxy', 1);
 const limiter = rateLimit({
     windowMs: process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000,
     max: process.env.RATE_LIMIT_MAX_REQUESTS || 100,
-    message: 'Too many requests from this IP, please try again later.'
+    message: 'Too many requests from this IP, please try again later.',
+    skip: (req) => req.method === 'OPTIONS' // Skip rate limiting for CORS preflight
 });
 
 app.use(helmet({
@@ -32,15 +33,15 @@ app.use(cors({
     origin: function (origin, callback) {
         // Allow requests with no origin (mobile apps, curl, etc.)
         if (!origin) return callback(null, true);
-        
+
         // In development, allow all origins
         if (process.env.NODE_ENV === 'development') {
             return callback(null, true);
         }
-        
+
         // Temporarily allow all origins to debug
         return callback(null, true);
-        
+
         // Check if origin is in allowed list or if wildcard is set
         // if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
         //     return callback(null, true);
@@ -50,9 +51,17 @@ app.use(cors({
         // }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Content-Length', 'Content-Type'],
+    maxAge: 86400, // 24 hours
+    preflightContinue: false,
+    optionsSuccessStatus: 204
 }));
+
+// Handle preflight requests
+app.options('*', cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/api/', limiter);
