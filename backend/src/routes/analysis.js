@@ -5,13 +5,25 @@ const path = require('path');
 const Customer = require('../models/Customer');
 const AnalysisResult = require('../models/AnalysisResult');
 const MarketData = require('../models/MarketData');
-// const NotebookLMService = require('../services/notebookLM.service'); // Temporarily disabled for debugging
-// const AllocationCalculator = require('../services/calculator.service'); // Temporarily disabled for debugging
 const logger = require('../utils/logger');
 const { authenticateToken, authorizePlanFeature, authorizeAccountType } = require('../middleware/auth');
 const PDFReportGenerator = require('../utils/pdf-generator');
 const ExcelReportGenerator = require('../utils/excel-generator');
-// const pdfParser = require('../utils/pdf-parser'); // Temporarily disabled for debugging
+
+// Lazy load heavy dependencies to avoid initialization issues in Vercel
+let NotebookLMService, AllocationCalculator, pdfParser;
+const getNotebookLMService = () => {
+    if (!NotebookLMService) NotebookLMService = require('../services/notebookLM.service');
+    return NotebookLMService;
+};
+const getAllocationCalculator = () => {
+    if (!AllocationCalculator) AllocationCalculator = require('../services/calculator.service');
+    return AllocationCalculator;
+};
+const getPdfParser = () => {
+    if (!pdfParser) pdfParser = require('../utils/pdf-parser');
+    return pdfParser;
+};
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -85,10 +97,8 @@ router.post('/upload-market-data',
 
             // PDFを解析して運用実績データを抽出
             logger.info(`Parsing PDF: ${req.file.originalname}`);
-            // Temporarily disabled pdf-parse for debugging Vercel issues
-            // const extractedData = await pdfParser.extractAllData(pdfBuffer);
-            const pdfParser = require('../utils/pdf-parser');
-            const extractedData = await pdfParser.extractAllData(pdfBuffer);
+            const parser = getPdfParser();
+            const extractedData = await parser.extractAllData(pdfBuffer);
 
             logger.info(`Extracted fund performance data:`, extractedData.fundPerformance);
 
@@ -169,14 +179,15 @@ router.post('/recommend/:customerId',
                 });
             }
 
-            const notebookLM = new NotebookLMService();
+            const NotebookLM = getNotebookLMService();
+            const notebookLM = new NotebookLM();
             const analysisPrompt = `
                 Based on the market data, provide investment allocation recommendations for:
                 - Contract Date: ${customer.contract_date}
                 - Monthly Premium: ${customer.monthly_premium} JPY
                 - Risk Tolerance: ${customer.risk_tolerance}
                 - Investment Goal: ${customer.investment_goal || 'General growth'}
-                
+
                 Please provide:
                 1. Recommended asset allocation percentages
                 2. Market analysis summary
@@ -188,7 +199,8 @@ router.post('/recommend/:customerId',
                 analysisPrompt
             );
 
-            const calculator = new AllocationCalculator(
+            const Calculator = getAllocationCalculator();
+            const calculator = new Calculator(
                 notebookLMResult.recommendedAllocation,
                 notebookLMResult.adjustmentFactors
             );
