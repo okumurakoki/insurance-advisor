@@ -3,6 +3,11 @@ const User = require('../models/User');
 const logger = require('../utils/logger');
 
 const authenticateToken = async (req, res, next) => {
+    // Skip authentication for OPTIONS (CORS preflight) requests
+    if (req.method === 'OPTIONS') {
+        return next();
+    }
+
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
@@ -36,12 +41,17 @@ const authenticateToken = async (req, res, next) => {
 
 const authorizeAccountType = (...allowedTypes) => {
     return (req, res, next) => {
+        // Skip authorization for OPTIONS (CORS preflight) requests
+        if (req.method === 'OPTIONS') {
+            return next();
+        }
+
         if (!req.user) {
             return res.status(401).json({ error: 'Authentication required' });
         }
 
         if (!allowedTypes.includes(req.user.accountType)) {
-            return res.status(403).json({ 
+            return res.status(403).json({
                 error: `Access denied. Required account type: ${allowedTypes.join(' or ')}`
             });
         }
@@ -51,19 +61,24 @@ const authorizeAccountType = (...allowedTypes) => {
 };
 
 const authorizeParentAccess = async (req, res, next) => {
+    // Skip authorization for OPTIONS (CORS preflight) requests
+    if (req.method === 'OPTIONS') {
+        return next();
+    }
+
     try {
         const targetUserId = req.params.userId || req.body.userId;
-        
+
         if (!targetUserId) {
             return next();
         }
 
         if (req.user.accountType === 'parent') {
             const targetUser = await User.findById(targetUserId);
-            
+
             if (!targetUser || targetUser.parent_id !== req.user.id) {
-                return res.status(403).json({ 
-                    error: 'Access denied. You can only manage your own child accounts.' 
+                return res.status(403).json({
+                    error: 'Access denied. You can only manage your own child accounts.'
                 });
             }
         }
@@ -77,13 +92,18 @@ const authorizeParentAccess = async (req, res, next) => {
 
 const authorizePlanFeature = (feature) => {
     return async (req, res, next) => {
+        // Skip authorization for OPTIONS (CORS preflight) requests
+        if (req.method === 'OPTIONS') {
+            return next();
+        }
+
         try {
             const features = await User.getPlanFeatures(req.user.planType);
             const featureObj = features.find(f => f.feature_name === feature);
 
             if (!featureObj) {
-                return res.status(403).json({ 
-                    error: `This feature is not available in your ${req.user.planType} plan` 
+                return res.status(403).json({
+                    error: `This feature is not available in your ${req.user.planType} plan`
                 });
             }
 
