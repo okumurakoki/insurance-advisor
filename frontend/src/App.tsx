@@ -630,7 +630,7 @@ function AppContent() {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
               <Chip
-                label="v1.1.1"
+                label="v1.1.2"
                 size="small"
                 sx={{
                   bgcolor: 'rgba(255,255,255,0.2)',
@@ -781,6 +781,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
         if (perfResponse.ok) {
           const data = await perfResponse.json();
+          console.log('Fund performance API response:', data);
+          console.log('Bond yields:', data.bondYields);
           setFundPerformance(data.funds || data); // Handle both old and new format
           setBondYields(data.bondYields || null);
         }

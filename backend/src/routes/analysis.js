@@ -90,8 +90,7 @@ router.post('/upload-market-data',
             let reportDate = null;
 
             try {
-                const PDFParser = require('../utils/pdf-parser');
-                const parser = new PDFParser();
+                const parser = require('../utils/pdf-parser');
                 const extractedData = await parser.extractAllData(pdfBuffer);
 
                 fundPerformance = extractedData.fundPerformance || {};
