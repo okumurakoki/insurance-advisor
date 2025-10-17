@@ -627,8 +627,18 @@ function AppContent() {
               </IconButton>
             )}
             
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
+              <Chip
+                label="v1.1.0"
+                size="small"
+                sx={{
+                  bgcolor: 'rgba(255,255,255,0.2)',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '0.7rem'
+                }}
+              />
             </Typography>
             
             {!isMobile && (
