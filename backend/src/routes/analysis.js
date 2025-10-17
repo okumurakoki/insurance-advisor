@@ -84,6 +84,7 @@ router.post('/upload-market-data',
 
             // Parse PDF to extract fund performance data
             let fundPerformance = {};
+            let allPerformanceData = {};
             let extractedText = '';
             let reportDate = null;
 
@@ -93,11 +94,13 @@ router.post('/upload-market-data',
                 const extractedData = await parser.extractAllData(pdfBuffer);
 
                 fundPerformance = extractedData.fundPerformance || {};
+                allPerformanceData = extractedData.allPerformanceData || {};
                 extractedText = extractedData.text || '';
                 reportDate = extractedData.reportDate || null;
 
                 logger.info('PDF parsing successful:', {
                     fundPerformance,
+                    allPerformanceData,
                     reportDate,
                     textLength: extractedText.length
                 });
@@ -115,6 +118,7 @@ router.post('/upload-market-data',
                     fileSize: req.file.size,
                     uploadedAt: new Date().toISOString(),
                     fundPerformance: fundPerformance,
+                    allPerformanceData: allPerformanceData,
                     reportDate: reportDate,
                     extractedText: extractedText.substring(0, 5000),
                     parsedSuccessfully: Object.keys(fundPerformance).length > 0
@@ -131,6 +135,7 @@ router.post('/upload-market-data',
                 fileName: req.file.originalname,
                 uploadedAt: new Date().toISOString(),
                 fundPerformance: fundPerformance,
+                allPerformanceData: allPerformanceData,
                 reportDate: reportDate,
                 parsedSuccessfully: Object.keys(fundPerformance).length > 0
             });
@@ -452,10 +457,12 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
 
         // Extract fund performance from latest market data if available
         let actualFundPerformance = {};
+        let allPerformanceData = null;
         let hasActualData = false;
 
-        if (latestMarketData && latestMarketData.data_content && latestMarketData.data_content.fundPerformance) {
-            actualFundPerformance = latestMarketData.data_content.fundPerformance;
+        if (latestMarketData && latestMarketData.data_content) {
+            actualFundPerformance = latestMarketData.data_content.fundPerformance || {};
+            allPerformanceData = latestMarketData.data_content.allPerformanceData || null;
             hasActualData = Object.keys(actualFundPerformance).length > 0;
 
             if (hasActualData) {
@@ -487,11 +494,35 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
                     recommendation = 'neutral';
                 }
 
+                // Get additional performance data for this fund
+                const additionalData = {};
+                if (allPerformanceData) {
+                    // 年率換算利回り (直近1年)
+                    if (allPerformanceData.annualizedReturn && allPerformanceData.annualizedReturn['直近1年']) {
+                        additionalData.annualizedReturn = allPerformanceData.annualizedReturn['直近1年'][fundType];
+                    }
+                    // 月次利回り (直近1年)
+                    if (allPerformanceData.monthlyReturn && allPerformanceData.monthlyReturn['直近1年']) {
+                        additionalData.monthlyReturn = allPerformanceData.monthlyReturn['直近1年'][fundType];
+                    }
+                    // 5年年率換算
+                    if (allPerformanceData.annualizedReturn && allPerformanceData.annualizedReturn['５年']) {
+                        additionalData.annualizedReturn5Y = allPerformanceData.annualizedReturn['５年'][fundType];
+                    }
+                    // 累積騰落率
+                    if (allPerformanceData.totalReturn) {
+                        additionalData.totalReturn1Y = allPerformanceData.totalReturn['直近1年']?.[fundType];
+                        additionalData.totalReturn5Y = allPerformanceData.totalReturn['５年']?.[fundType];
+                        additionalData.totalReturn10Y = allPerformanceData.totalReturn['10年']?.[fundType];
+                    }
+                }
+
                 return {
                     fundType,
                     performance: parseFloat(performanceValue.toFixed(1)),
                     recommendation,
-                    dataSource: 'actual'
+                    dataSource: 'actual',
+                    ...additionalData
                 };
             });
 

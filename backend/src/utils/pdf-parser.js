@@ -142,6 +142,130 @@ class PDFParser {
     }
 
     /**
+     * すべての期間のパフォーマンスデータを抽出
+     * @param {string} text
+     * @returns {Object}
+     */
+    extractAllPerformanceData(text) {
+        const result = {
+            totalReturn: {},      // 累積騰落率
+            annualizedReturn: {}, // 年率換算利回り
+            monthlyReturn: {}     // 月次利回り (年率 / 12)
+        };
+
+        const lines = text.split('\n');
+        const periods = ['直近1年', '５年', '10年', '20年', '設定来'];
+
+        // Find header line
+        let headerLine = null;
+        let headerIndex = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.includes('総合型') && line.includes('債券型') && line.includes('株式型')) {
+                headerLine = line;
+                headerIndex = i;
+                logger.info(`Found performance header at line ${i}`);
+                break;
+            }
+        }
+
+        if (!headerLine || headerIndex < 0) {
+            logger.warn('Performance table header not found');
+            return result;
+        }
+
+        const headerParts = headerLine.split(/\t+|\s{2,}/);
+
+        // Extract data for each period
+        // First table: Total Return (累積騰落率)
+        for (let i = headerIndex + 1; i < Math.min(headerIndex + 10, lines.length); i++) {
+            const dataLine = lines[i];
+
+            // Stop when we hit the next header
+            if (dataLine.includes('期間') && dataLine.includes('総合型')) {
+                break;
+            }
+
+            for (const period of periods) {
+                if (dataLine.includes(period)) {
+                    const dataParts = dataLine.split(/\t+|\s{2,}/);
+
+                    if (!result.totalReturn[period]) {
+                        result.totalReturn[period] = {};
+                    }
+
+                    for (let j = 0; j < headerParts.length && j < dataParts.length; j++) {
+                        const fundName = headerParts[j].trim();
+                        const value = dataParts[j].trim();
+
+                        const percentMatch = value.match(/([-+]?\d+\.?\d*)%/);
+                        if (percentMatch && fundName !== '期間' && fundName !== '') {
+                            result.totalReturn[period][fundName] = parseFloat(percentMatch[1]);
+                        }
+                    }
+
+                    logger.info(`Extracted total return for ${period}:`, result.totalReturn[period]);
+                    break;
+                }
+            }
+        }
+
+        // Second table: Annualized Return (年率換算利回り)
+        // Find second header (should be around line headerIndex + 6-7)
+        let secondHeaderIndex = -1;
+        for (let i = headerIndex + 5; i < Math.min(headerIndex + 15, lines.length); i++) {
+            const line = lines[i];
+            if (line.includes('期間') && line.includes('総合型')) {
+                secondHeaderIndex = i;
+                logger.info(`Found annualized return header at line ${i}`);
+                break;
+            }
+        }
+
+        if (secondHeaderIndex >= 0) {
+            for (let j = secondHeaderIndex + 1; j < Math.min(secondHeaderIndex + 10, lines.length); j++) {
+                const dataLine = lines[j];
+
+                // Stop when we hit the third header
+                if (dataLine.includes('期間') && dataLine.includes('総合型') && j > secondHeaderIndex + 1) {
+                    break;
+                }
+
+                for (const period of periods) {
+                    if (dataLine.includes(period)) {
+                        const dataParts = dataLine.split(/\t+|\s{2,}/);
+
+                        if (!result.annualizedReturn[period]) {
+                            result.annualizedReturn[period] = {};
+                        }
+                        if (!result.monthlyReturn[period]) {
+                            result.monthlyReturn[period] = {};
+                        }
+
+                        for (let k = 0; k < headerParts.length && k < dataParts.length; k++) {
+                            const fundName = headerParts[k].trim();
+                            const value = dataParts[k].trim();
+
+                            const percentMatch = value.match(/([-+]?\d+\.?\d*)%/);
+                            if (percentMatch && fundName !== '期間' && fundName !== '') {
+                                const annualReturn = parseFloat(percentMatch[1]);
+                                result.annualizedReturn[period][fundName] = annualReturn;
+                                result.monthlyReturn[period][fundName] = parseFloat((annualReturn / 12).toFixed(3));
+                            }
+                        }
+
+                        logger.info(`Extracted annualized return for ${period}:`, result.annualizedReturn[period]);
+                        break;
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * PDFから全てのメタデータとデータを抽出
      * @param {Buffer} pdfBuffer
      * @returns {Promise<Object>}
@@ -150,6 +274,7 @@ class PDFParser {
         try {
             const text = await this.extractText(pdfBuffer);
             const fundPerformance = await this.extractFundPerformance(pdfBuffer);
+            const allPerformanceData = this.extractAllPerformanceData(text);
 
             // 決算日を抽出
             const dateMatch = text.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
@@ -161,6 +286,7 @@ class PDFParser {
             return {
                 text,
                 fundPerformance,
+                allPerformanceData,
                 reportDate,
                 extractedAt: new Date().toISOString()
             };
