@@ -1,4 +1,4 @@
-const { PDFParse } = require('pdf-parse');
+const pdf = require('pdf-parse');
 const logger = require('./logger');
 
 /**
@@ -11,15 +11,12 @@ class PDFParser {
      * @returns {Promise<string>}
      */
     async extractText(pdfBuffer) {
-        const parser = new PDFParse({ data: pdfBuffer });
         try {
-            const result = await parser.getText();
-            return result.text;
+            const data = await pdf(pdfBuffer);
+            return data.text;
         } catch (error) {
             logger.error('PDF text extraction failed:', error);
             throw error;
-        } finally {
-            await parser.destroy();
         }
     }
 
@@ -36,27 +33,32 @@ class PDFParser {
             // プルデンシャルのPDFフォーマットに基づいて解析
             // 特別勘定名と騰落率のパターンを検索
 
-            // パターン1: PDFから実際のフォーマットに基づいたパターン
-            // 例: "S&P500 6.80%" or "REIT 5.76%"
+            // パターン: プルデンシャルの実際のフォーマットに基づく
+            // 例: "総合型 ... 6.75%" or "株式型 ... 16.84%"
             const patterns = [
-                // S&P500 (株式型として扱う)
-                { regex: /S&P500\s+([-+]?\d+\.?\d*)%/i, name: '株式型' },
-                { regex: /株式型\s+[^\d]*([-+]?\d+\.?\d*)%/i, name: '株式型' },
+                // 総合型
+                { regex: /総合型.*?([-+]?\d+\.?\d+)%/i, name: '総合型' },
 
-                // 米国株式型
-                { regex: /米国株式.*?\s+([-+]?\d+\.?\d*)%/i, name: '米国株式型' },
+                // 債券型
+                { regex: /債券型(?!.*米国).*?([-+]?\d+\.?\d+)%/i, name: '債券型' },
+
+                // 株式型 (米国以外)
+                { regex: /株式型(?!.*米国).*?([-+]?\d+\.?\d+)%/i, name: '株式型' },
 
                 // 米国債券型
-                { regex: /米国債券.*?\s+([-+]?\d+\.?\d*)%/i, name: '米国債券型' },
+                { regex: /米国債券.*?([-+]?\d+\.?\d+)%/i, name: '米国債券型' },
+
+                // 米国株式型
+                { regex: /米国株式.*?([-+]?\d+\.?\d+)%/i, name: '米国株式型' },
 
                 // REIT型
-                { regex: /REIT\s+([-+]?\d+\.?\d*)%/i, name: 'REIT型' },
-                { regex: /不動産.*?\s+([-+]?\d+\.?\d*)%/i, name: 'REIT型' },
+                { regex: /REIT.*?([-+]?\d+\.?\d+)%/i, name: 'REIT型' },
+                { regex: /不動産.*?([-+]?\d+\.?\d+)%/i, name: 'REIT型' },
 
                 // 世界株式型
-                { regex: /世界株式.*?\s+([-+]?\d+\.?\d*)%/i, name: '世界株式型' },
-                { regex: /グローバル.*?株式.*?\s+([-+]?\d+\.?\d*)%/i, name: '世界株式型' },
-                { regex: /MSCI.*?\s+([-+]?\d+\.?\d*)%/i, name: '世界株式型' }
+                { regex: /世界株式.*?([-+]?\d+\.?\d+)%/i, name: '世界株式型' },
+                { regex: /グローバル.*?株式.*?([-+]?\d+\.?\d+)%/i, name: '世界株式型' },
+                { regex: /MSCI.*?([-+]?\d+\.?\d+)%/i, name: '世界株式型' }
             ];
 
             for (const pattern of patterns) {
@@ -91,7 +93,7 @@ class PDFParser {
 
         // テーブル形式を探す
         // 例: "株式型   6.8%"
-        const fundNames = ['株式型', '米国株式型', '米国債券型', 'REIT型', '世界株式型'];
+        const fundNames = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型', '世界株式型'];
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
