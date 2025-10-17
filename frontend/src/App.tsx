@@ -630,7 +630,7 @@ function AppContent() {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
               <Chip
-                label="v1.1.0"
+                label="v1.1.1"
                 size="small"
                 sx={{
                   bgcolor: 'rgba(255,255,255,0.2)',
@@ -1607,9 +1607,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           <Paper sx={{ p: 3, mb: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
               <Typography variant="h6">
-                プルデンシャル変額保険ファンド分析 (リアルタイム)
+                プルデンシャル変額保険ファンド分析
               </Typography>
-              <Chip label="最終更新: リアルタイム" color="success" size="small" />
+              <Chip label="PDF分析結果" color="primary" size="small" />
             </Box>
 
             <Grid container spacing={3}>
@@ -1793,7 +1793,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         <Grid item xs={12}>
             <Paper sx={{ p: 3, mb: 2 }}>
               <Typography variant="h6" gutterBottom sx={{ textAlign: 'center' }}>
-                プルデンシャル変額保険ファンドパフォーマンス
+                ファンドパフォーマンス（直近1年）
               </Typography>
               <Grid container spacing={2}>
                 {fundPerformance.map((fund: any) => {
