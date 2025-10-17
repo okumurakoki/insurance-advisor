@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pdfDownloader = require('../utils/pdf-downloader');
-const pdfParser = require('../utils/pdf-parser');
+// const pdfParser = require('../utils/pdf-parser'); // Not used in cron - parsing is done during manual upload
 const MarketData = require('../models/MarketData');
 const User = require('../models/User');
 const logger = require('../utils/logger');
