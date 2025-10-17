@@ -12,10 +12,8 @@ class PDFParser {
      */
     async extractText(pdfBuffer) {
         try {
-            const parser = new pdf.PDFParse({ data: pdfBuffer });
-            const result = await parser.getText();
-            await parser.destroy();
-            return result.text;
+            const data = await pdf(pdfBuffer);
+            return data.text;
         } catch (error) {
             logger.error('PDF text extraction failed:', error);
             throw error;
