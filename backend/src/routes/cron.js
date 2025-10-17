@@ -7,6 +7,7 @@ const User = require('../models/User');
 const logger = require('../utils/logger');
 const fs = require('fs').promises;
 const path = require('path');
+const { authenticateToken, authorizeAccountType } = require('../middleware/auth');
 
 /**
  * Vercel Cronジョブ用のエンドポイント
@@ -19,21 +20,47 @@ router.post('/update-market-data', async (req, res) => {
         // Vercel Cronからのリクエストを検証
         // Vercelからのcronリクエストには x-vercel-cron ヘッダーが含まれる
         const isVercelCron = req.headers['x-vercel-cron'] === '1';
+        const authHeader = req.headers.authorization;
 
-        // 本番環境では追加の検証を行う
-        if (process.env.NODE_ENV === 'production') {
-            if (!isVercelCron) {
-                // Vercel Cronでない場合は、認証トークンをチェック
-                const cronSecret = process.env.CRON_SECRET;
-                const authHeader = req.headers.authorization;
-                if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
-                    logger.warn('Unauthorized cron job attempt - not from Vercel and no valid token');
-                    return res.status(401).json({ error: 'Unauthorized' });
+        // 認証チェック（3つの方法のいずれか）
+        let isAuthorized = false;
+        let authMethod = 'unknown';
+
+        // 1. Vercel Cronヘッダー
+        if (isVercelCron) {
+            isAuthorized = true;
+            authMethod = 'Vercel Cron';
+        }
+        // 2. CRON_SECRET
+        else if (authHeader && authHeader === `Bearer ${process.env.CRON_SECRET}`) {
+            isAuthorized = true;
+            authMethod = 'CRON_SECRET';
+        }
+        // 3. JWT認証（parent accountのみ）
+        else if (authHeader && authHeader.startsWith('Bearer ')) {
+            try {
+                const jwt = require('jsonwebtoken');
+                const token = authHeader.split(' ')[1];
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const User = require('../models/User');
+                const user = await User.findById(decoded.id);
+
+                if (user && user.is_active && user.account_type === 'parent') {
+                    isAuthorized = true;
+                    authMethod = `JWT (user: ${user.user_id})`;
+                    req.user = user;
                 }
+            } catch (err) {
+                logger.warn('JWT verification failed for cron endpoint:', err.message);
             }
         }
 
-        logger.info(`Market data update triggered. Source: ${isVercelCron ? 'Vercel Cron' : 'Manual'}`);
+        if (!isAuthorized) {
+            logger.warn('Unauthorized cron job attempt');
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        logger.info(`Market data update triggered. Auth method: ${authMethod}`);
 
         logger.info('Starting automatic market data update...');
 
