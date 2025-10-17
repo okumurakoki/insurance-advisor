@@ -85,6 +85,7 @@ router.post('/upload-market-data',
             // Parse PDF to extract fund performance data
             let fundPerformance = {};
             let allPerformanceData = {};
+            let bondYields = {};
             let extractedText = '';
             let reportDate = null;
 
@@ -95,12 +96,14 @@ router.post('/upload-market-data',
 
                 fundPerformance = extractedData.fundPerformance || {};
                 allPerformanceData = extractedData.allPerformanceData || {};
+                bondYields = extractedData.bondYields || {};
                 extractedText = extractedData.text || '';
                 reportDate = extractedData.reportDate || null;
 
                 logger.info('PDF parsing successful:', {
                     fundPerformance,
                     allPerformanceData,
+                    bondYields,
                     reportDate,
                     textLength: extractedText.length
                 });
@@ -119,6 +122,7 @@ router.post('/upload-market-data',
                     uploadedAt: new Date().toISOString(),
                     fundPerformance: fundPerformance,
                     allPerformanceData: allPerformanceData,
+                    bondYields: bondYields,
                     reportDate: reportDate,
                     extractedText: extractedText.substring(0, 5000),
                     parsedSuccessfully: Object.keys(fundPerformance).length > 0
@@ -136,6 +140,7 @@ router.post('/upload-market-data',
                 uploadedAt: new Date().toISOString(),
                 fundPerformance: fundPerformance,
                 allPerformanceData: allPerformanceData,
+                bondYields: bondYields,
                 reportDate: reportDate,
                 parsedSuccessfully: Object.keys(fundPerformance).length > 0
             });
@@ -458,11 +463,13 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
         // Extract fund performance from latest market data if available
         let actualFundPerformance = {};
         let allPerformanceData = null;
+        let bondYields = null;
         let hasActualData = false;
 
         if (latestMarketData && latestMarketData.data_content) {
             actualFundPerformance = latestMarketData.data_content.fundPerformance || {};
             allPerformanceData = latestMarketData.data_content.allPerformanceData || null;
+            bondYields = latestMarketData.data_content.bondYields || null;
             hasActualData = Object.keys(actualFundPerformance).length > 0;
 
             if (hasActualData) {
@@ -473,7 +480,7 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
         // PDFデータがない場合は空配列を返す
         if (!hasActualData) {
             logger.warn('No fund performance data found in market data - PDF not uploaded yet');
-            return res.json([]);
+            return res.json({ funds: [], bondYields: null });
         }
 
         // Calculate fund performance based on actual market data
@@ -526,7 +533,10 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
                 };
             });
 
-        res.json(performance);
+        res.json({
+            funds: performance,
+            bondYields: bondYields
+        });
     } catch (error) {
         logger.error('Failed to fetch fund performance:', error);
         res.status(500).json({ error: 'Failed to fetch fund performance' });

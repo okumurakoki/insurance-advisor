@@ -266,6 +266,44 @@ class PDFParser {
     }
 
     /**
+     * 国債利回りを抽出
+     * @param {string} text
+     * @returns {Object}
+     */
+    extractBondYields(text) {
+        const result = {
+            japan10Y: null,
+            japanChange: null,
+            us10Y: null,
+            usChange: null
+        };
+
+        const lines = text.split('\n');
+
+        for (const line of lines) {
+            // 日本10年国債利回り
+            // 例: "月末の10年国債金利は、1.600％(前月末比 +0.055％)で終了しました。"
+            const jpMatch = line.match(/10年国債[金利|⾦利]は、?\s*([\d.]+)％?\s*\(前[月⽉]末比\s*([-+]?[\d.]+)％?\)/);
+            if (jpMatch && !result.japan10Y) {
+                result.japan10Y = parseFloat(jpMatch[1]);
+                result.japanChange = parseFloat(jpMatch[2]);
+                logger.info(`Extracted Japan 10Y yield: ${result.japan10Y}% (${result.japanChange >= 0 ? '+' : ''}${result.japanChange}%)`);
+            }
+
+            // 米国10年国債利回り
+            // 例: "月末の10年米国国債金利は、4.230％(前月末比 -0.146％)で終了しました。"
+            const usMatch = line.match(/10年米国国債[金利|⾦利]は、?\s*([\d.]+)％?\s*\(前[月⽉]末比\s*([-+]?[\d.]+)％?\)/);
+            if (usMatch && !result.us10Y) {
+                result.us10Y = parseFloat(usMatch[1]);
+                result.usChange = parseFloat(usMatch[2]);
+                logger.info(`Extracted US 10Y yield: ${result.us10Y}% (${result.usChange >= 0 ? '+' : ''}${result.usChange}%)`);
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * PDFから全てのメタデータとデータを抽出
      * @param {Buffer} pdfBuffer
      * @returns {Promise<Object>}
@@ -275,6 +313,7 @@ class PDFParser {
             const text = await this.extractText(pdfBuffer);
             const fundPerformance = await this.extractFundPerformance(pdfBuffer);
             const allPerformanceData = this.extractAllPerformanceData(text);
+            const bondYields = this.extractBondYields(text);
 
             // 決算日を抽出
             const dateMatch = text.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
@@ -287,6 +326,7 @@ class PDFParser {
                 text,
                 fundPerformance,
                 allPerformanceData,
+                bondYields,
                 reportDate,
                 extractedAt: new Date().toISOString()
             };

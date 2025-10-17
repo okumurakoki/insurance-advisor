@@ -751,6 +751,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [uploadingMarketData, setUploadingMarketData] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fundPerformance, setFundPerformance] = useState<any[]>([]);
+  const [bondYields, setBondYields] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
   const [latestMarketData, setLatestMarketData] = useState<any>(null);
   const [autoUpdating, setAutoUpdating] = useState(false);
@@ -770,7 +771,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
         if (perfResponse.ok) {
           const data = await perfResponse.json();
-          setFundPerformance(data);
+          setFundPerformance(data.funds || data); // Handle both old and new format
+          setBondYields(data.bondYields || null);
         }
 
         // Fetch statistics
@@ -1494,6 +1496,103 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         {/* Fund Performance Analysis */}
         {user.accountType !== 'grandchild' && (
           <>
+        {/* Key Indicators for Next Month Prediction */}
+        {bondYields && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3, mb: 2, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                🎯 来月の利回り予測に重要な指標
+                <Chip label="最新データ" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }} />
+              </Typography>
+
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                {/* 国債利回り */}
+                <Grid item xs={12} md={6}>
+                  <Card sx={{ bgcolor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)' }}>
+                    <CardContent>
+                      <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1 }}>
+                        📈 10年国債利回り（マクロ環境）
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>日本</Typography>
+                          <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>
+                            {bondYields.japan10Y?.toFixed(3)}%
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: bondYields.japanChange >= 0 ? '#4ade80' : '#f87171',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5
+                            }}
+                          >
+                            {bondYields.japanChange >= 0 ? '↑' : '↓'} {bondYields.japanChange >= 0 ? '+' : ''}{bondYields.japanChange?.toFixed(3)}%
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>米国</Typography>
+                          <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>
+                            {bondYields.us10Y?.toFixed(3)}%
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: bondYields.usChange >= 0 ? '#4ade80' : '#f87171',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5
+                            }}
+                          >
+                            {bondYields.usChange >= 0 ? '↑' : '↓'} {bondYields.usChange >= 0 ? '+' : ''}{bondYields.usChange?.toFixed(3)}%
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* トップパフォーマー */}
+                <Grid item xs={12} md={6}>
+                  <Card sx={{ bgcolor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)' }}>
+                    <CardContent>
+                      <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1 }}>
+                        🔥 直近トレンド（直近1年）
+                      </Typography>
+                      <Grid container spacing={1}>
+                        {fundPerformance.slice(0, 3).map((fund: any, idx: number) => (
+                          <Grid item xs={12} key={idx}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="body2" sx={{ color: 'white' }}>
+                                {fund.fundType}
+                              </Typography>
+                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="bold"
+                                  sx={{ color: fund.performance >= 0 ? '#4ade80' : '#f87171' }}
+                                >
+                                  {fund.performance >= 0 ? '+' : ''}{fund.performance}%
+                                </Typography>
+                                {fund.monthlyReturn1Y && (
+                                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                                    (月{fund.monthlyReturn1Y >= 0 ? '+' : ''}{fund.monthlyReturn1Y?.toFixed(2)}%)
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Box>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+        )}
+
         <Grid item xs={12}>
           <Paper sx={{ p: 3, mb: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
