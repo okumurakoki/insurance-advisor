@@ -1537,15 +1537,61 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                         </Box>
 
                         <Typography variant="h4" color={performanceColor} gutterBottom>
-                          {fund.performance >= 0 ? '+' : ''}{fund.performance}% (年率)
+                          {fund.performance >= 0 ? '+' : ''}{fund.performance}%
                         </Typography>
 
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="caption" color="text.secondary">期待収益率</Typography>
-                          <Typography variant="h6" fontWeight="bold" color={performanceColor}>
-                            {fund.performance >= 0 ? '+' : ''}{fund.performance}% (年率)
-                          </Typography>
-                        </Box>
+                        <Grid container spacing={2} sx={{ mb: 2 }}>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" color="text.secondary">年率換算利回り</Typography>
+                            <Typography variant="h6" fontWeight="bold" color={performanceColor}>
+                              {fund.annualizedReturn !== undefined
+                                ? `${fund.annualizedReturn >= 0 ? '+' : ''}${fund.annualizedReturn.toFixed(2)}%`
+                                : `${fund.performance >= 0 ? '+' : ''}${fund.performance}%`}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" color="text.secondary">月次利回り</Typography>
+                            <Typography variant="h6" fontWeight="bold" color={performanceColor}>
+                              {fund.monthlyReturn !== undefined
+                                ? `${fund.monthlyReturn >= 0 ? '+' : ''}${fund.monthlyReturn.toFixed(3)}%`
+                                : `${(fund.performance / 12).toFixed(3)}%`}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+
+                        {(fund.totalReturn5Y !== undefined || fund.totalReturn10Y !== undefined) && (
+                          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'grey.50', borderRadius: 1 }}>
+                            <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                              📊 累積騰落率
+                            </Typography>
+                            <Grid container spacing={1}>
+                              {fund.totalReturn1Y !== undefined && (
+                                <Grid item xs={4}>
+                                  <Typography variant="caption" color="text.secondary">1年</Typography>
+                                  <Typography variant="body2" fontWeight="bold">
+                                    {fund.totalReturn1Y >= 0 ? '+' : ''}{fund.totalReturn1Y.toFixed(1)}%
+                                  </Typography>
+                                </Grid>
+                              )}
+                              {fund.totalReturn5Y !== undefined && (
+                                <Grid item xs={4}>
+                                  <Typography variant="caption" color="text.secondary">5年</Typography>
+                                  <Typography variant="body2" fontWeight="bold">
+                                    {fund.totalReturn5Y >= 0 ? '+' : ''}{fund.totalReturn5Y.toFixed(1)}%
+                                  </Typography>
+                                </Grid>
+                              )}
+                              {fund.totalReturn10Y !== undefined && (
+                                <Grid item xs={4}>
+                                  <Typography variant="caption" color="text.secondary">10年</Typography>
+                                  <Typography variant="body2" fontWeight="bold">
+                                    {fund.totalReturn10Y >= 0 ? '+' : ''}{fund.totalReturn10Y.toFixed(1)}%
+                                  </Typography>
+                                </Grid>
+                              )}
+                            </Grid>
+                          </Box>
+                        )}
 
                         <Box sx={{ mt: 2 }}>
                           <Typography variant="caption" color="text.secondary">投資推奨度</Typography>
