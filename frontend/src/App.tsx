@@ -630,7 +630,7 @@ function AppContent() {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
               <Chip
-                label="v1.1.4"
+                label="v1.1.5"
                 size="small"
                 sx={{
                   bgcolor: 'rgba(255,255,255,0.2)',
@@ -869,6 +869,10 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         console.log('Upload response:', data);
         console.log('Fund performance from upload:', data.fundPerformance);
         console.log('Bond yields from upload:', data.bondYields);
+        if (data.parseError) {
+          console.error('PDF Parse Error from server:', data.parseError);
+          alert(`PDF解析エラー: ${data.parseError.name}\n${data.parseError.message}`);
+        }
 
         // Update latest market data state
         setLatestMarketData({

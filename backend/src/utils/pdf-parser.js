@@ -12,12 +12,23 @@ class PDFParser {
      */
     async extractText(pdfBuffer) {
         try {
+            logger.info('Starting PDF text extraction, buffer size:', pdfBuffer.length);
             const parser = new pdfParse.PDFParse({ data: pdfBuffer });
+            logger.info('PDFParse instance created');
             const result = await parser.getText();
+            logger.info('getText() completed, text length:', result.text.length);
             await parser.destroy();
+            logger.info('Parser destroyed successfully');
             return result.text;
         } catch (error) {
             logger.error('PDF text extraction failed:', error);
+            logger.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name,
+                bufferSize: pdfBuffer ? pdfBuffer.length : 'null'
+            });
+            console.error('EXTRACT TEXT ERROR:', error);
             throw error;
         }
     }

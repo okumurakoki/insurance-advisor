@@ -88,6 +88,7 @@ router.post('/upload-market-data',
             let bondYields = {};
             let extractedText = '';
             let reportDate = null;
+            let parseError = null;
 
             try {
                 const parser = require('../utils/pdf-parser');
@@ -106,8 +107,15 @@ router.post('/upload-market-data',
                     reportDate,
                     textLength: extractedText.length
                 });
-            } catch (parseError) {
-                logger.error('PDF parsing failed:', parseError);
+            } catch (err) {
+                parseError = err;
+                logger.error('PDF parsing failed:', err);
+                logger.error('Parse error details:', {
+                    message: err.message,
+                    stack: err.stack,
+                    name: err.name
+                });
+                console.error('PDF PARSE ERROR:', err);
                 // Continue without parsed data - save PDF anyway
             }
 
@@ -141,7 +149,11 @@ router.post('/upload-market-data',
                 allPerformanceData: allPerformanceData,
                 bondYields: bondYields,
                 reportDate: reportDate,
-                parsedSuccessfully: Object.keys(fundPerformance).length > 0
+                parsedSuccessfully: Object.keys(fundPerformance).length > 0,
+                parseError: parseError ? {
+                    message: parseError.message,
+                    name: parseError.name
+                } : null
             });
         } catch (error) {
             logger.error('Market data upload error:', error);
