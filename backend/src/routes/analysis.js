@@ -82,14 +82,42 @@ router.post('/upload-market-data',
         try {
             const pdfBuffer = req.file.buffer;
 
+            // Parse PDF to extract fund performance data
+            let fundPerformance = {};
+            let extractedText = '';
+            let reportDate = null;
+
+            try {
+                const PDFParser = require('../utils/pdf-parser');
+                const parser = new PDFParser();
+                const extractedData = await parser.extractAllData(pdfBuffer);
+
+                fundPerformance = extractedData.fundPerformance || {};
+                extractedText = extractedData.text || '';
+                reportDate = extractedData.reportDate || null;
+
+                logger.info('PDF parsing successful:', {
+                    fundPerformance,
+                    reportDate,
+                    textLength: extractedText.length
+                });
+            } catch (parseError) {
+                logger.error('PDF parsing failed:', parseError);
+                // Continue without parsed data - save PDF anyway
+            }
+
             const result = await MarketData.create({
-                data_date: new Date(),
+                data_date: reportDate || new Date(),
                 data_type: 'monthly_report',
                 source_file: req.file.originalname,
                 data_content: {
                     fileName: req.file.originalname,
                     fileSize: req.file.size,
-                    uploadedAt: new Date().toISOString()
+                    uploadedAt: new Date().toISOString(),
+                    fundPerformance: fundPerformance,
+                    reportDate: reportDate,
+                    extractedText: extractedText.substring(0, 5000),
+                    parsedSuccessfully: Object.keys(fundPerformance).length > 0
                 },
                 pdf_content: pdfBuffer,
                 uploaded_by: req.user.id
@@ -98,10 +126,13 @@ router.post('/upload-market-data',
             logger.info(`Market data uploaded by user: ${req.user.userId}, file: ${req.file.originalname}`);
 
             res.json({
-                message: 'Market data uploaded successfully',
+                message: 'Market data uploaded and parsed successfully',
                 id: result,
                 fileName: req.file.originalname,
-                uploadedAt: new Date().toISOString()
+                uploadedAt: new Date().toISOString(),
+                fundPerformance: fundPerformance,
+                reportDate: reportDate,
+                parsedSuccessfully: Object.keys(fundPerformance).length > 0
             });
         } catch (error) {
             logger.error('Market data upload error:', error);
