@@ -452,48 +452,48 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
 
         // Extract fund performance from latest market data if available
         let actualFundPerformance = {};
+        let hasActualData = false;
+
         if (latestMarketData && latestMarketData.data_content && latestMarketData.data_content.fundPerformance) {
             actualFundPerformance = latestMarketData.data_content.fundPerformance;
-            logger.info('Using actual fund performance from PDF:', actualFundPerformance);
-        } else {
-            logger.warn('No fund performance data found in market data, using fallback values');
+            hasActualData = Object.keys(actualFundPerformance).length > 0;
+
+            if (hasActualData) {
+                logger.info('Using actual fund performance from PDF:', actualFundPerformance);
+            }
+        }
+
+        // PDFデータがない場合は空配列を返す
+        if (!hasActualData) {
+            logger.warn('No fund performance data found in market data - PDF not uploaded yet');
+            return res.json([]);
         }
 
         // Calculate fund performance based on actual market data
-        const fundTypes = ['株式型', '米国株式型', '米国債券型', 'REIT型', '世界株式型'];
+        const fundTypes = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型', '世界株式型'];
 
-        // Fallback values if no actual data available
-        const fallbackPerformance = {
-            '株式型': 6.8,
-            '米国株式型': 12.3,
-            '米国債券型': 3.2,
-            'REIT型': -1.5,
-            '世界株式型': 8.7
-        };
+        const performance = fundTypes
+            .filter(fundType => actualFundPerformance[fundType] !== undefined)
+            .map(fundType => {
+                const performanceValue = actualFundPerformance[fundType];
 
-        const performance = fundTypes.map(fundType => {
-            // Use actual fund performance if available, otherwise use fallback
-            const performanceValue = actualFundPerformance[fundType] !== undefined
-                ? actualFundPerformance[fundType]
-                : fallbackPerformance[fundType] || 0;
+                // Determine recommendation based on performance
+                let recommendation = 'neutral';
+                if (performanceValue > 10) {
+                    recommendation = 'recommended';
+                } else if (performanceValue < 0) {
+                    recommendation = 'overpriced';
+                } else if (performanceValue > 5) {
+                    recommendation = 'neutral';
+                }
 
-            // Determine recommendation based on performance
-            let recommendation = 'neutral';
-            if (performanceValue > 10) {
-                recommendation = 'recommended';
-            } else if (performanceValue < 0) {
-                recommendation = 'overpriced';
-            } else if (performanceValue > 5) {
-                recommendation = 'neutral';
-            }
-
-            return {
-                fundType,
-                performance: parseFloat(performanceValue.toFixed(1)),
-                recommendation,
-                dataSource: actualFundPerformance[fundType] !== undefined ? 'actual' : 'fallback'
-            };
-        });
+                return {
+                    fundType,
+                    performance: parseFloat(performanceValue.toFixed(1)),
+                    recommendation,
+                    dataSource: 'actual'
+                };
+            });
 
         res.json(performance);
     } catch (error) {

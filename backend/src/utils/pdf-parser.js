@@ -12,8 +12,10 @@ class PDFParser {
      */
     async extractText(pdfBuffer) {
         try {
-            const data = await pdf(pdfBuffer);
-            return data.text;
+            const parser = new pdf.PDFParse({ data: pdfBuffer });
+            const result = await parser.getText();
+            await parser.destroy();
+            return result.text;
         } catch (error) {
             logger.error('PDF text extraction failed:', error);
             throw error;
@@ -28,51 +30,15 @@ class PDFParser {
     async extractFundPerformance(pdfBuffer) {
         try {
             const text = await this.extractText(pdfBuffer);
-            let funds = {};
 
-            // プルデンシャルのPDFフォーマットに基づいて解析
-            // 特別勘定名と騰落率のパターンを検索
+            // プルデンシャルのPDFは「直近1年」テーブル形式でデータを提供
+            // 直接テーブル抽出を使用（正規表現は信託報酬などの他のデータにマッチする可能性があるため）
+            const funds = this.extractPerformanceTable(text);
 
-            // パターン: プルデンシャルの実際のフォーマットに基づく
-            // 例: "総合型 ... 6.75%" or "株式型 ... 16.84%"
-            const patterns = [
-                // 総合型
-                { regex: /総合型.*?([-+]?\d+\.?\d+)%/i, name: '総合型' },
-
-                // 債券型
-                { regex: /債券型(?!.*米国).*?([-+]?\d+\.?\d+)%/i, name: '債券型' },
-
-                // 株式型 (米国以外)
-                { regex: /株式型(?!.*米国).*?([-+]?\d+\.?\d+)%/i, name: '株式型' },
-
-                // 米国債券型
-                { regex: /米国債券.*?([-+]?\d+\.?\d+)%/i, name: '米国債券型' },
-
-                // 米国株式型
-                { regex: /米国株式.*?([-+]?\d+\.?\d+)%/i, name: '米国株式型' },
-
-                // REIT型
-                { regex: /REIT.*?([-+]?\d+\.?\d+)%/i, name: 'REIT型' },
-                { regex: /不動産.*?([-+]?\d+\.?\d+)%/i, name: 'REIT型' },
-
-                // 世界株式型
-                { regex: /世界株式.*?([-+]?\d+\.?\d+)%/i, name: '世界株式型' },
-                { regex: /グローバル.*?株式.*?([-+]?\d+\.?\d+)%/i, name: '世界株式型' },
-                { regex: /MSCI.*?([-+]?\d+\.?\d+)%/i, name: '世界株式型' }
-            ];
-
-            for (const pattern of patterns) {
-                const match = text.match(pattern.regex);
-                if (match && !funds[pattern.name]) {
-                    funds[pattern.name] = parseFloat(match[1]);
-                    logger.info(`Found ${pattern.name}: ${funds[pattern.name]}%`);
-                }
-            }
-
-            // データが見つからない場合は、テキスト全体から数値テーブルを探す
             if (Object.keys(funds).length === 0) {
-                logger.warn('No fund performance data found with regex patterns, trying table extraction');
-                funds = this.extractFromTable(text);
+                logger.warn('No fund performance data found in table, trying fallback extraction');
+                // Fallback: 汎用的なテーブル抽出を試みる
+                return this.extractFromTable(text);
             }
 
             return funds;
@@ -83,7 +49,7 @@ class PDFParser {
     }
 
     /**
-     * テーブル形式のデータから運用実績を抽出
+     * テーブル形式のデータから運用実績を抽出（fallback method）
      * @param {string} text
      * @returns {Object}
      */
@@ -111,6 +77,63 @@ class PDFParser {
                             logger.info(`Found ${fundName} in next line: ${funds[fundName]}%`);
                         }
                     }
+                }
+            }
+        }
+
+        return funds;
+    }
+
+    /**
+     * 「直近1年」のパフォーマンステーブルを抽出
+     * @param {string} text
+     * @returns {Object}
+     */
+    extractPerformanceTable(text) {
+        const funds = {};
+        const lines = text.split('\n');
+
+        // Find header line with fund types
+        let headerLine = null;
+        let headerIndex = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            // ヘッダー行を探す（複数のファンドタイプを含む行）
+            if (line.includes('総合型') && line.includes('債券型') && line.includes('株式型')) {
+                headerLine = line;
+                headerIndex = i;
+                logger.info(`Found header at line ${i}`);
+                break;
+            }
+        }
+
+        if (headerLine && headerIndex >= 0) {
+            // Find "直近1年" data line
+            for (let i = headerIndex + 1; i < Math.min(headerIndex + 5, lines.length); i++) {
+                const dataLine = lines[i];
+
+                if (dataLine.includes('直近1年') || dataLine.includes('直近１年')) {
+                    logger.info(`Found performance data at line ${i}`);
+
+                    // Split by tabs or multiple spaces
+                    const headerParts = headerLine.split(/\t+|\s{2,}/);
+                    const dataParts = dataLine.split(/\t+|\s{2,}/);
+
+                    // Map fund names to performance values
+                    for (let j = 0; j < headerParts.length && j < dataParts.length; j++) {
+                        const fundName = headerParts[j].trim();
+                        const value = dataParts[j].trim();
+
+                        // Extract percentage value
+                        const percentMatch = value.match(/([-+]?\d+\.?\d*)%/);
+                        if (percentMatch && fundName !== '期間' && fundName !== '') {
+                            const performance = parseFloat(percentMatch[1]);
+                            funds[fundName] = performance;
+                            logger.info(`Extracted ${fundName}: ${performance}%`);
+                        }
+                    }
+                    break;
                 }
             }
         }
