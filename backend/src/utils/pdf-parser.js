@@ -1,4 +1,4 @@
-const pdf = require('pdf-parse');
+const pdfParse = require('pdf-parse');
 const logger = require('./logger');
 
 /**
@@ -12,8 +12,10 @@ class PDFParser {
      */
     async extractText(pdfBuffer) {
         try {
-            const data = await pdf(pdfBuffer);
-            return data.text;
+            const parser = new pdfParse.PDFParse({ data: pdfBuffer });
+            const result = await parser.getText();
+            await parser.destroy();
+            return result.text;
         } catch (error) {
             logger.error('PDF text extraction failed:', error);
             throw error;
