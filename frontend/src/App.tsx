@@ -630,7 +630,7 @@ function AppContent() {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
               <Chip
-                label="v1.1.5"
+                label="v1.1.6"
                 size="small"
                 sx={{
                   bgcolor: 'rgba(255,255,255,0.2)',
@@ -881,15 +881,32 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         });
 
         // 抽出された運用実績データを表示
-        const fundPerformance = data.fundPerformance || {};
-        const fundKeys = Object.keys(fundPerformance);
+        const extractedFundPerformance = data.fundPerformance || {};
+        const fundKeys = Object.keys(extractedFundPerformance);
+
+        // アップロードデータから直接fundPerformance配列とbondYieldsを設定
+        if (fundKeys.length > 0) {
+          const fundsArray = fundKeys.map(fundType => ({
+            fundType,
+            performance: extractedFundPerformance[fundType],
+            recommendation: extractedFundPerformance[fundType] > 10 ? 'recommended' :
+                          extractedFundPerformance[fundType] < 0 ? 'overpriced' : 'neutral'
+          }));
+          setFundPerformance(fundsArray);
+          console.log('Set fundPerformance from upload:', fundsArray);
+        }
+
+        if (data.bondYields && (data.bondYields.japan10Y || data.bondYields.us10Y)) {
+          setBondYields(data.bondYields);
+          console.log('Set bondYields from upload:', data.bondYields);
+        }
 
         let message = `マーケットデータをアップロードしました！\nファイル: ${data.fileName}`;
 
         if (fundKeys.length > 0) {
           message += '\n\n抽出された運用実績:';
           fundKeys.forEach(fundName => {
-            message += `\n・${fundName}: ${fundPerformance[fundName]}%`;
+            message += `\n・${fundName}: ${extractedFundPerformance[fundName]}%`;
           });
         } else {
           message += '\n\n注意: 運用実績データを抽出できませんでした。PDFの形式を確認してください。';
