@@ -630,7 +630,7 @@ function AppContent() {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
               <Chip
-                label="v1.1.6"
+                label="v1.1.7"
                 size="small"
                 sx={{
                   bgcolor: 'rgba(255,255,255,0.2)',
@@ -934,19 +934,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           setLatestMarketData(latestData);
         }
 
-        // Fund performanceも再取得
-        const perfResponse = await fetch(`${API_BASE_URL}/api/analysis/fund-performance`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (perfResponse.ok) {
-          const perfData = await perfResponse.json();
-          console.log('Reloaded fund performance after upload:', perfData);
-          setFundPerformance(perfData.funds || perfData);
-          setBondYields(perfData.bondYields || null);
-        }
+        // Fund performanceの再取得はスキップ（アップロードレスポンスのデータを使用）
+        console.log('Skipping fund performance reload - using data from upload response');
       } else {
         const error = await response.json();
         alert(`アップロードエラー: ${error.error}\n${error.details || ''}`);
@@ -1005,9 +994,14 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
         if (perfResponse.ok) {
           const perfData = await perfResponse.json();
-          console.log('Reloaded fund performance after upload:', perfData);
-          setFundPerformance(perfData.funds || perfData);
-          setBondYields(perfData.bondYields || null);
+          console.log('Reloaded fund performance after auto-update:', perfData);
+          // データがある場合のみ上書き
+          if (perfData.funds && perfData.funds.length > 0) {
+            setFundPerformance(perfData.funds);
+          }
+          if (perfData.bondYields && (perfData.bondYields.japan10Y || perfData.bondYields.us10Y)) {
+            setBondYields(perfData.bondYields);
+          }
         }
       } else {
         const error = await response.json();
