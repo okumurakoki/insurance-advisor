@@ -477,15 +477,26 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
         let bondYields = null;
         let hasActualData = false;
 
+        console.log('Latest market data:', latestMarketData);
+        console.log('Data content:', latestMarketData ? latestMarketData.data_content : 'null');
+
         if (latestMarketData && latestMarketData.data_content) {
             actualFundPerformance = latestMarketData.data_content.fundPerformance || {};
             allPerformanceData = latestMarketData.data_content.allPerformanceData || null;
             bondYields = latestMarketData.data_content.bondYields || null;
             hasActualData = Object.keys(actualFundPerformance).length > 0;
 
+            console.log('actualFundPerformance:', actualFundPerformance);
+            console.log('bondYields:', bondYields);
+            console.log('hasActualData:', hasActualData);
+
             if (hasActualData) {
                 logger.info('Using actual fund performance from PDF:', actualFundPerformance);
+            } else {
+                logger.warn('fundPerformance is empty object');
             }
+        } else {
+            logger.warn('No latestMarketData or data_content');
         }
 
         // PDFデータがない場合は空配列を返す
