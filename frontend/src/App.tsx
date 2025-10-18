@@ -630,7 +630,7 @@ function AppContent() {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
               <Chip
-                label="v1.1.7"
+                label="v1.1.8"
                 size="small"
                 sx={{
                   bgcolor: 'rgba(255,255,255,0.2)',
@@ -764,7 +764,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [bondYields, setBondYields] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
   const [latestMarketData, setLatestMarketData] = useState<any>(null);
-  const [autoUpdating, setAutoUpdating] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -948,72 +947,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
     }
   };
 
-  const handleAutoUpdateMarketData = async () => {
-    if (!window.confirm('プルデンシャルのウェブサイトから最新のディスクロージャー資料を自動ダウンロードしますか？')) {
-      return;
-    }
-
-    setAutoUpdating(true);
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('認証エラー: ログインしてください');
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/cron/update-market-data`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        alert(`マーケットデータを自動更新しました！\n成功: ${data.results.filter((r: any) => r.success).length}件\n失敗: ${data.results.filter((r: any) => !r.success).length}件`);
-
-        // 最新マーケットデータを再取得
-        const marketDataResponse = await fetch(`${API_BASE_URL}/api/analysis/market-data/latest`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (marketDataResponse.ok) {
-          const latestData = await marketDataResponse.json();
-          setLatestMarketData(latestData);
-        }
-
-        // Fund performanceも再取得
-        const perfResponse = await fetch(`${API_BASE_URL}/api/analysis/fund-performance`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (perfResponse.ok) {
-          const perfData = await perfResponse.json();
-          console.log('Reloaded fund performance after auto-update:', perfData);
-          // データがある場合のみ上書き
-          if (perfData.funds && perfData.funds.length > 0) {
-            setFundPerformance(perfData.funds);
-          }
-          if (perfData.bondYields && (perfData.bondYields.japan10Y || perfData.bondYields.us10Y)) {
-            setBondYields(perfData.bondYields);
-          }
-        }
-      } else {
-        const error = await response.json();
-        alert(`自動更新エラー: ${error.error || error.message}`);
-      }
-    } catch (error) {
-      console.error('Auto update error:', error);
-      alert('自動更新中にエラーが発生しました');
-    } finally {
-      setAutoUpdating(false);
-    }
-  };
 
   const getPlanTypeLabel = (type: string) => {
     const labels = {
@@ -1043,23 +976,11 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         {user.accountType === 'parent' && (
           <Grid item xs={12}>
             <Card sx={{ p: 3, bgcolor: '#f5f5f5' }}>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                <Typography variant="h6">
-                  📊 マーケットデータアップロード
-                </Typography>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  size="small"
-                  onClick={handleAutoUpdateMarketData}
-                  disabled={autoUpdating}
-                  startIcon={autoUpdating ? <CircularProgress size={16} /> : <CloudUploadIcon />}
-                >
-                  {autoUpdating ? '自動更新中...' : '自動更新'}
-                </Button>
-              </Box>
+              <Typography variant="h6" mb={1}>
+                📊 マーケットデータアップロード
+              </Typography>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                月次マーケットレポート（PDF）をアップロードするか、自動更新でプルデンシャルから最新データを取得できます。
+                月次マーケットレポート（PDF）をアップロードして、最新のファンドパフォーマンスデータを反映できます。
               </Typography>
 
               {latestMarketData && (
