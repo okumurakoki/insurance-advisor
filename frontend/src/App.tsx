@@ -630,7 +630,7 @@ function AppContent() {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
               <Chip
-                label="v1.1.8"
+                label="v1.1.9"
                 size="small"
                 sx={{
                   bgcolor: 'rgba(255,255,255,0.2)',
@@ -1031,7 +1031,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
         {/* 最適化結果表示領域（常に確保） */}
         <Grid item xs={12}>
-          {showRecommendations && optimizationResults ? (
+          {showRecommendations && optimizationResults && fundPerformance.length > 0 ? (
             <Paper sx={{ p: 2, mb: 2, border: '2px solid #2196f3' }}>
               <Box sx={{ textAlign: 'center', mb: 2 }}>
                 <Typography variant="h5" gutterBottom color="primary" sx={{ fontWeight: 'bold' }}>
