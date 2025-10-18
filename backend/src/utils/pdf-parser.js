@@ -1,4 +1,4 @@
-const pdfParse = require('pdf-parse');
+const pdf = require('pdf-parse');
 const logger = require('./logger');
 
 /**
@@ -13,13 +13,9 @@ class PDFParser {
     async extractText(pdfBuffer) {
         try {
             logger.info('Starting PDF text extraction, buffer size:', pdfBuffer.length);
-            const parser = new pdfParse.PDFParse({ data: pdfBuffer });
-            logger.info('PDFParse instance created');
-            const result = await parser.getText();
-            logger.info('getText() completed, text length:', result.text.length);
-            await parser.destroy();
-            logger.info('Parser destroyed successfully');
-            return result.text;
+            const data = await pdf(pdfBuffer);
+            logger.info('PDF parsing completed, text length:', data.text.length);
+            return data.text;
         } catch (error) {
             logger.error('PDF text extraction failed:', error);
             logger.error('Error details:', {
@@ -120,28 +116,32 @@ class PDFParser {
         }
 
         if (headerLine && headerIndex >= 0) {
-            // Find "直近1年" data line
-            for (let i = headerIndex + 1; i < Math.min(headerIndex + 5, lines.length); i++) {
-                const dataLine = lines[i];
+            // Extract fund names from header
+            const fundNames = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型', '世界株式型', 'マネー型'];
 
-                if (dataLine.includes('直近1年') || dataLine.includes('直近１年')) {
-                    logger.info(`Found performance data at line ${i}`);
+            // Find "直近1年" line
+            for (let i = headerIndex + 1; i < Math.min(headerIndex + 10, lines.length); i++) {
+                const periodLine = lines[i];
 
-                    // Split by tabs or multiple spaces
-                    const headerParts = headerLine.split(/\t+|\s{2,}/);
-                    const dataParts = dataLine.split(/\t+|\s{2,}/);
+                if (periodLine.includes('直近1年') || periodLine.includes('直近１年')) {
+                    logger.info(`Found "直近1年" at line ${i}`);
 
-                    // Map fund names to performance values
-                    for (let j = 0; j < headerParts.length && j < dataParts.length; j++) {
-                        const fundName = headerParts[j].trim();
-                        const value = dataParts[j].trim();
+                    // Data is on the NEXT line
+                    if (i + 1 < lines.length) {
+                        const dataLine = lines[i + 1];
+                        logger.info(`Data line ${i + 1}: ${dataLine}`);
 
-                        // Extract percentage value
-                        const percentMatch = value.match(/([-+]?\d+\.?\d*)%/);
-                        if (percentMatch && fundName !== '期間' && fundName !== '') {
-                            const performance = parseFloat(percentMatch[1]);
-                            funds[fundName] = performance;
-                            logger.info(`Extracted ${fundName}: ${performance}%`);
+                        // Extract all percentage values from data line
+                        const percentMatches = dataLine.match(/([-+]?\d+\.\d+)%/g);
+
+                        if (percentMatches && percentMatches.length > 0) {
+                            // Map percentages to fund names
+                            for (let j = 0; j < Math.min(percentMatches.length, fundNames.length); j++) {
+                                const percentStr = percentMatches[j].replace('%', '');
+                                const performance = parseFloat(percentStr);
+                                funds[fundNames[j]] = performance;
+                                logger.info(`Extracted ${fundNames[j]}: ${performance}%`);
+                            }
                         }
                     }
                     break;
@@ -294,7 +294,7 @@ class PDFParser {
         for (const line of lines) {
             // 日本10年国債利回り
             // 例: "月末の10年国債金利は、1.600％(前月末比 +0.055％)で終了しました。"
-            const jpMatch = line.match(/10年国債[金利|⾦利]は、?\s*([\d.]+)％?\s*\(前[月⽉]末比\s*([-+]?[\d.]+)％?\)/);
+            const jpMatch = line.match(/10年国債.*?(\d+\.\d+)％.*?([-+]?\d+\.\d+)％/);
             if (jpMatch && !result.japan10Y) {
                 result.japan10Y = parseFloat(jpMatch[1]);
                 result.japanChange = parseFloat(jpMatch[2]);
@@ -303,7 +303,7 @@ class PDFParser {
 
             // 米国10年国債利回り
             // 例: "月末の10年米国国債金利は、4.230％(前月末比 -0.146％)で終了しました。"
-            const usMatch = line.match(/10年米国国債[金利|⾦利]は、?\s*([\d.]+)％?\s*\(前[月⽉]末比\s*([-+]?[\d.]+)％?\)/);
+            const usMatch = line.match(/10年米国国債.*?(\d+\.\d+)％.*?([-+]?\d+\.\d+)％/);
             if (usMatch && !result.us10Y) {
                 result.us10Y = parseFloat(usMatch[1]);
                 result.usChange = parseFloat(usMatch[2]);
