@@ -630,7 +630,7 @@ function AppContent() {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
               <Chip
-                label="v1.1.9"
+                label="v1.2.0"
                 size="small"
                 sx={{
                   bgcolor: 'rgba(255,255,255,0.2)',
@@ -765,6 +765,34 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [statistics, setStatistics] = useState<any>(null);
   const [latestMarketData, setLatestMarketData] = useState<any>(null);
 
+  // Generate optimization results from fund performance data
+  const generateOptimizationFromFundPerformance = (funds: any[]) => {
+    if (!funds || funds.length === 0) return null;
+
+    // Calculate total performance and filter positive performers
+    const totalPerformance = funds.reduce((sum, f) => sum + Math.max(0, f.performance), 0);
+    const recommendations: any = {};
+
+    funds.forEach(fund => {
+      const performance = Math.max(0, fund.performance);
+      const recommended = totalPerformance > 0
+        ? Math.round((performance / totalPerformance) * 100)
+        : Math.round(100 / funds.length);
+
+      recommendations[fund.fundType] = {
+        current: Math.round(100 / funds.length), // Equal distribution as current
+        recommended: recommended,
+        change: recommended - Math.round(100 / funds.length)
+      };
+    });
+
+    return {
+      recommendations,
+      riskLevel: 'balanced',
+      expectedReturn: (funds.reduce((sum, f) => sum + f.performance, 0) / funds.length).toFixed(2)
+    };
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -831,6 +859,18 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
     fetchData();
   }, []);
+
+  // Update optimization results when fund performance changes
+  useEffect(() => {
+    if (fundPerformance.length > 0) {
+      const optimizationData = generateOptimizationFromFundPerformance(fundPerformance);
+      setOptimizationResults(optimizationData);
+      setShowRecommendations(true);
+    } else {
+      setOptimizationResults(null);
+      setShowRecommendations(false);
+    }
+  }, [fundPerformance]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -1060,10 +1100,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                             <Box key={fundKey} sx={{ mb: 2 }}>
                               <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
                                 <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                                  {fundKey === 'equity' ? '国内株式型' :
-                                   fundKey === 'usEquity' ? '米国株式型' :
-                                   fundKey === 'usBond' ? '米国債券型' :
-                                   fundKey === 'reit' ? 'REIT型' : '世界株式型'}
+                                  {fundKey}
                                 </Typography>
                                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
                                   {fund.current}%
@@ -1109,22 +1146,15 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                           🎯 推奨配分
                         </Typography>
                         <Box sx={{ mt: 3 }}>
-                          {Object.entries(optimizationResults.recommendations).map(([fundKey, fund]) => {
-                            const getBarColor = () => {
-                              if (fundKey === 'equity') return '#4caf50';
-                              if (fundKey === 'usEquity') return '#2196f3';
-                              if (fundKey === 'usBond') return '#ff9800';
-                              if (fundKey === 'reit') return '#f44336';
-                              return '#9c27b0';
-                            };
+                          {Object.entries(optimizationResults.recommendations).map(([fundKey, fund], index) => {
+                            const colors = ['#4caf50', '#2196f3', '#ff9800', '#f44336', '#9c27b0', '#00bcd4', '#ff5722'];
+                            const getBarColor = () => colors[index % colors.length];
+
                             return (
                               <Box key={fundKey} sx={{ mb: 2 }}>
                                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
                                   <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                                    {fundKey === 'equity' ? '国内株式型' :
-                                     fundKey === 'usEquity' ? '米国株式型' :
-                                     fundKey === 'usBond' ? '米国債券型' :
-                                     fundKey === 'reit' ? 'REIT型' : '世界株式型'}
+                                    {fundKey}
                                   </Typography>
                                   <Box display="flex" alignItems="center" gap={1}>
                                     {fund.change !== 0 && (
@@ -1212,10 +1242,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                             sx={{ height: '100%' }}
                           >
                             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              {fundKey === 'equity' ? '国内株式型' :
-                               fundKey === 'usEquity' ? '米国株式型' :
-                               fundKey === 'usBond' ? '米国債券型' :
-                               fundKey === 'reit' ? 'REIT型' : '世界株式型'}
+                              {fundKey}
                               {fund.change > 0 ? ' 増額推奨' : ' 減額推奨'}
                             </Typography>
                             <Typography variant="caption">
