@@ -155,7 +155,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 router.put('/:id', authenticateToken, async (req, res) => {
-    const { name, email, phone, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes } = req.body;
+    const { name, email, phone, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes, staffId } = req.body;
 
     try {
         const customer = await Customer.findById(req.params.id);
@@ -170,7 +170,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        await Customer.update(req.params.id, {
+        const updateData = {
             name,
             email,
             phone,
@@ -179,9 +179,38 @@ router.put('/:id', authenticateToken, async (req, res) => {
             risk_tolerance: riskTolerance,
             investment_goal: investmentGoal,
             notes
-        });
+        };
 
-        logger.info(`Customer updated: ${customer.name} by user: ${req.user.userId}`);
+        // 代理店の場合、担当者変更が可能
+        if (req.user.accountType === 'parent' && staffId) {
+            const User = require('../models/User');
+            const newStaff = await User.findById(staffId);
+
+            // 担当者が代理店配下であることを確認
+            if (!newStaff || newStaff.parent_id !== req.user.id) {
+                return res.status(403).json({
+                    error: 'Invalid staff member. The staff must belong to your agency.'
+                });
+            }
+
+            // 新しい担当者の顧客数制限をチェック
+            if (staffId !== customer.user_id) {
+                const newStaffCustomerCount = await Customer.countByUserId(staffId);
+                const customerLimit = newStaff.customer_limit || 10;
+
+                if (newStaffCustomerCount >= customerLimit) {
+                    return res.status(400).json({
+                        error: `Cannot reassign customer. Staff member has reached their customer limit (${customerLimit}).`
+                    });
+                }
+
+                updateData.user_id = staffId;
+            }
+        }
+
+        await Customer.update(req.params.id, updateData);
+
+        logger.info(`Customer updated: ${customer.name} by user: ${req.user.userId}${staffId ? `, reassigned to staff: ${staffId}` : ''}`);
 
         res.json({ message: 'Customer updated successfully' });
     } catch (error) {
