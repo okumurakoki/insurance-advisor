@@ -38,7 +38,11 @@ router.get('/market-data/latest', authenticateToken, async (req, res) => {
             fileName: latest.data_content?.fileName || latest.source_file,
             uploadedAt: latest.created_at,
             uploadedBy: latest.uploaded_by,
-            dataDate: latest.data_date
+            dataDate: latest.data_date,
+            fundPerformance: latest.data_content?.fundPerformance || {},
+            allPerformanceData: latest.data_content?.allPerformanceData || {},
+            bondYields: latest.data_content?.bondYields || {},
+            parsedSuccessfully: latest.data_content?.parsedSuccessfully || false
         });
     } catch (error) {
         logger.error('Failed to get latest market data:', error);
