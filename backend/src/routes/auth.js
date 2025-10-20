@@ -334,10 +334,39 @@ router.post('/change-password', authenticateToken, async (req, res) => {
 });
 
 router.get('/verify', authenticateToken, (req, res) => {
-    res.json({ 
-        valid: true, 
-        user: req.user 
+    res.json({
+        valid: true,
+        user: req.user
     });
+});
+
+// Get current user info with customer count and limit
+router.get('/me', authenticateToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Get customer count for this user
+        const Customer = require('../models/Customer');
+        const customerCount = await Customer.countByUserId(user.id);
+        const customerLimit = user.customer_limit || 10;
+
+        res.json({
+            id: user.id,
+            userId: user.user_id,
+            accountType: user.account_type,
+            parentId: user.parent_id,
+            customerCount,
+            customerLimit,
+            canAddCustomer: customerCount < customerLimit
+        });
+    } catch (error) {
+        logger.error('Get current user error:', error);
+        res.status(500).json({ error: 'Failed to get user info' });
+    }
 });
 
 module.exports = router;

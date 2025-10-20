@@ -43,19 +43,22 @@ router.get('/staff', authenticateToken, authorizeAccountType('parent'), async (r
         const staff = await User.getChildren(req.user.id);
         const Customer = require('../models/Customer');
 
-        // 各担当者の顧客数を取得
-        const staffWithCustomerCount = await Promise.all(
+        // 各担当者の顧客数と上限を取得
+        const staffWithCustomerInfo = await Promise.all(
             staff.map(async (s) => {
                 const customerCount = await Customer.countByUserId(s.id);
+                const customerLimit = s.customer_limit || 10;
                 const { password_hash, ...staffWithoutPassword } = s;
                 return {
                     ...staffWithoutPassword,
-                    customerCount
+                    customerCount,
+                    customerLimit,
+                    canAddCustomer: customerCount < customerLimit
                 };
             })
         );
 
-        res.json(staffWithCustomerCount);
+        res.json(staffWithCustomerInfo);
     } catch (error) {
         logger.error('Staff fetch error:', error);
         res.status(500).json({ error: 'Failed to fetch staff' });
