@@ -811,11 +811,22 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                           現在の配分
                         </Typography>
                         <Box sx={{ mt: 3 }}>
-                          {Object.entries(optimizationResults.recommendations).map(([fundKey, fund]) => (
+                          {Object.entries(optimizationResults.recommendations).map(([fundKey, fund]) => {
+                            const fundNameMap: { [key: string]: string } = {
+                              'equity': '株式型',
+                              'usequity': '米国株式型',
+                              'usbond': '米国債券型',
+                              'reit': 'REIT型',
+                              'global': '総合型',
+                              'bond': '債券型'
+                            };
+                            const displayName = fundNameMap[fundKey] || fundKey;
+
+                            return (
                             <Box key={fundKey} sx={{ mb: 2 }}>
                               <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
                                 <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                                  {fundKey}
+                                  {displayName}
                                 </Typography>
                                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
                                   {fund.current}%
@@ -850,7 +861,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                                 </Box>
                               </Box>
                             </Box>
-                          ))}
+                          )})}
                         </Box>
                       </Card>
                     </Grid>
@@ -865,11 +876,21 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                             const colors = ['#4caf50', '#2196f3', '#ff9800', '#f44336', '#9c27b0', '#00bcd4', '#ff5722'];
                             const getBarColor = () => colors[index % colors.length];
 
+                            const fundNameMap: { [key: string]: string } = {
+                              'equity': '株式型',
+                              'usequity': '米国株式型',
+                              'usbond': '米国債券型',
+                              'reit': 'REIT型',
+                              'global': '総合型',
+                              'bond': '債券型'
+                            };
+                            const displayName = fundNameMap[fundKey] || fundKey;
+
                             return (
                               <Box key={fundKey} sx={{ mb: 2 }}>
                                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
                                   <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                                    {fundKey}
+                                    {displayName}
                                   </Typography>
                                   <Box display="flex" alignItems="center" gap={1}>
                                     {fund.change !== 0 && (
