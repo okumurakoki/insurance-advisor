@@ -42,6 +42,8 @@ const CustomerForm: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loadingUserInfo, setLoadingUserInfo] = useState(true);
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
 
   useEffect(() => {
     if (isEditMode && id) {
@@ -57,6 +59,12 @@ const CustomerForm: React.FC = () => {
     try {
       const userInfo = await api.getCurrentUser();
       setCurrentUser(userInfo);
+
+      // 代理店アカウントの場合は担当者リストを取得
+      if (userInfo.accountType === 'parent') {
+        const staff = await api.getStaff();
+        setStaffList(staff);
+      }
     } catch (err) {
       console.error('Failed to fetch user info:', err);
     } finally {
@@ -78,6 +86,10 @@ const CustomerForm: React.FC = () => {
         investmentGoal: customer.investmentGoal || '',
         notes: customer.notes || '',
       });
+      // 編集時に現在の担当者IDを設定
+      if (customer.user_id) {
+        setSelectedStaffId(customer.user_id);
+      }
     } catch (err: any) {
       setError('顧客情報の取得に失敗しました');
     } finally {
@@ -93,7 +105,12 @@ const CustomerForm: React.FC = () => {
 
     try {
       if (isEditMode && id) {
-        await api.updateCustomer(parseInt(id), formData);
+        const updateData: any = { ...formData };
+        // 代理店アカウントの場合は担当者IDを含める
+        if (currentUser?.accountType === 'parent' && selectedStaffId) {
+          updateData.staffId = selectedStaffId;
+        }
+        await api.updateCustomer(parseInt(id), updateData);
         setSuccess('顧客情報を更新しました');
       } else {
         const result = await api.createCustomer(formData);
@@ -236,6 +253,27 @@ const CustomerForm: React.FC = () => {
                 <MenuItem value="aggressive">積極的</MenuItem>
               </TextField>
             </Grid>
+
+            {/* 代理店アカウントの場合、担当者選択フィールドを表示 */}
+            {isEditMode && currentUser?.accountType === 'parent' && staffList.length > 0 && (
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  required
+                  fullWidth
+                  select
+                  label="担当者"
+                  value={selectedStaffId || ''}
+                  onChange={(e) => setSelectedStaffId(parseInt(e.target.value))}
+                  helperText="顧客の担当者を変更できます"
+                >
+                  {staffList.map((staff) => (
+                    <MenuItem key={staff.id} value={staff.id}>
+                      {staff.user_id} ({staff.customerCount}/{staff.customerLimit}人)
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            )}
 
             <Grid item xs={12}>
               <TextField
