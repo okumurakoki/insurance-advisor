@@ -205,7 +205,8 @@ class Plan {
 
         // プラン情報（ENUM型をtextにキャスト）
         const planSql = `
-            SELECT u.plan_type, u.staff_limit, u.customer_limit, u.customer_limit_per_staff,
+            SELECT u.plan_type::text as plan_type,
+                   u.staff_limit, u.customer_limit, u.customer_limit_per_staff,
                    pd.plan_name, pd.monthly_price,
                    pd.staff_limit as plan_staff_limit,
                    pd.customer_limit as plan_customer_limit,
@@ -220,6 +221,15 @@ class Plan {
         if (!plan) {
             throw new Error(`User not found: ${userId}`);
         }
+
+        // デバッグログ
+        const logger = require('../utils/logger');
+        logger.info(`Agency stats for user ${userId}:`, {
+            planType: plan.plan_type,
+            userStaffLimit: plan.staff_limit,
+            planStaffLimit: plan.plan_staff_limit,
+            planName: plan.plan_name
+        });
 
         // エクシードプランの場合はユーザー設定値を優先、それ以外はプラン定義を使用
         const isExceed = plan.plan_type === 'exceed';
