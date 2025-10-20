@@ -400,6 +400,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [bondYields, setBondYields] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
   const [latestMarketData, setLatestMarketData] = useState<any>(null);
+  const [riskProfile, setRiskProfile] = useState<'conservative' | 'balanced' | 'aggressive'>('balanced');
 
   // Generate optimization results from fund performance data
   useEffect(() => {
@@ -731,6 +732,49 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                 </Typography>
               </Box>
 
+              {/* リスクプロファイル選択 */}
+              <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, mr: 1 }}>
+                  リスク許容度:
+                </Typography>
+                <Button
+                  size="small"
+                  variant={riskProfile === 'conservative' ? 'contained' : 'outlined'}
+                  onClick={() => setRiskProfile('conservative')}
+                  sx={{
+                    minWidth: 80,
+                    backgroundColor: riskProfile === 'conservative' ? '#3b82f6' : 'transparent',
+                    '&:hover': { backgroundColor: riskProfile === 'conservative' ? '#2563eb' : 'rgba(59, 130, 246, 0.1)' }
+                  }}
+                >
+                  保守型
+                </Button>
+                <Button
+                  size="small"
+                  variant={riskProfile === 'balanced' ? 'contained' : 'outlined'}
+                  onClick={() => setRiskProfile('balanced')}
+                  sx={{
+                    minWidth: 80,
+                    backgroundColor: riskProfile === 'balanced' ? '#10b981' : 'transparent',
+                    '&:hover': { backgroundColor: riskProfile === 'balanced' ? '#059669' : 'rgba(16, 185, 129, 0.1)' }
+                  }}
+                >
+                  バランス型
+                </Button>
+                <Button
+                  size="small"
+                  variant={riskProfile === 'aggressive' ? 'contained' : 'outlined'}
+                  onClick={() => setRiskProfile('aggressive')}
+                  sx={{
+                    minWidth: 80,
+                    backgroundColor: riskProfile === 'aggressive' ? '#ef4444' : 'transparent',
+                    '&:hover': { backgroundColor: riskProfile === 'aggressive' ? '#dc2626' : 'rgba(239, 68, 68, 0.1)' }
+                  }}
+                >
+                  積極型
+                </Button>
+              </Box>
+
               <TableContainer>
                 <Table size="small">
                   <TableHead>
@@ -749,23 +793,49 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                         const fundData = fundPerformance.find(f => f.fundType === fundName);
                         const performance = fundData?.performance || 0;
 
-                        let recommended = 0;
-                        if (performance >= 15) recommended = 30;
-                        else if (performance >= 10) recommended = 20;
-                        else if (performance >= 0) recommended = 10;
-                        else if (performance >= -5) recommended = 10;
-                        else recommended = 0;
+                        // マイナスパフォーマンスは0%
+                        if (performance < 0) {
+                          return { fundName, performance, recommended: 0 };
+                        }
 
+                        // ベース配分（パフォーマンス基準）
+                        let base = 0;
+                        if (performance >= 15) base = 30;
+                        else if (performance >= 10) base = 20;
+                        else base = 10;
+
+                        // リスクプロファイル調整
+                        let adjusted = base;
+                        if (riskProfile === 'conservative') {
+                          // 保守型: 債券型優遇、株式型控えめ
+                          if (fundName === '債券型' || fundName === '米国債券型') {
+                            adjusted = Math.min(50, base * 1.3);
+                          } else if (fundName === '株式型' || fundName === '米国株式型') {
+                            adjusted = base * 0.7;
+                          }
+                        } else if (riskProfile === 'aggressive') {
+                          // 積極型: 株式型優遇、債券型控えめ
+                          if (fundName === '株式型' || fundName === '米国株式型') {
+                            adjusted = Math.min(50, base * 1.3);
+                          } else if (fundName === '債券型' || fundName === '米国債券型') {
+                            adjusted = base * 0.7;
+                          }
+                        }
+
+                        // 10%刻みに丸める
+                        const recommended = Math.round(adjusted / 10) * 10;
                         return { fundName, performance, recommended };
                       });
 
+                      // 合計を100%に調整
                       let total = calculations.reduce((sum, calc) => sum + calc.recommended, 0);
                       if (total !== 100) {
                         const diff = 100 - total;
-                        const sortedCalcs = [...calculations].sort((a, b) => b.recommended - a.recommended);
-                        const largestFund = calculations.find(c => c.fundName === sortedCalcs[0].fundName);
-                        if (largestFund) {
-                          largestFund.recommended += diff;
+                        // パフォーマンスが最も良いファンドに差分を加算
+                        const sortedCalcs = [...calculations].sort((a, b) => b.performance - a.performance);
+                        const bestFund = calculations.find(c => c.fundName === sortedCalcs[0].fundName);
+                        if (bestFund) {
+                          bestFund.recommended = Math.max(0, bestFund.recommended + diff);
                         }
                       }
 
