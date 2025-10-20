@@ -396,76 +396,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [latestMarketData, setLatestMarketData] = useState<any>(null);
 
   // Generate optimization results from fund performance data
-  const generateOptimizationFromFundPerformance = (funds: any[]) => {
-    if (!funds || funds.length === 0) return null;
-
-    // Ensure all 6 fund types are included
-    const allFundTypes = ['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'];
-    const fundMap = new Map(funds.map(f => [f.fundType, f]));
-
-    // Add missing fund types with 0 performance
-    const completeFunds = allFundTypes.map(fundType => {
-      return fundMap.get(fundType) || { fundType, performance: 0, recommendation: 'neutral' };
-    });
-
-    // Calculate total performance (only positive values count toward allocation)
-    const totalPerformance = completeFunds.reduce((sum, f) => sum + Math.max(0, f.performance), 0);
-    const recommendations: any = {};
-
-    // First pass: calculate raw percentages
-    const rawAllocations: any = {};
-    completeFunds.forEach(fund => {
-      const performance = Math.max(0, fund.performance);
-      const raw = totalPerformance > 0
-        ? (performance / totalPerformance) * 100
-        : 100 / completeFunds.length;
-      rawAllocations[fund.fundType] = raw;
-    });
-
-    // Round to nearest 10%
-    const sortedFunds = completeFunds.sort((a, b) => rawAllocations[b.fundType] - rawAllocations[a.fundType]);
-
-    // First, round all allocations to 10%
-    sortedFunds.forEach(fund => {
-      const rounded = Math.round(rawAllocations[fund.fundType] / 10) * 10;
-      recommendations[fund.fundType] = {
-        current: Math.round(100 / completeFunds.length / 10) * 10,
-        recommended: rounded,
-        change: 0
-      };
-    });
-
-    // Calculate total and adjust if needed
-    let totalAllocated = Object.values(recommendations).reduce((sum: number, r: any) => sum + r.recommended, 0);
-
-    // Adjust to ensure total = 100%
-    if (totalAllocated !== 100) {
-      const diff = 100 - totalAllocated;
-      // Add/subtract difference to the largest fund (that has allocation > 0 or can be increased)
-      for (const fund of sortedFunds) {
-        if (diff > 0 && recommendations[fund.fundType].recommended >= 0) {
-          recommendations[fund.fundType].recommended += diff;
-          break;
-        } else if (diff < 0 && recommendations[fund.fundType].recommended >= Math.abs(diff)) {
-          recommendations[fund.fundType].recommended += diff;
-          break;
-        }
-      }
-    }
-
-    // Update change values
-    sortedFunds.forEach(fund => {
-      const current = Math.round(100 / completeFunds.length / 10) * 10;
-      recommendations[fund.fundType].change = recommendations[fund.fundType].recommended - current;
-    });
-
-    return {
-      recommendations,
-      riskLevel: 'balanced',
-      expectedReturn: (completeFunds.reduce((sum, f) => sum + f.performance, 0) / completeFunds.length).toFixed(2)
-    };
-  };
-
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -516,10 +446,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
         if (optResponse.ok) {
           const data = await optResponse.json();
-          if (data) {
-            setOptimizationResults(data);
-            setShowRecommendations(true);
-          }
+          // Optimization data is now handled through fundPerformance
         }
 
         // Fetch latest market data
@@ -555,13 +482,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
     console.log('fundPerformance.length:', fundPerformance.length);
     console.log('fundPerformance:', fundPerformance);
 
-    if (fundPerformance.length > 0) {
-      const optimizationData = generateOptimizationFromFundPerformance(fundPerformance);
-      console.log('Generated optimizationData:', optimizationData);
-      setOptimizationResults(optimizationData);
-      setShowRecommendations(true);
-    }
-    // データが空になっても、既存の最適化結果は保持する（次のデータアップロードまで表示）
+    // Optimization is now calculated directly in the UI from fundPerformance data
   }, [fundPerformance]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
