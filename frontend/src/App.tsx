@@ -787,29 +787,43 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             </Paper>
           )}
           {showRecommendations && optimizationResults && fundPerformance.length > 0 ? (
-            <Paper sx={{ p: 2, mb: 2, border: '2px solid #2196f3' }}>
-              <Box sx={{ textAlign: 'center', mb: 2 }}>
-                <Typography variant="h5" gutterBottom color="primary" sx={{ fontWeight: 'bold' }}>
-                  今月の最適化推奨配分
+            <Paper sx={{
+              p: 4,
+              mb: 2,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: 4,
+              boxShadow: '0 10px 40px rgba(102, 126, 234, 0.3)',
+            }}>
+              <Box sx={{ textAlign: 'center', mb: 4 }}>
+                <Typography variant="h4" gutterBottom sx={{ fontWeight: 900, color: '#fff', textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
+                  ✨ 今月の最適化推奨配分
                 </Typography>
-                <Typography variant="body1" color="text.secondary">
+                <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
                   AI分析による最適なポートフォリオ配分のご提案
                 </Typography>
               </Box>
               
               <Grid container spacing={3}>
                 <Grid item xs={12}>
-                  <Typography variant="h5" gutterBottom color="primary" sx={{ fontWeight: 'bold', mb: 3 }}>
-                    ファンド配分の変更提案
-                  </Typography>
-                  
-                  {/* ビフォー・アフター 円グラフ表示 */}
-                  <Grid container spacing={2}>
+                  {/* ビフォー・アフター表示 */}
+                  <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
-                      <Card sx={{ p: 3, boxShadow: 1 }}>
-                        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                          現在の配分
-                        </Typography>
+                      <Card sx={{
+                        p: 4,
+                        background: '#fff',
+                        borderRadius: 3,
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                        transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-4px)',
+                          boxShadow: '0 12px 48px rgba(0,0,0,0.15)',
+                        }
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
+                          <Typography variant="h5" sx={{ fontWeight: 700, color: '#64748b' }}>
+                            📊 現在の配分
+                          </Typography>
+                        </Box>
                         <Box sx={{ mt: 3 }}>
                           {Object.entries(optimizationResults.recommendations).map(([fundKey, fund]) => {
                             const fundNameMap: { [key: string]: string } = {
@@ -829,26 +843,28 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                             const displayName = fundNameMap[fundKey] || fundKey;
 
                             return (
-                            <Box key={fundKey} sx={{ mb: 2 }}>
-                              <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                                <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                            <Box key={fundKey} sx={{ mb: 3 }}>
+                              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                <Typography variant="body1" sx={{ fontWeight: 700, color: '#1e293b', fontSize: '1.1rem' }}>
                                   {displayName}
                                 </Typography>
-                                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#475569', fontSize: '1.3rem' }}>
                                   {fund.current}%
                                 </Typography>
                               </Box>
-                              <Box sx={{ position: 'relative', height: 28 }}>
+                              <Box sx={{ position: 'relative', height: 36 }}>
                                 <LinearProgress
                                   variant="determinate"
                                   value={fund.current}
                                   sx={{
-                                    height: 28,
-                                    borderRadius: 2,
-                                    backgroundColor: '#e0e0e0',
+                                    height: 36,
+                                    borderRadius: 3,
+                                    backgroundColor: '#e2e8f0',
+                                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)',
                                     '& .MuiLinearProgress-bar': {
-                                      backgroundColor: '#757575',
-                                      borderRadius: 2,
+                                      background: 'linear-gradient(90deg, #94a3b8 0%, #64748b 100%)',
+                                      borderRadius: 3,
+                                      boxShadow: '0 2px 8px rgba(100, 116, 139, 0.3)',
                                     }
                                   }}
                                 />
@@ -858,9 +874,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                                     left: '50%',
                                     top: '50%',
                                     transform: 'translate(-50%, -50%)',
-                                    color: fund.current > 50 ? 'white' : 'text.primary',
+                                    color: fund.current > 50 ? 'white' : '#1e293b',
                                     fontWeight: 'bold',
-                                    fontSize: '0.875rem'
+                                    fontSize: '1rem'
                                   }}
                                 >
                                   {fund.current}%
@@ -873,10 +889,22 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     </Grid>
 
                     <Grid item xs={12} md={6}>
-                      <Card sx={{ p: 3, boxShadow: 1, border: '2px solid #2196f3' }}>
-                        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center', color: 'primary.main' }}>
-                          🎯 推奨配分
-                        </Typography>
+                      <Card sx={{
+                        p: 4,
+                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                        borderRadius: 3,
+                        boxShadow: '0 8px 32px rgba(245, 87, 108, 0.3)',
+                        transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-4px)',
+                          boxShadow: '0 12px 48px rgba(245, 87, 108, 0.4)',
+                        }
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
+                          <Typography variant="h5" sx={{ fontWeight: 700, color: '#fff', textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>
+                            🎯 AI推奨配分
+                          </Typography>
+                        </Box>
                         <Box sx={{ mt: 3 }}>
                           {Object.entries(optimizationResults.recommendations).map(([fundKey, fund], index) => {
                             const colors = ['#4caf50', '#2196f3', '#ff9800', '#f44336', '#9c27b0', '#00bcd4', '#ff5722'];
@@ -899,35 +927,42 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                             const displayName = fundNameMap[fundKey] || fundKey;
 
                             return (
-                              <Box key={fundKey} sx={{ mb: 2 }}>
-                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                                  <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                              <Box key={fundKey} sx={{ mb: 3 }}>
+                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                  <Typography variant="body1" sx={{ fontWeight: 700, color: '#fff', fontSize: '1.1rem' }}>
                                     {displayName}
                                   </Typography>
                                   <Box display="flex" alignItems="center" gap={1}>
                                     {fund.change !== 0 && (
-                                      <Chip 
+                                      <Chip
                                         label={`${fund.change > 0 ? '+' : ''}${fund.change}%`}
-                                        color={fund.change > 0 ? "success" : "warning"}
-                                        sx={{ fontSize: '0.9rem', fontWeight: 'bold' }}
+                                        sx={{
+                                          fontSize: '0.9rem',
+                                          fontWeight: 'bold',
+                                          background: fund.change > 0 ? '#10b981' : '#f59e0b',
+                                          color: '#fff',
+                                          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                                        }}
                                       />
                                     )}
-                                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: getBarColor() }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', fontSize: '1.3rem' }}>
                                       {fund.recommended}%
                                     </Typography>
                                   </Box>
                                 </Box>
-                                <Box sx={{ position: 'relative', height: 28 }}>
+                                <Box sx={{ position: 'relative', height: 36 }}>
                                   <LinearProgress
                                     variant="determinate"
                                     value={fund.recommended}
                                     sx={{
-                                      height: 28,
-                                      borderRadius: 2,
-                                      backgroundColor: '#e0e0e0',
+                                      height: 36,
+                                      borderRadius: 3,
+                                      backgroundColor: 'rgba(255,255,255,0.3)',
+                                      boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)',
                                       '& .MuiLinearProgress-bar': {
-                                        backgroundColor: getBarColor(),
-                                        borderRadius: 2,
+                                        backgroundColor: '#fff',
+                                        borderRadius: 3,
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
                                       }
                                     }}
                                   />
@@ -937,9 +972,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                                       left: '50%',
                                       top: '50%',
                                       transform: 'translate(-50%, -50%)',
-                                      color: fund.recommended > 50 ? 'white' : 'text.primary',
+                                      color: fund.recommended > 50 ? '#f5576c' : '#fff',
                                       fontWeight: 'bold',
-                                      fontSize: '0.875rem'
+                                      fontSize: '1rem'
                                     }}
                                   >
                                     {fund.recommended}%

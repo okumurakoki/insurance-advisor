@@ -52,16 +52,16 @@ ${marketDataContent.extractedText ? `\nPDFから抽出されたテキスト（�
    - 債券型
    - REIT型
 
-2. **各ファンド型の配分は最低5%以上を維持してください**
-   - リスク分散のため、パフォーマンスが悪いファンドでも最低5%は保持します
-   - パフォーマンスが良いファンドは10-30%の範囲で増やしてください
+2. **各ファンド型の配分は10%刻みにしてください**
+   - 配分は必ず0%, 10%, 20%, 30%, 40%, 50%のいずれかにしてください
+   - パフォーマンスが非常に悪いファンドは0%でも構いません
 
 3. パフォーマンスに基づく推奨配分の目安：
-   - 非常に良い（+15%以上）: 25-30%
-   - 良い（+10%以上）: 20-25%
-   - 普通（0-10%）: 15-20%
-   - やや悪い（0%未満）: 10-15%
-   - 悪い（-5%未満）: 5-10%
+   - 非常に良い（+15%以上）: 30-40%
+   - 良い（+10%以上）: 20-30%
+   - 普通（0-10%）: 10-20%
+   - やや悪い（-5%以上0%未満）: 10%
+   - 悪い（-5%未満）: 0%
 
 {
   "analysis": {
@@ -189,31 +189,28 @@ ${marketDataContent.extractedText ? `\nPDFから抽出されたテキスト（�
         const requiredFunds = ['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'];
         const allocation = analysis.recommendations.allocation || {};
 
-        // 欠けているファンド型があれば、または5%未満であれば、最小値（5%）を設定
+        // 欠けているファンド型があれば0%を設定
         requiredFunds.forEach(fund => {
             if (!(fund in allocation) || allocation[fund] === null || allocation[fund] === undefined) {
-                logger.warn(`Missing fund type in AI response: ${fund}, setting to 5%`);
-                allocation[fund] = 5;
-            } else if (allocation[fund] < 5) {
-                logger.warn(`Fund type ${fund} is below 5% (${allocation[fund]}%), increasing to 5%`);
-                allocation[fund] = 5;
+                logger.warn(`Missing fund type in AI response: ${fund}, setting to 0%`);
+                allocation[fund] = 0;
             }
         });
 
-        // 合計が100になるように正規化
-        const total = Object.values(allocation).reduce((sum, val) => sum + val, 0);
-        if (total !== 100) {
-            logger.info(`Normalizing allocation from ${total}% to 100%`);
-            Object.keys(allocation).forEach(fund => {
-                allocation[fund] = Math.round((allocation[fund] / total) * 100);
-            });
+        // すべての配分を10%刻みに丸める
+        Object.keys(allocation).forEach(fund => {
+            allocation[fund] = Math.round(allocation[fund] / 10) * 10;
+        });
 
-            // 端数調整
-            const newTotal = Object.values(allocation).reduce((sum, val) => sum + val, 0);
-            if (newTotal !== 100) {
-                const diff = 100 - newTotal;
-                allocation['株式型'] += diff;
-            }
+        // 合計が100になるように調整
+        let total = Object.values(allocation).reduce((sum, val) => sum + val, 0);
+        if (total !== 100) {
+            logger.info(`Adjusting allocation from ${total}% to 100%`);
+            const diff = 100 - total;
+
+            // 差分を最も配分が大きいファンドに加算/減算（10%刻みを維持）
+            const sortedFunds = Object.keys(allocation).sort((a, b) => allocation[b] - allocation[a]);
+            allocation[sortedFunds[0]] += diff;
         }
 
         logger.info('Final validated allocation:', allocation);
