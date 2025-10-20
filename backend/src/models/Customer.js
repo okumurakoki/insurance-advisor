@@ -69,10 +69,10 @@ class Customer {
     }
 
     static async countByUserId(userId) {
-        // 顧客数を取得（usersテーブルのgrandchildアカウント）
-        const sql = 'SELECT COUNT(*) as count FROM users WHERE parent_id = $1 AND account_type = \'grandchild\' AND is_active = TRUE';
+        // 顧客数を取得（customersテーブル）
+        const sql = 'SELECT COUNT(*) as count FROM customers WHERE user_id = $1 AND is_active = TRUE';
         const results = await db.query(sql, [userId]);
-        return results[0].count;
+        return parseInt(results[0].count, 10);
     }
 
     static async update(id, updateData) {
