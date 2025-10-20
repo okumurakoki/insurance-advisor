@@ -1708,19 +1708,57 @@ function AgencyList({ user, navigate }: AgencyListProps) {
     );
   }
 
+  const handleFixAgencyPlans = async () => {
+    if (!window.confirm('既存の代理店のプラン情報を修正します。よろしいですか？')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/agencies/fix-plans`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`プラン情報を修正しました。影響を受けた代理店数: ${result.affectedRows}`);
+        // 代理店一覧を再読み込み
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(`エラー: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Fix agency plans error:', error);
+      alert('プラン情報の修正に失敗しました');
+    }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1">
           代理店管理
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setShowCreateForm(!showCreateForm)}
-        >
-          {showCreateForm ? 'フォームを閉じる' : '新規代理店作成'}
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={handleFixAgencyPlans}
+          >
+            プラン情報を修正
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setShowCreateForm(!showCreateForm)}
+          >
+            {showCreateForm ? 'フォームを閉じる' : '新規代理店作成'}
+          </Button>
+        </Box>
       </Box>
 
       {/* 検索・フィルターセクション */}
