@@ -28,6 +28,10 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -1556,12 +1560,19 @@ function AgencyList({ user, navigate }: AgencyListProps) {
   const [agencies, setAgencies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showPlanEditModal, setShowPlanEditModal] = useState(false);
+  const [editingAgency, setEditingAgency] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPlan, setFilterPlan] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [formData, setFormData] = useState({
     userId: '',
     password: '',
+    planType: 'bronze',
+    customStaffLimit: '',
+    customCustomerLimitPerStaff: ''
+  });
+  const [planEditForm, setPlanEditForm] = useState({
     planType: 'bronze',
     customStaffLimit: '',
     customCustomerLimitPerStaff: ''
@@ -1734,6 +1745,73 @@ function AgencyList({ user, navigate }: AgencyListProps) {
     } catch (error) {
       console.error('Fix agency plans error:', error);
       alert('プラン情報の修正に失敗しました');
+    }
+  };
+
+  const handleOpenPlanEdit = (agency: any) => {
+    setEditingAgency(agency);
+    setPlanEditForm({
+      planType: agency.planType || 'bronze',
+      customStaffLimit: '',
+      customCustomerLimitPerStaff: ''
+    });
+    setShowPlanEditModal(true);
+  };
+
+  const handleClosePlanEdit = () => {
+    setShowPlanEditModal(false);
+    setEditingAgency(null);
+    setPlanEditForm({
+      planType: 'bronze',
+      customStaffLimit: '',
+      customCustomerLimitPerStaff: ''
+    });
+  };
+
+  const handleSavePlanChange = async () => {
+    if (!editingAgency) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('認証エラー：再度ログインしてください');
+      return;
+    }
+
+    try {
+      const body: any = {
+        planType: planEditForm.planType
+      };
+
+      // エクシードプランの場合、カスタム値を追加
+      if (planEditForm.planType === 'exceed') {
+        if (!planEditForm.customStaffLimit || !planEditForm.customCustomerLimitPerStaff) {
+          alert('エクシードプランの場合、担当者上限数と顧客上限数を入力してください');
+          return;
+        }
+        body.customStaffLimit = parseInt(planEditForm.customStaffLimit);
+        body.customCustomerLimitPerStaff = parseInt(planEditForm.customCustomerLimitPerStaff);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/agencies/${editingAgency.id}/plan`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (response.ok) {
+        alert('プランを変更しました');
+        handleClosePlanEdit();
+        fetchAgencies();
+      } else {
+        const error = await response.json();
+        alert(`エラー: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Plan update error:', error);
+      alert('プラン変更に失敗しました');
     }
   };
 
@@ -1959,13 +2037,22 @@ function AgencyList({ user, navigate }: AgencyListProps) {
                         />
                       </Grid>
                       <Grid item xs={12} sm={3}>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleToggleStatus(agency.id, agency.isActive)}
-                        >
-                          {agency.isActive ? '無効化' : '有効化'}
-                        </Button>
+                        <Box display="flex" gap={1} flexWrap="wrap">
+                          <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => handleOpenPlanEdit(agency)}
+                          >
+                            プラン変更
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleToggleStatus(agency.id, agency.isActive)}
+                          >
+                            {agency.isActive ? '無効化' : '有効化'}
+                          </Button>
+                        </Box>
                       </Grid>
                     </Grid>
                   </CardContent>
@@ -1975,6 +2062,86 @@ function AgencyList({ user, navigate }: AgencyListProps) {
           </Grid>
         )}
       </Paper>
+
+      {/* プラン変更モーダル */}
+      <Dialog
+        open={showPlanEditModal}
+        onClose={handleClosePlanEdit}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          プラン変更 - {editingAgency?.userId}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  select
+                  label="プラン"
+                  value={planEditForm.planType}
+                  onChange={(e) => setPlanEditForm({ ...planEditForm, planType: e.target.value })}
+                  SelectProps={{ native: true }}
+                >
+                  <option value="bronze">ブロンズ（980円/月、担当者1人、顧客5人）</option>
+                  <option value="silver">シルバー（1,980円/月、担当者3人、顧客30人）</option>
+                  <option value="gold">ゴールド（3,980円/月、担当者10人、顧客15人/担当者）</option>
+                  <option value="platinum">プラチナ（8,980円/月、担当者30人、顧客30人/担当者）</option>
+                  <option value="exceed">エクシード（カスタム）</option>
+                </TextField>
+              </Grid>
+
+              {planEditForm.planType === 'exceed' && (
+                <>
+                  <Grid item xs={12}>
+                    <Alert severity="info">
+                      エクシードプランでは、担当者上限数と顧客上限数をカスタマイズできます
+                    </Alert>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="担当者上限数"
+                      value={planEditForm.customStaffLimit}
+                      onChange={(e) => setPlanEditForm({ ...planEditForm, customStaffLimit: e.target.value })}
+                      required
+                      inputProps={{ min: 1 }}
+                      helperText="設定できる担当者の最大数"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="顧客上限数（担当者あたり）"
+                      value={planEditForm.customCustomerLimitPerStaff}
+                      onChange={(e) => setPlanEditForm({ ...planEditForm, customCustomerLimitPerStaff: e.target.value })}
+                      required
+                      inputProps={{ min: 1 }}
+                      helperText="各担当者が持てる顧客の最大数"
+                    />
+                  </Grid>
+                </>
+              )}
+            </Grid>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClosePlanEdit}>
+            キャンセル
+          </Button>
+          <Button
+            onClick={handleSavePlanChange}
+            variant="contained"
+            color="primary"
+          >
+            保存
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
