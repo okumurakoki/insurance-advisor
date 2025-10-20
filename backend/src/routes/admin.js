@@ -310,4 +310,46 @@ router.get('/stats', authenticateToken, requireAdmin, async (req, res) => {
     }
 });
 
+// 既存の代理店のプラン情報を一括修正
+router.post('/agencies/fix-plans', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const db = require('../utils/database-factory');
+
+        // すべての parent アカウントのプラン情報を修正
+        const updateSql = `
+            UPDATE users u
+            SET
+                staff_limit = CASE
+                    WHEN u.plan_type = 'exceed' AND u.staff_limit IS NOT NULL THEN u.staff_limit
+                    ELSE COALESCE(pd.staff_limit, 1)
+                END,
+                customer_limit = CASE
+                    WHEN u.plan_type = 'exceed' AND u.customer_limit IS NOT NULL THEN u.customer_limit
+                    ELSE pd.customer_limit
+                END,
+                customer_limit_per_staff = CASE
+                    WHEN u.plan_type = 'exceed' AND u.customer_limit_per_staff IS NOT NULL THEN u.customer_limit_per_staff
+                    ELSE pd.customer_limit_per_staff
+                END,
+                updated_at = CURRENT_TIMESTAMP
+            FROM plan_definitions pd
+            WHERE u.account_type = 'parent'
+              AND u.plan_type::text = pd.plan_type
+              AND (u.staff_limit IS NULL OR u.staff_limit = 0 OR u.customer_limit IS NULL)
+        `;
+
+        const result = await db.query(updateSql);
+
+        logger.info('Fixed agency plans for existing agencies');
+
+        res.json({
+            message: 'Agency plans fixed successfully',
+            affectedRows: result.rowCount || 0
+        });
+    } catch (error) {
+        logger.error('Failed to fix agency plans:', error);
+        res.status(500).json({ error: 'Failed to fix agency plans' });
+    }
+});
+
 module.exports = router;

@@ -231,6 +231,26 @@ class Plan {
             planName: plan.plan_name
         });
 
+        // plan_type が NULL またはプラン定義が見つからない場合の処理
+        if (!plan.plan_type || !plan.plan_staff_limit) {
+            logger.warn(`Agency ${userId} has invalid plan configuration. Using user settings or defaults.`);
+
+            // ユーザー設定値がある場合はそれを使用、なければデフォルト値
+            const staffLimit = plan.staff_limit || 1;
+            const customerLimit = plan.customer_limit || 5;
+            const customerLimitPerStaff = plan.customer_limit_per_staff || null;
+
+            return {
+                staffCount,
+                staffLimit,
+                customerCount,
+                customerLimit: customerLimit || (customerLimitPerStaff ? customerLimitPerStaff * staffCount : 0),
+                planType: plan.plan_type || 'bronze',
+                planName: plan.plan_name || 'ブロンズ',
+                monthlyPrice: plan.monthly_price || 980
+            };
+        }
+
         // エクシードプランの場合はユーザー設定値を優先、それ以外はプラン定義を使用
         const isExceed = plan.plan_type === 'exceed';
         const staffLimit = isExceed && plan.staff_limit ? plan.staff_limit : (plan.plan_staff_limit || 0);
