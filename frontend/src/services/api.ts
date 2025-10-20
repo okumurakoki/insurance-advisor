@@ -236,6 +236,17 @@ class ApiService {
     const response = await this.api.get('/users/staff');
     return response.data;
   }
+
+  // Get statistics (for dashboard)
+  async getStatistics(): Promise<{
+    customerCount: number;
+    reportCount: number;
+    totalAssets: number;
+    averageReturn: number;
+  }> {
+    const response = await this.api.get('/analysis/statistics');
+    return response.data;
+  }
 }
 
 export default new ApiService();

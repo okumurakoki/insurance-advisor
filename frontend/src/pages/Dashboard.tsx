@@ -30,9 +30,10 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [stats, setStats] = useState({
-    totalCustomers: 0,
-    totalAnalyses: 0,
-    avgMonthlyPremium: 0,
+    customerCount: 0,
+    reportCount: 0,
+    totalAssets: 0,
+    averageReturn: 0,
   });
   const [marketData, setMarketData] = useState<any[]>([]);
 
@@ -44,18 +45,14 @@ const Dashboard: React.FC = () => {
     try {
       const customersData = await api.getCustomers();
       setCustomers(customersData);
-      
-      // Calculate statistics
-      const totalCustomers = customersData.length;
-      const avgMonthlyPremium = customersData.length > 0
-        ? customersData.reduce((sum, c) => sum + c.monthlyPremium, 0) / customersData.length
-        : 0;
-      
-      setStats({
-        totalCustomers,
-        totalAnalyses: 0, // This would come from a stats API endpoint
-        avgMonthlyPremium,
-      });
+
+      // Fetch real statistics from API
+      try {
+        const statisticsData = await api.getStatistics();
+        setStats(statisticsData);
+      } catch (statsErr) {
+        console.error('Failed to fetch statistics:', statsErr);
+      }
 
       // Fetch market data from Supabase Edge Functions
       try {
@@ -146,10 +143,10 @@ const Dashboard: React.FC = () => {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    顧客数
+                    管理中の顧客数
                   </Typography>
                   <Typography variant="h5">
-                    {stats.totalCustomers}
+                    {stats.customerCount}
                   </Typography>
                 </Box>
                 <PersonIcon color="primary" sx={{ fontSize: 40 }} />
@@ -164,10 +161,10 @@ const Dashboard: React.FC = () => {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    分析実行数
+                    レポート数
                   </Typography>
                   <Typography variant="h5">
-                    {stats.totalAnalyses}
+                    {stats.reportCount}
                   </Typography>
                 </Box>
                 <AssessmentIcon color="secondary" sx={{ fontSize: 40 }} />
@@ -182,10 +179,10 @@ const Dashboard: React.FC = () => {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    平均月額保険料
+                    総運用額
                   </Typography>
                   <Typography variant="h5">
-                    ¥{Math.round(stats.avgMonthlyPremium).toLocaleString()}
+                    ¥{Math.round(stats.totalAssets).toLocaleString()}
                   </Typography>
                 </Box>
                 <TrendingUpIcon color="success" sx={{ fontSize: 40 }} />
@@ -200,10 +197,10 @@ const Dashboard: React.FC = () => {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    空き枠
+                    平均利回り
                   </Typography>
                   <Typography variant="h5">
-                    {(user?.customerLimit || 0) - stats.totalCustomers}
+                    {stats.averageReturn}%
                   </Typography>
                 </Box>
                 <AddIcon color="action" sx={{ fontSize: 40 }} />

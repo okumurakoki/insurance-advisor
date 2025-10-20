@@ -276,26 +276,64 @@ const AnalysisResult: React.FC = () => {
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              推奨資産配分
+            <Typography variant="h5" gutterBottom fontWeight="bold" color="primary">
+              📊 今月の最適化推奨配分
+            </Typography>
+            <Typography variant="body2" color="textSecondary" gutterBottom sx={{ mb: 3 }}>
+              以下のファンドに配分してください
             </Typography>
             <Divider sx={{ mb: 3 }} />
-            
-            <Box height={300}>
-              <Pie data={chartData} options={chartOptions} />
+
+            {/* 大きくわかりやすい配分表示 */}
+            <Box sx={{ mb: 4 }}>
+              {Object.entries(analysis.allocation).map(([asset, percentage], index) => (
+                <Box
+                  key={asset}
+                  sx={{
+                    mb: 2,
+                    p: 2.5,
+                    backgroundColor: index % 2 === 0 ? '#f5f5f5' : '#ffffff',
+                    borderRadius: 2,
+                    border: '2px solid',
+                    borderColor: percentage > 25 ? '#1976d2' : percentage > 15 ? '#4caf50' : '#757575',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    transition: 'all 0.3s',
+                    '&:hover': {
+                      transform: 'scale(1.02)',
+                      boxShadow: 3,
+                    }
+                  }}
+                >
+                  <Box>
+                    <Typography variant="h6" fontWeight="bold">
+                      {asset}
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      {percentage > 25 ? '重点配分' : percentage > 15 ? '標準配分' : '小額配分'}
+                    </Typography>
+                  </Box>
+                  <Box textAlign="right">
+                    <Typography
+                      variant="h4"
+                      fontWeight="bold"
+                      color={percentage > 25 ? 'primary' : percentage > 15 ? 'success.main' : 'text.secondary'}
+                    >
+                      {percentage}%
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
             </Box>
 
-            <Box mt={3}>
-              <Grid container spacing={2}>
-                {Object.entries(analysis.allocation).map(([asset, percentage]) => (
-                  <Grid item xs={6} sm={4} key={asset}>
-                    <Box display="flex" justifyContent="space-between" p={1}>
-                      <Typography>{asset}</Typography>
-                      <Typography fontWeight="bold">{percentage}%</Typography>
-                    </Box>
-                  </Grid>
-                ))}
-              </Grid>
+            {/* 円グラフは参考として下部に配置 */}
+            <Divider sx={{ mb: 2 }} />
+            <Typography variant="body2" color="textSecondary" gutterBottom>
+              配分イメージ（参考）
+            </Typography>
+            <Box height={250} sx={{ mt: 2 }}>
+              <Pie data={chartData} options={chartOptions} />
             </Box>
           </Paper>
 
