@@ -863,11 +863,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
       console.log('Generated optimizationData:', optimizationData);
       setOptimizationResults(optimizationData);
       setShowRecommendations(true);
-    } else {
-      console.log('No fundPerformance data - hiding recommendations');
-      setOptimizationResults(null);
-      setShowRecommendations(false);
     }
+    // データが空になっても、既存の最適化結果は保持する（次のデータアップロードまで表示）
   }, [fundPerformance]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1285,36 +1282,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                 
               </Grid>
               
-              <Box display="flex" gap={2} mt={2} justifyContent="center">
-                <Button
-                  variant="contained"
-                  startIcon={<PdfIcon />}
-                  onClick={() => {
-                    const optimizationReport = {
-                      title: `月次最適化レポート - ${new Date().toLocaleDateString('ja-JP')}`,
-                      summary: `AI分析による今月の推奨ポートフォリオ配分`,
-                      currentAllocation: optimizationResults.recommendations,
-                      content: {
-                        recommendations: [
-                          `推奨変更ファンド数: ${optimizationResults.summary.totalChanges}件`,
-                          `大幅リバランス: ${optimizationResults.summary.majorRebalancing ? '必要' : '不要'}`,
-                          `最終更新: ${new Date(optimizationResults.summary.lastUpdated).toLocaleString('ja-JP')}`,
-                          '月次リバランスにより最適なリスク・リターンバランスを維持'
-                        ]
-                      }
-                    };
-                    generatePDF(optimizationReport);
-                  }}
-                >
-                  詳細レポートをPDF出力
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={() => setShowRecommendations(false)}
-                >
-                  結果を閉じる
-                </Button>
-              </Box>
             </Paper>
           ) : (
             // 最適化結果待機中の固定レイアウト
@@ -1868,7 +1835,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           </Grid>
 
         {/* Action Buttons */}
-        {user.accountType !== 'grandchild' && (
+        {(user.accountType === 'parent' || user.accountType === 'child') && (
           <Grid item xs={12}>
             <Box display="flex" gap={2} flexWrap="wrap">
               <Button
