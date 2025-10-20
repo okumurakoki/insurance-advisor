@@ -388,8 +388,6 @@ interface DashboardProps {
 }
 
 function Dashboard({ user, marketData, navigate }: DashboardProps) {
-  const [optimizationResults, setOptimizationResults] = useState<any>(null);
-  const [showRecommendations, setShowRecommendations] = useState(false);
   const [uploadingMarketData, setUploadingMarketData] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fundPerformance, setFundPerformance] = useState<any[]>([]);
