@@ -445,7 +445,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         });
 
         if (optResponse.ok) {
-          const data = await optResponse.json();
+          await optResponse.json();
           // Optimization data is now handled through fundPerformance
         }
 
