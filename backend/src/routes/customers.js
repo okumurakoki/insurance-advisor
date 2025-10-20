@@ -85,25 +85,52 @@ async function checkCustomerAccess(user, customer) {
 }
 
 router.post('/', authenticateToken, async (req, res) => {
-    const { name, email, phone, contractDate, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes } = req.body;
+    const { name, email, phone, contractDate, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes, staffId } = req.body;
 
     if (!name || !contractDate || !contractAmount || !monthlyPremium) {
-        return res.status(400).json({ 
-            error: 'Name, contract date, contract amount, and monthly premium are required' 
+        return res.status(400).json({
+            error: 'Name, contract date, contract amount, and monthly premium are required'
         });
     }
 
     try {
-        const customerCount = await Customer.countByUserId(req.user.id);
-        
-        if (customerCount >= req.user.customerLimit) {
-            return res.status(400).json({ 
-                error: `Customer limit reached. Your ${req.user.planType} plan allows ${req.user.customerLimit} customers.` 
+        let assignedUserId = req.user.id;
+
+        // 代理店の場合、担当者IDを指定する必要がある
+        if (req.user.accountType === 'parent') {
+            if (!staffId) {
+                return res.status(400).json({
+                    error: 'Staff ID is required for agency accounts. Please select a staff member to assign this customer.'
+                });
+            }
+
+            // 担当者が代理店配下であることを確認
+            const User = require('../models/User');
+            const staff = await User.findById(staffId);
+            if (!staff || staff.parent_id !== req.user.id) {
+                return res.status(403).json({
+                    error: 'Invalid staff member. The staff must belong to your agency.'
+                });
+            }
+
+            assignedUserId = staffId;
+        }
+
+        const customerCount = await Customer.countByUserId(assignedUserId);
+
+        // 担当者の顧客数制限をチェック
+        const User = require('../models/User');
+        const assignedUser = await User.findById(assignedUserId);
+        const customerLimit = assignedUser.customer_limit || 10;
+
+        if (customerCount >= customerLimit) {
+            return res.status(400).json({
+                error: `Customer limit reached for this staff member. Limit: ${customerLimit} customers.`
             });
         }
 
         const customerId = await Customer.create({
-            user_id: req.user.id,
+            user_id: assignedUserId,
             name,
             email,
             phone,
@@ -115,11 +142,11 @@ router.post('/', authenticateToken, async (req, res) => {
             notes
         });
 
-        logger.info(`Customer created: ${name} by user: ${req.user.userId}`);
+        logger.info(`Customer created: ${name} by user: ${req.user.userId}, assigned to: ${assignedUserId}`);
 
-        res.status(201).json({ 
+        res.status(201).json({
             id: customerId,
-            message: 'Customer created successfully' 
+            message: 'Customer created successfully'
         });
     } catch (error) {
         logger.error('Customer creation error:', error);

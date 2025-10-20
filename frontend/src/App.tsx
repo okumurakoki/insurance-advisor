@@ -2379,9 +2379,36 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
     monthlyPremium: '',
     riskTolerance: 'balanced',
     investmentGoal: '',
-    notes: ''
+    notes: '',
+    staffId: ''
   });
   const [loading, setLoading] = useState(false);
+  const [staffList, setStaffList] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchStaffList = async () => {
+      if (user.accountType === 'parent' && !isEdit) {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(`${API_BASE_URL}/api/users/staff`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setStaffList(data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch staff list:', error);
+        }
+      }
+    };
+
+    fetchStaffList();
+  }, [user.accountType, isEdit]);
 
   useEffect(() => {
     const fetchCustomer = async () => {
@@ -2461,7 +2488,8 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
           monthlyPremium: parseFloat(formData.monthlyPremium),
           riskTolerance: formData.riskTolerance,
           investmentGoal: formData.investmentGoal,
-          notes: formData.notes
+          notes: formData.notes,
+          staffId: formData.staffId || undefined
         })
       });
 
@@ -2580,6 +2608,28 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
                 <option value="aggressive">積極的</option>
               </TextField>
             </Grid>
+
+            {user.accountType === 'parent' && !isEdit && (
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  required
+                  fullWidth
+                  select
+                  label="担当者"
+                  value={formData.staffId}
+                  onChange={handleChange('staffId')}
+                  SelectProps={{ native: true }}
+                  helperText="顧客を担当する担当者を選択してください"
+                >
+                  <option value="">選択してください</option>
+                  {staffList.map((staff) => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.userId} ({staff.customerCount || 0}人担当中)
+                    </option>
+                  ))}
+                </TextField>
+              </Grid>
+            )}
             
             <Grid item xs={12}>
               <TextField
@@ -3084,7 +3134,7 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
           </Button>
           <Button
             onClick={() => setActiveTab(1)}
-            sx={{ 
+            sx={{
               borderBottom: activeTab === 1 ? 2 : 0,
               borderColor: 'primary.main',
               borderRadius: 0,
@@ -3098,18 +3148,6 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
             onClick={() => setActiveTab(2)}
             sx={{
               borderBottom: activeTab === 2 ? 2 : 0,
-              borderColor: 'primary.main',
-              borderRadius: 0,
-              px: 3,
-              py: 2
-            }}
-          >
-            取引履歴
-          </Button>
-          <Button
-            onClick={() => setActiveTab(3)}
-            sx={{
-              borderBottom: activeTab === 3 ? 2 : 0,
               borderColor: 'primary.main',
               borderRadius: 0,
               px: 3,
@@ -3275,88 +3313,8 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
               )}
             </Box>
           )}
-          
+
           {activeTab === 2 && (
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                取引履歴
-              </Typography>
-
-              <Box>
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  直近の取引履歴を表示しています
-                </Alert>
-
-                {(() => {
-                  try {
-                    // Generate transaction history from contract date
-                    const transactions = [];
-                    const contractDate = new Date(customer.contract_date);
-                    const today = new Date();
-                    const monthlyPremium = parseFloat(String(customer.monthly_premium)) || 0;
-
-                    // Generate monthly transactions from contract date to today (limit to 50 months)
-                    let currentDate = new Date(contractDate);
-                    let monthCount = 0;
-                    while (currentDate <= today && monthCount < 50) {
-                      transactions.push({
-                        date: currentDate.toISOString().split('T')[0],
-                        type: '月次積立',
-                        amount: monthlyPremium,
-                        status: '完了'
-                      });
-                      currentDate.setMonth(currentDate.getMonth() + 1);
-                      monthCount++;
-                    }
-
-                    // Add rebalance if analysis was done
-                    if (analysisResult) {
-                      transactions.push({
-                        date: today.toISOString().split('T')[0],
-                        type: 'リバランス',
-                        amount: 0,
-                        status: '完了'
-                      });
-                    }
-
-                    // Sort by date descending and take last 4
-                    return transactions
-                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                      .slice(0, 4)
-                      .map((transaction, index) => (
-                        <Card key={index} variant="outlined" sx={{ mb: 1, p: 2 }}>
-                          <Grid container alignItems="center">
-                            <Grid item xs={3}>
-                              <Typography variant="body2">{transaction.date}</Typography>
-                            </Grid>
-                            <Grid item xs={3}>
-                              <Typography variant="body1">{transaction.type}</Typography>
-                            </Grid>
-                            <Grid item xs={3}>
-                              <Typography variant="body1" color="primary">
-                                ¥{transaction.amount.toLocaleString()}
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={3}>
-                              <Chip label={transaction.status} color="success" size="small" />
-                            </Grid>
-                          </Grid>
-                        </Card>
-                      ));
-                  } catch (error) {
-                    console.error('Transaction history error:', error);
-                    return (
-                      <Alert severity="error">
-                        取引履歴の生成中にエラーが発生しました
-                      </Alert>
-                    );
-                  }
-                })()}
-              </Box>
-            </Box>
-          )}
-
-          {activeTab === 3 && (
             <Box>
               <Typography variant="h6" gutterBottom>
                 過去の分析履歴（過去2年分）
