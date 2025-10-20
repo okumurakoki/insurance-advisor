@@ -43,6 +43,14 @@ ${marketDataContent.extractedText ? `\nPDFから抽出されたテキスト（�
 上記の市場データに基づいて、以下のJSON形式で推奨配分を提案してください。
 パフォーマンスが良いファンドの配分を増やし、悪いファンドの配分を減らすように調整してください。
 
+**重要**: 以下の6つのファンド型すべてを必ず含めてください。どれも欠かさないでください：
+- 株式型
+- 米国株式型
+- 総合型
+- 米国債券型
+- 債券型
+- REIT型
+
 {
   "analysis": {
     "marketConditions": "市場の現在の状況についての詳細な分析（200文字程度）",
@@ -164,10 +172,40 @@ ${marketDataContent.extractedText ? `\nPDFから抽出されたテキスト（�
 
     parseAnalysisResult(response) {
         const { analysis } = response;
-        
+
+        // 必須のファンド型をすべて含むことを確認
+        const requiredFunds = ['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'];
+        const allocation = analysis.recommendations.allocation || {};
+
+        // 欠けているファンド型があれば、最小値（5%）を設定
+        requiredFunds.forEach(fund => {
+            if (!(fund in allocation) || allocation[fund] === null || allocation[fund] === undefined) {
+                logger.warn(`Missing fund type in AI response: ${fund}, setting to 5%`);
+                allocation[fund] = 5;
+            }
+        });
+
+        // 合計が100になるように正規化
+        const total = Object.values(allocation).reduce((sum, val) => sum + val, 0);
+        if (total !== 100) {
+            logger.info(`Normalizing allocation from ${total}% to 100%`);
+            Object.keys(allocation).forEach(fund => {
+                allocation[fund] = Math.round((allocation[fund] / total) * 100);
+            });
+
+            // 端数調整
+            const newTotal = Object.values(allocation).reduce((sum, val) => sum + val, 0);
+            if (newTotal !== 100) {
+                const diff = 100 - newTotal;
+                allocation['株式型'] += diff;
+            }
+        }
+
+        logger.info('Final validated allocation:', allocation);
+
         return {
             marketAnalysis: analysis.marketConditions,
-            recommendedAllocation: analysis.recommendations.allocation,
+            recommendedAllocation: allocation,
             adjustmentFactors: analysis.recommendations.adjustmentFactors,
             confidence: analysis.confidence
         };
