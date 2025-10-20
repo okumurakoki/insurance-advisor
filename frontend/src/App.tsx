@@ -34,6 +34,12 @@ import {
   DialogActions,
   useMediaQuery,
   useTheme,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import {
   AccountCircle,
@@ -715,156 +721,102 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             </Paper>
           )}
           {fundPerformance.length > 0 ? (
-            <Paper sx={{
-              p: 4,
-              mb: 3,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: 4,
-              boxShadow: '0 10px 40px rgba(102, 126, 234, 0.3)',
-            }}>
-              <Box sx={{ textAlign: 'center', mb: 4 }}>
-                <Typography variant="h4" gutterBottom sx={{ fontWeight: 900, color: '#fff', textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
-                  ✨ 今月の最適化推奨配分
+            <Paper sx={{ p: 2, mb: 3 }}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>
+                  📊 今月の最適化推奨配分
                 </Typography>
-                <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
+                <Typography variant="body2" color="text.secondary">
                   AI分析による最適なポートフォリオ配分（直近1年パフォーマンス基準）
                 </Typography>
               </Box>
 
-              {/* 6種類すべてのファンドを表示 */}
-              <Grid container spacing={2}>
-                {(() => {
-                  // まず全ファンドの推奨配分を計算
-                  const allFunds = ['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'];
-                  const calculations = allFunds.map(fundName => {
-                    const fundData = fundPerformance.find(f => f.fundType === fundName);
-                    const performance = fundData?.performance || 0;
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700 }}>ファンド</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>パフォーマンス</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>現在</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>推奨</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>変更</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(() => {
+                      const allFunds = ['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'];
+                      const calculations = allFunds.map(fundName => {
+                        const fundData = fundPerformance.find(f => f.fundType === fundName);
+                        const performance = fundData?.performance || 0;
 
-                    // パフォーマンスに基づく初期推奨配分（10%刻み）
-                    let recommended = 0;
-                    if (performance >= 15) recommended = 30;
-                    else if (performance >= 10) recommended = 20;
-                    else if (performance >= 0) recommended = 10;
-                    else if (performance >= -5) recommended = 10;
-                    else recommended = 0;
+                        let recommended = 0;
+                        if (performance >= 15) recommended = 30;
+                        else if (performance >= 10) recommended = 20;
+                        else if (performance >= 0) recommended = 10;
+                        else if (performance >= -5) recommended = 10;
+                        else recommended = 0;
 
-                    return { fundName, performance, recommended };
-                  });
+                        return { fundName, performance, recommended };
+                      });
 
-                  // 合計を100%にするため調整
-                  let total = calculations.reduce((sum, calc) => sum + calc.recommended, 0);
-                  if (total !== 100) {
-                    const diff = 100 - total;
-                    // 最も配分が大きいファンドに差分を加算
-                    const sortedCalcs = [...calculations].sort((a, b) => b.recommended - a.recommended);
-                    const largestFund = calculations.find(c => c.fundName === sortedCalcs[0].fundName);
-                    if (largestFund) {
-                      largestFund.recommended += diff;
-                    }
-                  }
+                      let total = calculations.reduce((sum, calc) => sum + calc.recommended, 0);
+                      if (total !== 100) {
+                        const diff = 100 - total;
+                        const sortedCalcs = [...calculations].sort((a, b) => b.recommended - a.recommended);
+                        const largestFund = calculations.find(c => c.fundName === sortedCalcs[0].fundName);
+                        if (largestFund) {
+                          largestFund.recommended += diff;
+                        }
+                      }
 
-                  // 現在の配分（均等配分と仮定: 各約17%）
-                  const current = 17;
+                      const current = 17;
 
-                  return calculations.map(({ fundName, performance, recommended }) => {
-                  const change = recommended - current;
-
-                  // 変更理由
-                  let reason = '';
-                  if (performance >= 15) reason = `直近1年で+${performance.toFixed(1)}%と非常に好調。積極的な配分を推奨`;
-                  else if (performance >= 10) reason = `直近1年で+${performance.toFixed(1)}%と好調。やや多めの配分を推奨`;
-                  else if (performance >= 0) reason = `直近1年で+${performance.toFixed(1)}%とプラス。標準的な配分を維持`;
-                  else if (performance >= -5) reason = `直近1年で${performance.toFixed(1)}%とマイナス。最低限の配分を維持`;
-                  else reason = `直近1年で${performance.toFixed(1)}%と大幅マイナス。配分を見送り`;
-
-                  return (
-                    <Grid item xs={12} md={6} key={fundName}>
-                      <Card sx={{
-                        p: 3,
-                        background: recommended > current ? 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)' :
-                                    recommended < current ? 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)' :
-                                    '#fff',
-                        borderRadius: 3,
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                        border: recommended > current ? '2px solid #0ea5e9' :
-                                recommended < current ? '2px solid #ef4444' : '1px solid #e5e7eb'
-                      }}>
-                        {/* ファンド名とパフォーマンス */}
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-                            {fundName}
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              直近1年:
-                            </Typography>
-                            <Typography
-                              variant="h6"
-                              sx={{
-                                fontWeight: 700,
-                                color: performance > 0 ? '#10b981' : performance < 0 ? '#ef4444' : '#6b7280'
-                              }}
-                            >
-                              {performance > 0 ? '+' : ''}{performance.toFixed(1)}%
-                            </Typography>
-                          </Box>
-                        </Box>
-
-                        {/* 配分の変更 */}
-                        <Box sx={{ mb: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2" color="text.secondary">現在</Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{current}%</Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
-                            <Typography variant="body2" color="text.secondary">推奨</Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      return calculations.map(({ fundName, performance, recommended }) => {
+                        const change = recommended - current;
+                        return (
+                          <TableRow
+                            key={fundName}
+                            sx={{
+                              backgroundColor: recommended > current ? '#e0f2fe' :
+                                             recommended < current ? '#fee2e2' : 'inherit'
+                            }}
+                          >
+                            <TableCell sx={{ fontWeight: 600 }}>{fundName}</TableCell>
+                            <TableCell align="right">
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: 600,
+                                  color: performance > 0 ? '#10b981' : performance < 0 ? '#ef4444' : '#6b7280'
+                                }}
+                              >
+                                {performance > 0 ? '+' : ''}{performance.toFixed(1)}%
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">{current}%</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700 }}>{recommended}%</TableCell>
+                            <TableCell align="right">
                               {change !== 0 && (
                                 <Chip
                                   label={`${change > 0 ? '+' : ''}${change}%`}
                                   size="small"
                                   sx={{
+                                    height: 20,
+                                    fontSize: '0.75rem',
                                     fontWeight: 700,
                                     background: change > 0 ? '#10b981' : '#ef4444',
                                     color: '#fff'
                                   }}
                                 />
                               )}
-                              <Typography variant="h5" sx={{ fontWeight: 700 }}>{recommended}%</Typography>
-                            </Box>
-                          </Box>
-
-                          {/* プログレスバー */}
-                          <LinearProgress
-                            variant="determinate"
-                            value={recommended}
-                            sx={{
-                              height: 24,
-                              borderRadius: 2,
-                              backgroundColor: '#e5e7eb',
-                              '& .MuiLinearProgress-bar': {
-                                background: recommended > current ? 'linear-gradient(90deg, #0ea5e9, #06b6d4)' :
-                                           recommended < current ? 'linear-gradient(90deg, #ef4444, #dc2626)' :
-                                           'linear-gradient(90deg, #6b7280, #4b5563)',
-                                borderRadius: 2
-                              }
-                            }}
-                          />
-                        </Box>
-
-                        {/* 変更理由 */}
-                        <Alert
-                          severity={recommended > current ? 'info' : recommended < current ? 'warning' : 'success'}
-                          sx={{ fontSize: '0.875rem' }}
-                        >
-                          {reason}
-                        </Alert>
-                      </Card>
-                    </Grid>
-                  );
-                });
-                })()}
-              </Grid>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      });
+                    })()}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </Paper>
           ) : (
             <Paper sx={{ p: 4, mb: 2, textAlign: 'center' }}>
