@@ -146,53 +146,146 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/register', async (req, res) => {
-    const { userId, password, accountType, planType, parentUserId } = req.body;
+    const { userId, password, accountType, agencyUserId, staffUserId } = req.body;
 
     if (!userId || !password || !accountType) {
-        return res.status(400).json({ 
-            error: 'User ID, password, and account type are required' 
+        return res.status(400).json({
+            error: 'User ID, password, and account type are required'
         });
     }
 
     try {
+        // ユーザーIDの重複チェック（全アカウントタイプで）
         const existingUser = await User.findByUserId(userId, accountType);
         if (existingUser) {
-            return res.status(409).json({ error: 'User already exists' });
+            return res.status(409).json({ error: 'User ID already exists' });
         }
 
         let parentId = null;
-        if (accountType !== 'parent' && parentUserId) {
-            const parentUser = await User.findByUserId(parentUserId, 'parent');
-            if (!parentUser) {
-                return res.status(400).json({ error: 'Parent user not found' });
+        const Plan = require('../models/Plan');
+
+        // 担当者登録（childアカウント）
+        if (accountType === 'child') {
+            if (!agencyUserId) {
+                return res.status(400).json({ error: 'Agency user ID is required for staff registration' });
             }
-            parentId = parentUser.id;
+
+            // 代理店ユーザーを取得
+            const agencyUser = await User.findByUserId(agencyUserId, 'parent');
+            if (!agencyUser) {
+                return res.status(400).json({ error: 'Agency not found' });
+            }
+
+            if (!agencyUser.is_active) {
+                return res.status(403).json({ error: 'Agency is not active' });
+            }
+
+            // 担当者数の制限チェック
+            const limitCheck = await Plan.checkLimit(agencyUser.id, 'staff');
+            if (!limitCheck.allowed) {
+                return res.status(403).json({
+                    error: 'Staff limit reached',
+                    message: limitCheck.message
+                });
+            }
+
+            parentId = agencyUser.id;
+
+            const newUserId = await User.create({
+                userId,
+                password,
+                accountType: 'child',
+                planType: agencyUser.plan_type,
+                parentId,
+                customerLimit: agencyUser.customer_limit_per_staff || 10
+            });
+
+            logger.info(`New staff registered: ${userId} under agency: ${agencyUserId}`);
+
+            return res.status(201).json({
+                message: 'Staff registered successfully',
+                userId: newUserId,
+                agencyUserId
+            });
         }
 
-        const customerLimits = {
-            'standard': 10,
-            'master': 50,
-            'exceed': 999
-        };
+        // 顧客登録（grandchildアカウント）
+        if (accountType === 'grandchild') {
+            if (!staffUserId) {
+                return res.status(400).json({ error: 'Staff user ID is required for customer registration' });
+            }
 
-        const newUserId = await User.create({
-            userId,
-            password,
-            accountType,
-            planType: planType || 'standard',
-            parentId,
-            customerLimit: customerLimits[planType || 'standard']
-        });
+            // 担当者ユーザーを取得
+            const staffUser = await User.findByUserId(staffUserId, 'child');
+            if (!staffUser) {
+                return res.status(400).json({ error: 'Staff not found' });
+            }
 
-        logger.info(`New user registered: ${userId} (${accountType})`);
+            if (!staffUser.is_active) {
+                return res.status(403).json({ error: 'Staff is not active' });
+            }
 
-        res.status(201).json({ 
-            message: 'User registered successfully',
-            userId: newUserId
-        });
+            // 代理店ユーザーを取得
+            const agencyUser = await User.findById(staffUser.parent_id);
+            if (!agencyUser || !agencyUser.is_active) {
+                return res.status(403).json({ error: 'Agency is not active' });
+            }
+
+            // 顧客数の制限チェック
+            const limitCheck = await Plan.checkLimit(agencyUser.id, 'customer', staffUser.id);
+            if (!limitCheck.allowed) {
+                return res.status(403).json({
+                    error: 'Customer limit reached',
+                    message: limitCheck.message
+                });
+            }
+
+            const newUserId = await User.create({
+                userId,
+                password,
+                accountType: 'grandchild',
+                planType: staffUser.plan_type,
+                parentId: staffUser.id,
+                customerLimit: null
+            });
+
+            logger.info(`New customer registered: ${userId} under staff: ${staffUserId}`);
+
+            return res.status(201).json({
+                message: 'Customer registered successfully',
+                userId: newUserId,
+                staffUserId
+            });
+        }
+
+        // 代理店は管理者のみが作成可能
+        if (accountType === 'parent') {
+            return res.status(403).json({
+                error: 'Agency accounts can only be created by administrators'
+            });
+        }
+
+        // adminアカウントの作成は禁止
+        if (accountType === 'admin') {
+            return res.status(403).json({
+                error: 'Admin accounts cannot be created through this endpoint'
+            });
+        }
+
+        return res.status(400).json({ error: 'Invalid account type' });
     } catch (error) {
         logger.error('Registration error:', error);
-        res.status(500).json({ error: 'Registration failed' });
+        logger.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            userId,
+            accountType
+        });
+        res.status(500).json({
+            error: 'Registration failed',
+            message: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 

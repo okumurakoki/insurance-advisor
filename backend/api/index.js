@@ -125,6 +125,14 @@ try {
     console.error('❌ Failed to load cron routes:', error.message);
 }
 
+try {
+    const adminRoutes = require('../src/routes/admin');
+    app.use('/api/admin', adminRoutes);
+    console.log('✅ Admin routes loaded');
+} catch (error) {
+    console.error('❌ Failed to load admin routes:', error.message);
+}
+
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({

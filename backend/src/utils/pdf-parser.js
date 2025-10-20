@@ -15,6 +15,23 @@ class PDFParser {
             logger.info('Starting PDF text extraction, buffer size:', pdfBuffer.length);
             const data = await pdf(pdfBuffer);
             logger.info('PDF parsing completed, text length:', data.text.length);
+
+            // デバッグ: PDFの最初の2000文字を出力
+            logger.info('=== PDF Content Preview (first 2000 chars) ===');
+            logger.info(data.text.substring(0, 2000));
+            logger.info('=== End of Preview ===');
+
+            // デバッグ: ファンド名を含む行を全て出力
+            const lines = data.text.split('\n');
+            logger.info('=== Lines containing fund names ===');
+            const fundNames = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型'];
+            lines.forEach((line, index) => {
+                if (fundNames.some(name => line.includes(name))) {
+                    logger.info(`Line ${index}: ${line}`);
+                }
+            });
+            logger.info('=== End of fund name lines ===');
+
             return data.text;
         } catch (error) {
             logger.error('PDF text extraction failed:', error);
@@ -110,14 +127,23 @@ class PDFParser {
             if (line.includes('総合型') && line.includes('債券型') && line.includes('株式型')) {
                 headerLine = line;
                 headerIndex = i;
-                logger.info(`Found header at line ${i}`);
+                logger.info(`Found header at line ${i}: ${line}`);
                 break;
             }
         }
 
         if (headerLine && headerIndex >= 0) {
-            // Extract fund names from header
-            const fundNames = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型', '世界株式型', 'マネー型'];
+            // Extract fund names from header - detect which funds are actually present
+            const allFundNames = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型', '世界株式型', 'マネー型'];
+            const detectedFunds = [];
+
+            // Detect which fund names appear in the header and in what order
+            for (const fundName of allFundNames) {
+                if (headerLine.includes(fundName)) {
+                    detectedFunds.push(fundName);
+                    logger.info(`Detected fund in header: ${fundName}`);
+                }
+            }
 
             // Find "直近1年" line
             for (let i = headerIndex + 1; i < Math.min(headerIndex + 10, lines.length); i++) {
@@ -135,12 +161,13 @@ class PDFParser {
                         const percentMatches = dataLine.match(/([-+]?\d+\.\d+)%/g);
 
                         if (percentMatches && percentMatches.length > 0) {
-                            // Map percentages to fund names
-                            for (let j = 0; j < Math.min(percentMatches.length, fundNames.length); j++) {
+                            logger.info(`Found ${percentMatches.length} percentage values`);
+                            // Map percentages to fund names based on detected funds
+                            for (let j = 0; j < Math.min(percentMatches.length, detectedFunds.length); j++) {
                                 const percentStr = percentMatches[j].replace('%', '');
                                 const performance = parseFloat(percentStr);
-                                funds[fundNames[j]] = performance;
-                                logger.info(`Extracted ${fundNames[j]}: ${performance}%`);
+                                funds[detectedFunds[j]] = performance;
+                                logger.info(`Extracted ${detectedFunds[j]}: ${performance}%`);
                             }
                         }
                     }

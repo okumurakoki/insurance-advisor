@@ -14,7 +14,30 @@ router.options('*', (req, res) => {
 
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        const customers = await Customer.getByUserId(req.user.id);
+        let customers;
+
+        // 管理者は顧客管理にアクセスできない
+        if (req.user.accountType === 'admin') {
+            return res.status(403).json({
+                error: 'Administrators do not have access to customer management. Please use agency management instead.'
+            });
+        }
+
+        // 代理店は全担当者の顧客を取得
+        if (req.user.accountType === 'parent') {
+            customers = await Customer.getByAgencyId(req.user.id);
+        }
+        // 担当者は自分の顧客のみ取得
+        else if (req.user.accountType === 'child') {
+            customers = await Customer.getByUserId(req.user.id);
+        }
+        // 顧客アカウントは顧客管理にアクセスできない
+        else {
+            return res.status(403).json({
+                error: 'Access denied'
+            });
+        }
+
         res.json(customers);
     } catch (error) {
         logger.error('Customer fetch error:', error);
@@ -25,12 +48,14 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
     try {
         const customer = await Customer.findById(req.params.id);
-        
+
         if (!customer) {
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        if (customer.user_id !== req.user.id) {
+        // 権限チェック
+        const hasAccess = await checkCustomerAccess(req.user, customer);
+        if (!hasAccess) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -40,6 +65,24 @@ router.get('/:id', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch customer' });
     }
 });
+
+// 顧客アクセス権限チェック関数
+async function checkCustomerAccess(user, customer) {
+    // 担当者：自分の顧客のみ
+    if (user.accountType === 'child') {
+        return customer.user_id === user.id;
+    }
+
+    // 代理店：配下の担当者の顧客すべて
+    if (user.accountType === 'parent') {
+        const User = require('../models/User');
+        const staff = await User.findById(customer.user_id);
+        return staff && staff.parent_id === user.id;
+    }
+
+    // 管理者と顧客アカウントはアクセス不可
+    return false;
+}
 
 router.post('/', authenticateToken, async (req, res) => {
     const { name, email, phone, contractDate, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes } = req.body;
@@ -89,12 +132,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     try {
         const customer = await Customer.findById(req.params.id);
-        
+
         if (!customer) {
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        if (customer.user_id !== req.user.id) {
+        // 権限チェック
+        const hasAccess = await checkCustomerAccess(req.user, customer);
+        if (!hasAccess) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -121,12 +166,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
     try {
         const customer = await Customer.findById(req.params.id);
-        
+
         if (!customer) {
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        if (customer.user_id !== req.user.id) {
+        // 権限チェック
+        const hasAccess = await checkCustomerAccess(req.user, customer);
+        if (!hasAccess) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -144,12 +191,14 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 router.get('/:id/analysis-history', authenticateToken, async (req, res) => {
     try {
         const customer = await Customer.findById(req.params.id);
-        
+
         if (!customer) {
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        if (customer.user_id !== req.user.id) {
+        // 権限チェック
+        const hasAccess = await checkCustomerAccess(req.user, customer);
+        if (!hasAccess) {
             return res.status(403).json({ error: 'Access denied' });
         }
 

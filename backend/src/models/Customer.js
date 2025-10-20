@@ -49,15 +49,28 @@ class Customer {
 
     static async getByUserId(userId) {
         const sql = `
-            SELECT * FROM customers 
-            WHERE user_id = $1 AND is_active = TRUE 
+            SELECT * FROM customers
+            WHERE user_id = $1 AND is_active = TRUE
             ORDER BY created_at DESC
         `;
         return await db.query(sql, [userId]);
     }
 
+    static async getByAgencyId(agencyId) {
+        // 代理店配下の全担当者の全顧客を取得（customersテーブルの場合）
+        const sql = `
+            SELECT c.*, u.user_id as staff_user_id, u.id as staff_id
+            FROM customers c
+            INNER JOIN users u ON c.user_id = u.id
+            WHERE u.parent_id = $1 AND c.is_active = TRUE
+            ORDER BY c.created_at DESC
+        `;
+        return await db.query(sql, [agencyId]);
+    }
+
     static async countByUserId(userId) {
-        const sql = 'SELECT COUNT(*) as count FROM customers WHERE user_id = $1 AND is_active = TRUE';
+        // 顧客数を取得（usersテーブルのgrandchildアカウント）
+        const sql = 'SELECT COUNT(*) as count FROM users WHERE parent_id = $1 AND account_type = \'grandchild\' AND is_active = TRUE';
         const results = await db.query(sql, [userId]);
         return results[0].count;
     }

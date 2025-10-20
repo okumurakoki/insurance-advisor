@@ -24,16 +24,41 @@ router.get('/profile', authenticateToken, async (req, res) => {
 router.get('/children', authenticateToken, authorizeAccountType('parent'), async (req, res) => {
     try {
         const children = await User.getChildren(req.user.id);
-        
+
         const childrenWithoutPasswords = children.map(child => {
             const { password_hash, ...childWithoutPassword } = child;
             return childWithoutPassword;
         });
-        
+
         res.json(childrenWithoutPasswords);
     } catch (error) {
         logger.error('Children fetch error:', error);
         res.status(500).json({ error: 'Failed to fetch child accounts' });
+    }
+});
+
+// 代理店用：担当者一覧を顧客数と一緒に取得
+router.get('/staff', authenticateToken, authorizeAccountType('parent'), async (req, res) => {
+    try {
+        const staff = await User.getChildren(req.user.id);
+        const Customer = require('../models/Customer');
+
+        // 各担当者の顧客数を取得
+        const staffWithCustomerCount = await Promise.all(
+            staff.map(async (s) => {
+                const customerCount = await Customer.countByUserId(s.id);
+                const { password_hash, ...staffWithoutPassword } = s;
+                return {
+                    ...staffWithoutPassword,
+                    customerCount
+                };
+            })
+        );
+
+        res.json(staffWithCustomerCount);
+    } catch (error) {
+        logger.error('Staff fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch staff' });
     }
 });
 

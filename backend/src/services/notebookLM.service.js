@@ -7,16 +7,17 @@ class NotebookLMService {
         this.baseURL = 'https://generativelanguage.googleapis.com/v1beta';
     }
 
-    async analyzePDF(pdfBuffer, analysisPrompt) {
+    async analyzePDF(pdfBuffer, analysisPrompt, marketDataContent = null) {
         try {
             logger.info('Analyzing PDF with Gemini AI...');
 
             // Gemini APIが利用可能な場合は実際の分析を実行
             if (this.apiKey && this.apiKey !== 'your-gemini-api-key-here') {
                 try {
-                    return await this.analyzeWithGemini(pdfBuffer, analysisPrompt);
+                    return await this.analyzeWithGemini(pdfBuffer, analysisPrompt, marketDataContent);
                 } catch (apiError) {
                     logger.warn('Gemini API call failed, falling back to mock:', apiError.message);
+                    logger.error('API Error details:', apiError.response?.data || apiError.message);
                 }
             }
 
@@ -32,27 +33,75 @@ class NotebookLMService {
         }
     }
 
-    async analyzeWithGemini(pdfBuffer, analysisPrompt) {
-        // Gemini APIでPDF分析を実行
-        const base64PDF = pdfBuffer.toString('base64');
+    async analyzeWithGemini(pdfBuffer, analysisPrompt, marketDataContent = null) {
+        // 市場データがあれば、それを使って詳細なプロンプトを作成
+        let enrichedPrompt = analysisPrompt;
+
+        if (marketDataContent && marketDataContent.fundPerformance) {
+            const fundData = Object.entries(marketDataContent.fundPerformance)
+                .map(([fund, perf]) => `- ${fund}: ${JSON.stringify(perf)}`)
+                .join('\n');
+
+            enrichedPrompt = `${analysisPrompt}
+
+市場データ（最新のファンドパフォーマンス）:
+${fundData}
+
+${marketDataContent.extractedText ? `\nPDFから抽出されたテキスト（要約）:\n${marketDataContent.extractedText.substring(0, 1000)}...\n` : ''}
+
+上記の市場データに基づいて、以下のJSON形式で推奨配分を提案してください。
+パフォーマンスが良いファンドの配分を増やし、悪いファンドの配分を減らすように調整してください。
+
+{
+  "analysis": {
+    "marketConditions": "市場の現在の状況についての詳細な分析（200文字程度）",
+    "recommendations": {
+      "allocation": {
+        "株式型": 数値（0-100）,
+        "米国株式型": 数値（0-100）,
+        "総合型": 数値（0-100）,
+        "米国債券型": 数値（0-100）,
+        "債券型": 数値（0-100）,
+        "REIT型": 数値（0-100）
+      },
+      "adjustmentFactors": {
+        "timeHorizon": { "short": 0.8, "medium": 1.0, "long": 1.2 },
+        "riskProfile": { "conservative": 0.7, "balanced": 1.0, "aggressive": 1.3 },
+        "amountTier": { "small": 0.9, "medium": 1.0, "large": 1.1 }
+      }
+    },
+    "confidence": 0.85
+  }
+}
+
+重要: 配分の合計が100になるようにしてください。JSONのみを返してください（説明文は不要）。`;
+        }
+
+        logger.info('Calling Gemini API with enriched prompt...');
 
         const response = await axios.post(
-            `${this.baseURL}/models/gemini-pro-vision:generateContent?key=${this.apiKey}`,
+            `${this.baseURL}/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`,
             {
                 contents: [{
                     parts: [
-                        { text: analysisPrompt },
-                        {
-                            inline_data: {
-                                mime_type: 'application/pdf',
-                                data: base64PDF
-                            }
-                        }
+                        { text: enrichedPrompt }
                     ]
-                }]
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 2048,
+                }
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             }
         );
 
+        logger.info('Gemini API response received');
         return this.parseGeminiResponse(response.data);
     }
 
@@ -60,14 +109,26 @@ class NotebookLMService {
         // Gemini APIレスポンスをパース
         const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
+        logger.info('Gemini response text:', text.substring(0, 500));
+
+        // JSONコードブロックを削除（```json ... ```）
+        let cleanedText = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
         // JSONを抽出
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-            const analysis = JSON.parse(jsonMatch[0]);
-            return this.parseAnalysisResult({ analysis });
+            try {
+                const parsed = JSON.parse(jsonMatch[0]);
+                logger.info('Successfully parsed Gemini response');
+                return this.parseAnalysisResult(parsed);
+            } catch (parseError) {
+                logger.error('Failed to parse JSON from Gemini:', parseError);
+                logger.error('JSON string:', jsonMatch[0]);
+            }
         }
 
         // JSON抽出失敗時はモックデータを返す
+        logger.warn('Could not extract valid JSON from Gemini response, using mock data');
         return this.parseAnalysisResult(this.generateMockAnalysis(''));
     }
 
@@ -78,11 +139,12 @@ class NotebookLMService {
                 marketConditions: "現在の市場は適度なボラティリティを示しており、テクノロジーおよびヘルスケアセクターでプラスの成長トレンドが見られます。グローバル経済の回復基調が続く中、分散投資によるリスク管理が重要です。",
                 recommendations: {
                     allocation: {
-                        "株式型": 25,
-                        "米国株式型": 30,
-                        "米国債券型": 20,
-                        "REIT型": 10,
-                        "世界株式型": 15
+                        "株式型": 20,
+                        "米国株式型": 25,
+                        "総合型": 15,
+                        "米国債券型": 15,
+                        "債券型": 15,
+                        "REIT型": 10
                     },
                     adjustmentFactors: {
                         timeHorizon: {
@@ -137,11 +199,12 @@ class NotebookLMService {
 
     extractAllocation(response) {
         return response.recommendedAllocation || {
-            "株式型": 25,
-            "米国株式型": 30,
-            "米国債券型": 20,
-            "REIT型": 10,
-            "世界株式型": 15
+            "株式型": 20,
+            "米国株式型": 25,
+            "総合型": 15,
+            "米国債券型": 15,
+            "債券型": 15,
+            "REIT型": 10
         };
     }
 

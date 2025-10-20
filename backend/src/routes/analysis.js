@@ -72,7 +72,13 @@ router.get('/market-data/history', authenticateToken, async (req, res) => {
 
 router.post('/upload-market-data',
     authenticateToken,
-    authorizeAccountType('parent'),
+    (req, res, next) => {
+        // 管理者のみ許可
+        if (req.user.accountType !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admin account required.' });
+        }
+        next();
+    },
     upload.single('marketData'),
     async (req, res) => {
         if (!req.file) {
@@ -162,20 +168,32 @@ router.post('/upload-market-data',
     }
 );
 
-router.post('/recommend/:customerId', 
+router.post('/recommend/:customerId',
     authenticateToken,
-    authorizePlanFeature('analysis_frequency'),
     async (req, res) => {
         const { customerId } = req.params;
 
         try {
             const customer = await Customer.findById(customerId);
-            
+
             if (!customer) {
                 return res.status(404).json({ error: 'Customer not found' });
             }
 
-            if (customer.user_id !== req.user.id) {
+            // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて
+            const User = require('../models/User');
+            let hasAccess = false;
+
+            if (req.user.accountType === 'child') {
+                // 担当者：自分の顧客のみ
+                hasAccess = customer.user_id === req.user.id;
+            } else if (req.user.accountType === 'parent') {
+                // 代理店：配下の担当者の顧客すべて
+                const staff = await User.findById(customer.user_id);
+                hasAccess = staff && staff.parent_id === req.user.id;
+            }
+
+            if (!hasAccess) {
                 return res.status(403).json({ error: 'Access denied' });
             }
 
@@ -201,21 +219,19 @@ router.post('/recommend/:customerId',
 
             const notebookLM = new NotebookLMService();
             const analysisPrompt = `
-                Based on the market data, provide investment allocation recommendations for:
-                - Contract Date: ${customer.contract_date}
-                - Monthly Premium: ${customer.monthly_premium} JPY
-                - Risk Tolerance: ${customer.risk_tolerance}
-                - Investment Goal: ${customer.investment_goal || 'General growth'}
-                
-                Please provide:
-                1. Recommended asset allocation percentages
-                2. Market analysis summary
-                3. Adjustment factors based on customer profile
+                顧客プロフィール:
+                - 契約日: ${customer.contract_date}
+                - 月額保険料: ${customer.monthly_premium} 円
+                - リスク許容度: ${customer.risk_tolerance}
+                - 投資目標: ${customer.investment_goal || '資産形成'}
+
+                上記の顧客プロフィールと市場データを考慮して、最適な投資配分を提案してください。
             `;
 
             const notebookLMResult = await notebookLM.analyzePDF(
                 latestMarketData.pdf_content,
-                analysisPrompt
+                analysisPrompt,
+                latestMarketData.data_content
             );
 
             const calculator = new AllocationCalculator(
@@ -264,12 +280,25 @@ router.get('/history/:customerId', authenticateToken, async (req, res) => {
 
     try {
         const customer = await Customer.findById(customerId);
-        
+
         if (!customer) {
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        if (customer.user_id !== req.user.id) {
+        // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて
+        const User = require('../models/User');
+        let hasAccess = false;
+
+        if (req.user.accountType === 'child') {
+            // 担当者：自分の顧客のみ
+            hasAccess = customer.user_id === req.user.id;
+        } else if (req.user.accountType === 'parent') {
+            // 代理店：配下の担当者の顧客すべて
+            const staff = await User.findById(customer.user_id);
+            hasAccess = staff && staff.parent_id === req.user.id;
+        }
+
+        if (!hasAccess) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -396,7 +425,20 @@ router.get('/performance/:customerId', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        if (customer.user_id !== req.user.id) {
+        // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて
+        const User = require('../models/User');
+        let hasAccess = false;
+
+        if (req.user.accountType === 'child') {
+            // 担当者：自分の顧客のみ
+            hasAccess = customer.user_id === req.user.id;
+        } else if (req.user.accountType === 'parent') {
+            // 代理店：配下の担当者の顧客すべて
+            const staff = await User.findById(customer.user_id);
+            hasAccess = staff && staff.parent_id === req.user.id;
+        }
+
+        if (!hasAccess) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -430,9 +472,10 @@ router.get('/performance/:customerId', authenticateToken, async (req, res) => {
                 const fundReturns = {
                     '株式型': 6.8 / 12,
                     '米国株式型': 12.3 / 12,
+                    '総合型': 5.5 / 12,
                     '米国債券型': 3.2 / 12,
-                    'REIT型': -1.5 / 12,
-                    '世界株式型': 8.7 / 12
+                    '債券型': 2.8 / 12,
+                    'REIT型': -1.5 / 12
                 };
 
                 Object.keys(allocation).forEach(fundType => {
@@ -477,8 +520,12 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
         let bondYields = null;
         let hasActualData = false;
 
-        console.log('Latest market data:', latestMarketData);
-        console.log('Data content:', latestMarketData ? latestMarketData.data_content : 'null');
+        logger.info('=== Fund Performance API Debug ===');
+        logger.info('Latest market data ID:', latestMarketData?.id);
+        logger.info('Latest market data source_file:', latestMarketData?.source_file);
+        logger.info('Latest market data data_date:', latestMarketData?.data_date);
+        logger.info('Data content type:', typeof latestMarketData?.data_content);
+        logger.info('Data content keys:', latestMarketData?.data_content ? Object.keys(latestMarketData.data_content) : 'null');
 
         if (latestMarketData && latestMarketData.data_content) {
             actualFundPerformance = latestMarketData.data_content.fundPerformance || {};
@@ -486,9 +533,10 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
             bondYields = latestMarketData.data_content.bondYields || null;
             hasActualData = Object.keys(actualFundPerformance).length > 0;
 
-            console.log('actualFundPerformance:', actualFundPerformance);
-            console.log('bondYields:', bondYields);
-            console.log('hasActualData:', hasActualData);
+            logger.info('actualFundPerformance keys:', Object.keys(actualFundPerformance));
+            logger.info('actualFundPerformance:', actualFundPerformance);
+            logger.info('bondYields:', bondYields);
+            logger.info('hasActualData:', hasActualData);
 
             if (hasActualData) {
                 logger.info('Using actual fund performance from PDF:', actualFundPerformance);
@@ -501,17 +549,19 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
 
         // PDFデータがない場合は空配列を返す
         if (!hasActualData) {
-            logger.warn('No fund performance data found in market data - PDF not uploaded yet');
+            logger.warn('No fund performance data found in market data - PDF not uploaded or parsing failed');
             return res.json({ funds: [], bondYields: null });
         }
 
         // Calculate fund performance based on actual market data
-        const fundTypes = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型', '世界株式型'];
+        const fundTypes = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型'];
 
         const performance = fundTypes
-            .filter(fundType => actualFundPerformance[fundType] !== undefined)
             .map(fundType => {
-                const performanceValue = actualFundPerformance[fundType];
+                // If fund type not in extracted data, use 0
+                const performanceValue = actualFundPerformance[fundType] !== undefined
+                    ? actualFundPerformance[fundType]
+                    : 0;
 
                 // Determine recommendation based on performance
                 let recommendation = 'neutral';
@@ -553,7 +603,8 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
                     dataSource: 'actual',
                     ...additionalData
                 };
-            });
+            })
+            .filter(Boolean); // Remove null entries
 
         res.json({
             funds: performance,

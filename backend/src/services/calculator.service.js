@@ -79,11 +79,12 @@ class AllocationCalculator {
         if (total === 0) {
             // デフォルト配分を返す
             return {
-                "国内株式": 30,
-                "海外株式": 30,
-                "国内債券": 20,
-                "海外債券": 15,
-                "不動産": 5
+                "株式型": 20,
+                "米国株式型": 25,
+                "総合型": 15,
+                "米国債券型": 15,
+                "債券型": 15,
+                "REIT型": 10
             };
         }
         
@@ -107,11 +108,12 @@ class AllocationCalculator {
     
     applyLimits(allocation) {
         const limits = {
-            "国内株式": { min: 10, max: 40 },
-            "海外株式": { min: 10, max: 50 },
-            "国内債券": { min: 10, max: 40 },
-            "海外債券": { min: 5, max: 30 },
-            "不動産": { min: 0, max: 20 }
+            "株式型": { min: 10, max: 40 },
+            "米国株式型": { min: 10, max: 50 },
+            "総合型": { min: 5, max: 30 },
+            "米国債券型": { min: 5, max: 30 },
+            "債券型": { min: 5, max: 30 },
+            "REIT型": { min: 0, max: 20 }
         };
         
         const limited = {};
