@@ -11,25 +11,16 @@ class NotebookLMService {
         try {
             logger.info('Analyzing PDF with Gemini AI...');
 
-            // Gemini APIが利用可能な場合は実際の分析を実行
-            if (this.apiKey && this.apiKey !== 'your-gemini-api-key-here') {
-                try {
-                    return await this.analyzeWithGemini(pdfBuffer, analysisPrompt, marketDataContent);
-                } catch (apiError) {
-                    logger.warn('Gemini API call failed, falling back to mock:', apiError.message);
-                    logger.error('API Error details:', apiError.response?.data || apiError.message);
-                }
+            // Gemini APIキーが設定されていることを確認
+            if (!this.apiKey || this.apiKey === 'your-gemini-api-key-here') {
+                throw new Error('Gemini API key is not configured. Please set GEMINI_API_KEY environment variable.');
             }
 
-            // API keyがない場合またはAPIエラーの場合はモック実装を使用
-            logger.info('Using mock analysis (Gemini API not configured)');
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            const mockResponse = this.generateMockAnalysis(analysisPrompt);
-            return this.parseAnalysisResult(mockResponse);
+            // Gemini APIで分析を実行
+            return await this.analyzeWithGemini(pdfBuffer, analysisPrompt, marketDataContent);
         } catch (error) {
             logger.error('Analysis error:', error);
-            throw new Error(`Analysis failed: ${error.message}`);
+            throw new Error(`Gemini API analysis failed: ${error.message}`);
         }
     }
 
@@ -124,12 +115,14 @@ ${marketDataContent.extractedText ? `\nPDFから抽出されたテキスト（�
             } catch (parseError) {
                 logger.error('Failed to parse JSON from Gemini:', parseError);
                 logger.error('JSON string:', jsonMatch[0]);
+                throw new Error(`Failed to parse Gemini response JSON: ${parseError.message}`);
             }
         }
 
-        // JSON抽出失敗時はモックデータを返す
-        logger.warn('Could not extract valid JSON from Gemini response, using mock data');
-        return this.parseAnalysisResult(this.generateMockAnalysis(''));
+        // JSON抽出失敗時はエラーをスロー
+        logger.error('Could not extract valid JSON from Gemini response');
+        logger.error('Full response text:', text);
+        throw new Error('Could not extract valid JSON from Gemini response. The response may be malformed.');
     }
 
     generateMockAnalysis(prompt) {

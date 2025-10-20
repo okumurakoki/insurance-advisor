@@ -761,7 +761,24 @@ router.get('/history/:customerId/detailed', authenticateToken, async (req, res) 
         const { customerId } = req.params;
         const customer = await Customer.findById(customerId);
 
-        if (!customer || customer.user_id !== req.user.id) {
+        if (!customer) {
+            return res.status(404).json({ error: 'Customer not found' });
+        }
+
+        // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて
+        const User = require('../models/User');
+        let hasAccess = false;
+
+        if (req.user.accountType === 'child') {
+            // 担当者：自分の顧客のみ
+            hasAccess = customer.user_id === req.user.id;
+        } else if (req.user.accountType === 'parent') {
+            // 代理店：配下の担当者の顧客すべて
+            const staff = await User.findById(customer.user_id);
+            hasAccess = staff && staff.parent_id === req.user.id;
+        }
+
+        if (!hasAccess) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -797,7 +814,22 @@ router.get('/report/:analysisId/pdf', authenticateToken, async (req, res) => {
 
         const customer = await Customer.findById(analysis.customer_id);
 
-        if (!customer || customer.user_id !== req.user.id) {
+        if (!customer) {
+            return res.status(404).json({ error: 'Customer not found' });
+        }
+
+        // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて
+        const User = require('../models/User');
+        let hasAccess = false;
+
+        if (req.user.accountType === 'child') {
+            hasAccess = customer.user_id === req.user.id;
+        } else if (req.user.accountType === 'parent') {
+            const staff = await User.findById(customer.user_id);
+            hasAccess = staff && staff.parent_id === req.user.id;
+        }
+
+        if (!hasAccess) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -828,7 +860,22 @@ router.get('/report/:analysisId/excel', authenticateToken, async (req, res) => {
 
         const customer = await Customer.findById(analysis.customer_id);
 
-        if (!customer || customer.user_id !== req.user.id) {
+        if (!customer) {
+            return res.status(404).json({ error: 'Customer not found' });
+        }
+
+        // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて
+        const User = require('../models/User');
+        let hasAccess = false;
+
+        if (req.user.accountType === 'child') {
+            hasAccess = customer.user_id === req.user.id;
+        } else if (req.user.accountType === 'parent') {
+            const staff = await User.findById(customer.user_id);
+            hasAccess = staff && staff.parent_id === req.user.id;
+        }
+
+        if (!hasAccess) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
