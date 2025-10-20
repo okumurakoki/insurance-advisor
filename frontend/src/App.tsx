@@ -401,28 +401,37 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const generateOptimizationFromFundPerformance = (funds: any[]) => {
     if (!funds || funds.length === 0) return null;
 
-    // Calculate total performance and filter positive performers
-    const totalPerformance = funds.reduce((sum, f) => sum + Math.max(0, f.performance), 0);
+    // Ensure all 6 fund types are included
+    const allFundTypes = ['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'];
+    const fundMap = new Map(funds.map(f => [f.fundType, f]));
+
+    // Add missing fund types with 0 performance
+    const completeFunds = allFundTypes.map(fundType => {
+      return fundMap.get(fundType) || { fundType, performance: 0, recommendation: 'neutral' };
+    });
+
+    // Calculate total performance (only positive values count toward allocation)
+    const totalPerformance = completeFunds.reduce((sum, f) => sum + Math.max(0, f.performance), 0);
     const recommendations: any = {};
 
     // First pass: calculate raw percentages
     const rawAllocations: any = {};
-    funds.forEach(fund => {
+    completeFunds.forEach(fund => {
       const performance = Math.max(0, fund.performance);
       const raw = totalPerformance > 0
         ? (performance / totalPerformance) * 100
-        : 100 / funds.length;
+        : 100 / completeFunds.length;
       rawAllocations[fund.fundType] = raw;
     });
 
     // Round to nearest 10%
-    const sortedFunds = funds.sort((a, b) => rawAllocations[b.fundType] - rawAllocations[a.fundType]);
+    const sortedFunds = completeFunds.sort((a, b) => rawAllocations[b.fundType] - rawAllocations[a.fundType]);
 
     // First, round all allocations to 10%
     sortedFunds.forEach(fund => {
       const rounded = Math.round(rawAllocations[fund.fundType] / 10) * 10;
       recommendations[fund.fundType] = {
-        current: Math.round(100 / funds.length / 10) * 10,
+        current: Math.round(100 / completeFunds.length / 10) * 10,
         recommended: rounded,
         change: 0
       };
@@ -448,14 +457,14 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
     // Update change values
     sortedFunds.forEach(fund => {
-      const current = Math.round(100 / funds.length / 10) * 10;
+      const current = Math.round(100 / completeFunds.length / 10) * 10;
       recommendations[fund.fundType].change = recommendations[fund.fundType].recommended - current;
     });
 
     return {
       recommendations,
       riskLevel: 'balanced',
-      expectedReturn: (funds.reduce((sum, f) => sum + f.performance, 0) / funds.length).toFixed(2)
+      expectedReturn: (completeFunds.reduce((sum, f) => sum + f.performance, 0) / completeFunds.length).toFixed(2)
     };
   };
 
