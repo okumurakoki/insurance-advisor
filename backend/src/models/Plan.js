@@ -206,7 +206,10 @@ class Plan {
         // プラン情報（ENUM型をtextにキャスト）
         const planSql = `
             SELECT u.plan_type, u.staff_limit, u.customer_limit, u.customer_limit_per_staff,
-                   pd.plan_name, pd.monthly_price
+                   pd.plan_name, pd.monthly_price,
+                   pd.staff_limit as plan_staff_limit,
+                   pd.customer_limit as plan_customer_limit,
+                   pd.customer_limit_per_staff as plan_customer_limit_per_staff
             FROM users u
             LEFT JOIN plan_definitions pd ON u.plan_type::text = pd.plan_type
             WHERE u.id = $1
@@ -218,11 +221,17 @@ class Plan {
             throw new Error(`User not found: ${userId}`);
         }
 
+        // エクシードプランの場合はユーザー設定値を優先、それ以外はプラン定義を使用
+        const isExceed = plan.plan_type === 'exceed';
+        const staffLimit = isExceed && plan.staff_limit ? plan.staff_limit : (plan.plan_staff_limit || 0);
+        const customerLimit = isExceed && plan.customer_limit ? plan.customer_limit : plan.plan_customer_limit;
+        const customerLimitPerStaff = isExceed && plan.customer_limit_per_staff ? plan.customer_limit_per_staff : plan.plan_customer_limit_per_staff;
+
         return {
             staffCount,
-            staffLimit: plan.staff_limit || 0,
+            staffLimit,
             customerCount,
-            customerLimit: plan.customer_limit || (plan.customer_limit_per_staff ? plan.customer_limit_per_staff * staffCount : 0),
+            customerLimit: customerLimit || (customerLimitPerStaff ? customerLimitPerStaff * staffCount : 0),
             planType: plan.plan_type || 'unknown',
             planName: plan.plan_name || plan.plan_type || 'Unknown',
             monthlyPrice: plan.monthly_price || 0
