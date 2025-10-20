@@ -180,11 +180,14 @@ router.post('/recommend/:customerId',
                 return res.status(404).json({ error: 'Customer not found' });
             }
 
-            // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて
+            // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて、管理者は全て
             const User = require('../models/User');
             let hasAccess = false;
 
-            if (req.user.accountType === 'child') {
+            if (req.user.accountType === 'admin') {
+                // 管理者：全ての顧客にアクセス可能
+                hasAccess = true;
+            } else if (req.user.accountType === 'child') {
                 // 担当者：自分の顧客のみ
                 hasAccess = customer.user_id === req.user.id;
             } else if (req.user.accountType === 'parent') {
@@ -285,11 +288,14 @@ router.get('/history/:customerId', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて
+        // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて、管理者は全て
         const User = require('../models/User');
         let hasAccess = false;
 
-        if (req.user.accountType === 'child') {
+        if (req.user.accountType === 'admin') {
+            // 管理者：全ての顧客にアクセス可能
+            hasAccess = true;
+        } else if (req.user.accountType === 'child') {
             // 担当者：自分の顧客のみ
             hasAccess = customer.user_id === req.user.id;
         } else if (req.user.accountType === 'parent') {
@@ -425,11 +431,14 @@ router.get('/performance/:customerId', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて
+        // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて、管理者は全て
         const User = require('../models/User');
         let hasAccess = false;
 
-        if (req.user.accountType === 'child') {
+        if (req.user.accountType === 'admin') {
+            // 管理者：全ての顧客にアクセス可能
+            hasAccess = true;
+        } else if (req.user.accountType === 'child') {
             // 担当者：自分の顧客のみ
             hasAccess = customer.user_id === req.user.id;
         } else if (req.user.accountType === 'parent') {
@@ -765,11 +774,14 @@ router.get('/history/:customerId/detailed', authenticateToken, async (req, res) 
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて
+        // 権限チェック：担当者は自分の顧客のみ、代理店は配下の担当者の顧客すべて、管理者は全て
         const User = require('../models/User');
         let hasAccess = false;
 
-        if (req.user.accountType === 'child') {
+        if (req.user.accountType === 'admin') {
+            // 管理者：全ての顧客にアクセス可能
+            hasAccess = true;
+        } else if (req.user.accountType === 'child') {
             // 担当者：自分の顧客のみ
             hasAccess = customer.user_id === req.user.id;
         } else if (req.user.accountType === 'parent') {
