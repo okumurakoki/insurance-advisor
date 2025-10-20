@@ -707,12 +707,38 @@ router.get('/optimization-summary', authenticateToken, async (req, res) => {
 // Get dashboard statistics for current user
 router.get('/statistics', authenticateToken, async (req, res) => {
     try {
-        // Get all customers for this user
-        const customers = await Customer.getByUserId(req.user.id);
-        const customerCount = customers.length;
+        let customers = [];
+        let results = [];
 
-        // Get all analysis results for this user
-        const results = await AnalysisResult.getByUserId(req.user.id);
+        // 管理者: 全顧客・全分析を取得
+        if (req.user.accountType === 'admin') {
+            const db = require('../utils/database-factory');
+            const allCustomers = await db.query('SELECT * FROM customers WHERE is_active = TRUE');
+            customers = allCustomers;
+            const allResults = await db.query('SELECT * FROM analysis_results');
+            results = allResults;
+        }
+        // 代理店: 配下の担当者の顧客・分析を取得
+        else if (req.user.accountType === 'parent') {
+            customers = await Customer.getByAgencyId(req.user.id);
+            // 配下の担当者の分析結果を取得
+            const User = require('../models/User');
+            const staff = await User.getChildren(req.user.id);
+            const staffIds = [req.user.id, ...staff.map(s => s.id)];
+
+            results = [];
+            for (const staffId of staffIds) {
+                const staffResults = await AnalysisResult.getByUserId(staffId);
+                results.push(...staffResults);
+            }
+        }
+        // 担当者: 自分の顧客・分析のみ
+        else {
+            customers = await Customer.getByUserId(req.user.id);
+            results = await AnalysisResult.getByUserId(req.user.id);
+        }
+
+        const customerCount = customers.length;
         const reportCount = results.length;
 
         // Calculate total assets (sum of all customer contract amounts)
@@ -736,7 +762,9 @@ router.get('/statistics', authenticateToken, async (req, res) => {
             const fundReturns = {
                 '株式型': 6.8,
                 '米国株式型': 12.3,
+                '総合型': 5.5,
                 '米国債券型': 3.2,
+                '債券型': 2.8,
                 'REIT型': -1.5,
                 '世界株式型': 8.7
             };
