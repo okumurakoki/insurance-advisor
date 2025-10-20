@@ -814,11 +814,17 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                           {Object.entries(optimizationResults.recommendations).map(([fundKey, fund]) => {
                             const fundNameMap: { [key: string]: string } = {
                               'equity': '株式型',
+                              'Equity': '株式型',
                               'usequity': '米国株式型',
+                              'usEquity': '米国株式型',
                               'usbond': '米国債券型',
+                              'usBond': '米国債券型',
                               'reit': 'REIT型',
+                              'REIT': 'REIT型',
                               'global': '総合型',
-                              'bond': '債券型'
+                              'Global': '総合型',
+                              'bond': '債券型',
+                              'Bond': '債券型'
                             };
                             const displayName = fundNameMap[fundKey] || fundKey;
 
@@ -878,11 +884,17 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
                             const fundNameMap: { [key: string]: string } = {
                               'equity': '株式型',
+                              'Equity': '株式型',
                               'usequity': '米国株式型',
+                              'usEquity': '米国株式型',
                               'usbond': '米国債券型',
+                              'usBond': '米国債券型',
                               'reit': 'REIT型',
+                              'REIT': 'REIT型',
                               'global': '総合型',
-                              'bond': '債券型'
+                              'Global': '総合型',
+                              'bond': '債券型',
+                              'Bond': '債券型'
                             };
                             const displayName = fundNameMap[fundKey] || fundKey;
 
