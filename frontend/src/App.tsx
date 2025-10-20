@@ -789,52 +789,131 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                   <TableBody>
                     {(() => {
                       const allFunds = ['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'];
-                      const calculations = allFunds.map(fundName => {
-                        const fundData = fundPerformance.find(f => f.fundType === fundName);
-                        const performance = fundData?.performance || 0;
 
-                        // マイナスパフォーマンスは0%
-                        if (performance < 0) {
-                          return { fundName, performance, recommended: 0 };
-                        }
-
-                        // ベース配分（パフォーマンス基準）
-                        let base = 0;
-                        if (performance >= 15) base = 30;
-                        else if (performance >= 10) base = 20;
-                        else base = 10;
-
-                        // リスクプロファイル調整
-                        let adjusted = base;
-                        if (riskProfile === 'conservative') {
-                          // 保守型: 債券型優遇、株式型控えめ
-                          if (fundName === '債券型' || fundName === '米国債券型') {
-                            adjusted = Math.min(50, base * 1.3);
-                          } else if (fundName === '株式型' || fundName === '米国株式型') {
-                            adjusted = base * 0.7;
-                          }
-                        } else if (riskProfile === 'aggressive') {
-                          // 積極型: 株式型優遇、債券型控えめ
-                          if (fundName === '株式型' || fundName === '米国株式型') {
-                            adjusted = Math.min(50, base * 1.3);
-                          } else if (fundName === '債券型' || fundName === '米国債券型') {
-                            adjusted = base * 0.7;
-                          }
-                        }
-
-                        // 10%刻みに丸める
-                        const recommended = Math.round(adjusted / 10) * 10;
-                        return { fundName, performance, recommended };
+                      // 各ファンドのパフォーマンスデータを取得
+                      const fundData = allFunds.map(fundName => {
+                        const data = fundPerformance.find(f => f.fundType === fundName);
+                        const performance = data?.performance || 0;
+                        return { fundName, performance };
                       });
+
+                      let calculations: { fundName: string; performance: number; recommended: number }[] = [];
+
+                      if (riskProfile === 'aggressive') {
+                        // 積極型: 米国株式、株式、REITに全投資
+                        const aggressiveFunds = ['株式型', '米国株式型', 'REIT型'];
+                        const targetFunds = fundData.filter(f =>
+                          aggressiveFunds.includes(f.fundName) && f.performance >= 0
+                        );
+
+                        if (targetFunds.length > 0) {
+                          // パフォーマンスに応じた配分
+                          const totalPerf = targetFunds.reduce((sum, f) => sum + Math.max(0, f.performance), 0);
+
+                          calculations = allFunds.map(fundName => {
+                            const fund = fundData.find(f => f.fundName === fundName)!;
+
+                            if (!aggressiveFunds.includes(fundName) || fund.performance < 0) {
+                              return { fundName, performance: fund.performance, recommended: 0 };
+                            }
+
+                            const ratio = totalPerf > 0 ? fund.performance / totalPerf : 1 / targetFunds.length;
+                            const raw = ratio * 100;
+                            const recommended = Math.round(raw / 10) * 10;
+
+                            return { fundName, performance: fund.performance, recommended };
+                          });
+                        } else {
+                          // すべてマイナスの場合は全て0
+                          calculations = fundData.map(f => ({ ...f, recommended: 0 }));
+                        }
+
+                      } else if (riskProfile === 'conservative') {
+                        // 保守型: 債券型優遇、株式型控えめ
+                        calculations = fundData.map(fund => {
+                          if (fund.performance < 0) {
+                            return { ...fund, recommended: 0 };
+                          }
+
+                          let base = 0;
+                          if (fund.performance >= 15) base = 30;
+                          else if (fund.performance >= 10) base = 20;
+                          else base = 10;
+
+                          let adjusted = base;
+                          if (fund.fundName === '債券型' || fund.fundName === '米国債券型') {
+                            adjusted = Math.min(50, base * 1.3);
+                          } else if (fund.fundName === '株式型' || fund.fundName === '米国株式型') {
+                            adjusted = base * 0.7;
+                          }
+
+                          const recommended = Math.round(adjusted / 10) * 10;
+                          return { ...fund, recommended };
+                        });
+
+                      } else {
+                        // バランス型: 積極型60% + 保守型40%
+                        // まず積極型の配分を計算
+                        const aggressiveFunds = ['株式型', '米国株式型', 'REIT型'];
+                        const targetFunds = fundData.filter(f =>
+                          aggressiveFunds.includes(f.fundName) && f.performance >= 0
+                        );
+
+                        const aggressiveAlloc: { [key: string]: number } = {};
+                        if (targetFunds.length > 0) {
+                          const totalPerf = targetFunds.reduce((sum, f) => sum + Math.max(0, f.performance), 0);
+                          allFunds.forEach(fundName => {
+                            const fund = fundData.find(f => f.fundName === fundName)!;
+                            if (!aggressiveFunds.includes(fundName) || fund.performance < 0) {
+                              aggressiveAlloc[fundName] = 0;
+                            } else {
+                              const ratio = totalPerf > 0 ? fund.performance / totalPerf : 1 / targetFunds.length;
+                              aggressiveAlloc[fundName] = ratio * 100;
+                            }
+                          });
+                        }
+
+                        // 保守型の配分を計算
+                        const conservativeAlloc: { [key: string]: number } = {};
+                        fundData.forEach(fund => {
+                          if (fund.performance < 0) {
+                            conservativeAlloc[fund.fundName] = 0;
+                            return;
+                          }
+
+                          let base = 0;
+                          if (fund.performance >= 15) base = 30;
+                          else if (fund.performance >= 10) base = 20;
+                          else base = 10;
+
+                          if (fund.fundName === '債券型' || fund.fundName === '米国債券型') {
+                            conservativeAlloc[fund.fundName] = Math.min(50, base * 1.3);
+                          } else if (fund.fundName === '株式型' || fund.fundName === '米国株式型') {
+                            conservativeAlloc[fund.fundName] = base * 0.7;
+                          } else {
+                            conservativeAlloc[fund.fundName] = base;
+                          }
+                        });
+
+                        // 60%積極 + 40%保守でミックス
+                        calculations = fundData.map(fund => {
+                          const aggressive = aggressiveAlloc[fund.fundName] || 0;
+                          const conservative = conservativeAlloc[fund.fundName] || 0;
+                          const mixed = aggressive * 0.6 + conservative * 0.4;
+                          const recommended = Math.round(mixed / 10) * 10;
+
+                          return { ...fund, recommended };
+                        });
+                      }
 
                       // 合計を100%に調整
                       let total = calculations.reduce((sum, calc) => sum + calc.recommended, 0);
-                      if (total !== 100) {
+                      if (total !== 100 && total > 0) {
                         const diff = 100 - total;
-                        // パフォーマンスが最も良いファンドに差分を加算
+                        // パフォーマンスが最も良いファンドで調整
                         const sortedCalcs = [...calculations].sort((a, b) => b.performance - a.performance);
                         const bestFund = calculations.find(c => c.fundName === sortedCalcs[0].fundName);
-                        if (bestFund) {
+                        if (bestFund && bestFund.recommended > 0) {
                           bestFund.recommended = Math.max(0, bestFund.recommended + diff);
                         }
                       }
