@@ -209,6 +209,33 @@ class ApiService {
     });
     return response.data;
   }
+
+  // Get current user info with customer count and limit
+  async getCurrentUser(): Promise<{
+    id: number;
+    userId: string;
+    accountType: string;
+    parentId: number | null;
+    customerCount: number;
+    customerLimit: number;
+    canAddCustomer: boolean;
+  }> {
+    const response = await this.api.get('/auth/me');
+    return response.data;
+  }
+
+  // Get staff list with customer count and limit (for agency accounts)
+  async getStaff(): Promise<Array<{
+    id: number;
+    user_id: string;
+    account_type: string;
+    customerCount: number;
+    customerLimit: number;
+    canAddCustomer: boolean;
+  }>> {
+    const response = await this.api.get('/users/staff');
+    return response.data;
+  }
 }
 
 export default new ApiService();

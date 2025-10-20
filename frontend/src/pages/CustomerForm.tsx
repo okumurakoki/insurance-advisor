@@ -40,12 +40,29 @@ const CustomerForm: React.FC = () => {
   const [fetchingCustomer, setFetchingCustomer] = useState(isEditMode);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [loadingUserInfo, setLoadingUserInfo] = useState(true);
 
   useEffect(() => {
     if (isEditMode && id) {
       fetchCustomer(parseInt(id));
     }
   }, [isEditMode, id]);
+
+  useEffect(() => {
+    fetchUserInfo();
+  }, []);
+
+  const fetchUserInfo = async () => {
+    try {
+      const userInfo = await api.getCurrentUser();
+      setCurrentUser(userInfo);
+    } catch (err) {
+      console.error('Failed to fetch user info:', err);
+    } finally {
+      setLoadingUserInfo(false);
+    }
+  };
 
   const fetchCustomer = async (customerId: number) => {
     try {
@@ -110,6 +127,22 @@ const CustomerForm: React.FC = () => {
         <Typography variant="h4" component="h1" gutterBottom>
           {isEditMode ? '顧客情報編集' : '新規顧客登録'}
         </Typography>
+
+        {!isEditMode && currentUser && (
+          <Alert
+            severity={currentUser.canAddCustomer ? 'info' : 'warning'}
+            sx={{ mb: 2 }}
+          >
+            <Typography variant="body2">
+              <strong>顧客登録状況：</strong> {currentUser.customerCount} / {currentUser.customerLimit}人
+            </Typography>
+            {!currentUser.canAddCustomer && (
+              <Typography variant="body2" sx={{ mt: 1, fontWeight: 600 }}>
+                ⚠️ 顧客登録の上限に達しています。新しい顧客を登録するには、プランをアップグレードしてください。
+              </Typography>
+            )}
+          </Alert>
+        )}
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
@@ -238,7 +271,13 @@ const CustomerForm: React.FC = () => {
             <Button
               type="submit"
               variant="contained"
-              disabled={loading || !formData.name || !formData.contractAmount || !formData.monthlyPremium}
+              disabled={
+                loading ||
+                !formData.name ||
+                !formData.contractAmount ||
+                !formData.monthlyPremium ||
+                (!isEditMode && currentUser && !currentUser.canAddCustomer)
+              }
             >
               {loading ? <CircularProgress size={24} /> : (isEditMode ? '更新' : '登録')}
             </Button>
