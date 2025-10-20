@@ -217,12 +217,6 @@ router.post('/recommend/:customerId',
             // }
 
             const latestMarketData = await MarketData.getLatest();
-            
-            if (!latestMarketData) {
-                return res.status(400).json({ 
-                    error: 'No market data available. Please upload market data first.' 
-                });
-            }
 
             const notebookLM = new NotebookLMService();
             const analysisPrompt = `
@@ -235,11 +229,18 @@ router.post('/recommend/:customerId',
                 上記の顧客プロフィールと市場データを考慮して、最適な投資配分を提案してください。
             `;
 
-            const notebookLMResult = await notebookLM.analyzePDF(
-                latestMarketData.pdf_content,
-                analysisPrompt,
-                latestMarketData.data_content
-            );
+            let notebookLMResult;
+            if (!latestMarketData) {
+                logger.warn('No market data available. Using default analysis.');
+                // 市場データがない場合はデフォルトの分析を使用
+                notebookLMResult = notebookLM.generateMockAnalysisWithMarketData(analysisPrompt, null);
+            } else {
+                notebookLMResult = await notebookLM.analyzePDF(
+                    latestMarketData.pdf_content,
+                    analysisPrompt,
+                    latestMarketData.data_content
+                );
+            }
 
             const calculator = new AllocationCalculator(
                 notebookLMResult.recommendedAllocation,
@@ -251,7 +252,7 @@ router.post('/recommend/:customerId',
             const analysisId = await AnalysisResult.create({
                 customer_id: customerId,
                 analysis_date: new Date(),
-                market_data_source: latestMarketData.source_file,
+                market_data_source: latestMarketData?.source_file || 'default_analysis',
                 base_allocation: notebookLMResult.recommendedAllocation,
                 adjusted_allocation: personalizedAllocation,
                 adjustment_factors: notebookLMResult.adjustmentFactors,
