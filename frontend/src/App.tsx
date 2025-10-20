@@ -795,10 +795,10 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
               </Typography>
             </Paper>
           )}
-          {showRecommendations && optimizationResults && fundPerformance.length > 0 ? (
+          {fundPerformance.length > 0 ? (
             <Paper sx={{
               p: 4,
-              mb: 2,
+              mb: 3,
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               borderRadius: 4,
               boxShadow: '0 10px 40px rgba(102, 126, 234, 0.3)',
@@ -808,375 +808,153 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                   ✨ 今月の最適化推奨配分
                 </Typography>
                 <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
-                  AI分析による最適なポートフォリオ配分のご提案
+                  AI分析による最適なポートフォリオ配分（直近1年パフォーマンス基準）
                 </Typography>
               </Box>
-              
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  {/* ビフォー・アフター表示 */}
-                  <Grid container spacing={3}>
-                    <Grid item xs={12} md={6}>
-                      <Card sx={{
-                        p: 4,
-                        background: '#fff',
-                        borderRadius: 3,
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                        transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                        '&:hover': {
-                          transform: 'translateY(-4px)',
-                          boxShadow: '0 12px 48px rgba(0,0,0,0.15)',
-                        }
-                      }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
-                          <Typography variant="h5" sx={{ fontWeight: 700, color: '#64748b' }}>
-                            📊 現在の配分
-                          </Typography>
-                        </Box>
-                        <Box sx={{ mt: 3 }}>
-                          {Object.entries(optimizationResults.recommendations).map(([fundKey, fund]) => {
-                            const fundNameMap: { [key: string]: string } = {
-                              'equity': '株式型',
-                              'Equity': '株式型',
-                              'usequity': '米国株式型',
-                              'usEquity': '米国株式型',
-                              'usbond': '米国債券型',
-                              'usBond': '米国債券型',
-                              'reit': 'REIT型',
-                              'REIT': 'REIT型',
-                              'global': '総合型',
-                              'Global': '総合型',
-                              'bond': '債券型',
-                              'Bond': '債券型'
-                            };
-                            const displayName = fundNameMap[fundKey] || fundKey;
 
-                            return (
-                            <Box key={fundKey} sx={{ mb: 3 }}>
-                              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                <Typography variant="body1" sx={{ fontWeight: 700, color: '#1e293b', fontSize: '1.1rem' }}>
-                                  {displayName}
-                                </Typography>
-                                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#475569', fontSize: '1.3rem' }}>
-                                  {fund.current}%
-                                </Typography>
-                              </Box>
-                              <Box sx={{ position: 'relative', height: 36 }}>
-                                <LinearProgress
-                                  variant="determinate"
-                                  value={fund.current}
+              {/* 6種類すべてのファンドを表示 */}
+              <Grid container spacing={2}>
+                {(() => {
+                  // まず全ファンドの推奨配分を計算
+                  const allFunds = ['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'];
+                  const calculations = allFunds.map(fundName => {
+                    const fundData = fundPerformance.find(f => f.fundType === fundName);
+                    const performance = fundData?.performance || 0;
+
+                    // パフォーマンスに基づく初期推奨配分（10%刻み）
+                    let recommended = 0;
+                    if (performance >= 15) recommended = 30;
+                    else if (performance >= 10) recommended = 20;
+                    else if (performance >= 0) recommended = 10;
+                    else if (performance >= -5) recommended = 10;
+                    else recommended = 0;
+
+                    return { fundName, performance, recommended };
+                  });
+
+                  // 合計を100%にするため調整
+                  let total = calculations.reduce((sum, calc) => sum + calc.recommended, 0);
+                  if (total !== 100) {
+                    const diff = 100 - total;
+                    // 最も配分が大きいファンドに差分を加算
+                    const sortedCalcs = [...calculations].sort((a, b) => b.recommended - a.recommended);
+                    const largestFund = calculations.find(c => c.fundName === sortedCalcs[0].fundName);
+                    if (largestFund) {
+                      largestFund.recommended += diff;
+                    }
+                  }
+
+                  // 現在の配分（均等配分と仮定: 各約17%）
+                  const current = 17;
+
+                  return calculations.map(({ fundName, performance, recommended }) => {
+                  const change = recommended - current;
+
+                  // 変更理由
+                  let reason = '';
+                  if (performance >= 15) reason = `直近1年で+${performance.toFixed(1)}%と非常に好調。積極的な配分を推奨`;
+                  else if (performance >= 10) reason = `直近1年で+${performance.toFixed(1)}%と好調。やや多めの配分を推奨`;
+                  else if (performance >= 0) reason = `直近1年で+${performance.toFixed(1)}%とプラス。標準的な配分を維持`;
+                  else if (performance >= -5) reason = `直近1年で${performance.toFixed(1)}%とマイナス。最低限の配分を維持`;
+                  else reason = `直近1年で${performance.toFixed(1)}%と大幅マイナス。配分を見送り`;
+
+                  return (
+                    <Grid item xs={12} md={6} key={fundName}>
+                      <Card sx={{
+                        p: 3,
+                        background: recommended > current ? 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)' :
+                                    recommended < current ? 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)' :
+                                    '#fff',
+                        borderRadius: 3,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                        border: recommended > current ? '2px solid #0ea5e9' :
+                                recommended < current ? '2px solid #ef4444' : '1px solid #e5e7eb'
+                      }}>
+                        {/* ファンド名とパフォーマンス */}
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                            {fundName}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              直近1年:
+                            </Typography>
+                            <Typography
+                              variant="h6"
+                              sx={{
+                                fontWeight: 700,
+                                color: performance > 0 ? '#10b981' : performance < 0 ? '#ef4444' : '#6b7280'
+                              }}
+                            >
+                              {performance > 0 ? '+' : ''}{performance.toFixed(1)}%
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        {/* 配分の変更 */}
+                        <Box sx={{ mb: 2 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2" color="text.secondary">現在</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{current}%</Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
+                            <Typography variant="body2" color="text.secondary">推奨</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {change !== 0 && (
+                                <Chip
+                                  label={`${change > 0 ? '+' : ''}${change}%`}
+                                  size="small"
                                   sx={{
-                                    height: 36,
-                                    borderRadius: 3,
-                                    backgroundColor: '#e2e8f0',
-                                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)',
-                                    '& .MuiLinearProgress-bar': {
-                                      background: 'linear-gradient(90deg, #94a3b8 0%, #64748b 100%)',
-                                      borderRadius: 3,
-                                      boxShadow: '0 2px 8px rgba(100, 116, 139, 0.3)',
-                                    }
+                                    fontWeight: 700,
+                                    background: change > 0 ? '#10b981' : '#ef4444',
+                                    color: '#fff'
                                   }}
                                 />
-                                <Box
-                                  sx={{
-                                    position: 'absolute',
-                                    left: '50%',
-                                    top: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    color: fund.current > 50 ? 'white' : '#1e293b',
-                                    fontWeight: 'bold',
-                                    fontSize: '1rem'
-                                  }}
-                                >
-                                  {fund.current}%
-                                </Box>
-                              </Box>
+                              )}
+                              <Typography variant="h5" sx={{ fontWeight: 700 }}>{recommended}%</Typography>
                             </Box>
-                          )})}
+                          </Box>
+
+                          {/* プログレスバー */}
+                          <LinearProgress
+                            variant="determinate"
+                            value={recommended}
+                            sx={{
+                              height: 24,
+                              borderRadius: 2,
+                              backgroundColor: '#e5e7eb',
+                              '& .MuiLinearProgress-bar': {
+                                background: recommended > current ? 'linear-gradient(90deg, #0ea5e9, #06b6d4)' :
+                                           recommended < current ? 'linear-gradient(90deg, #ef4444, #dc2626)' :
+                                           'linear-gradient(90deg, #6b7280, #4b5563)',
+                                borderRadius: 2
+                              }
+                            }}
+                          />
                         </Box>
+
+                        {/* 変更理由 */}
+                        <Alert
+                          severity={recommended > current ? 'info' : recommended < current ? 'warning' : 'success'}
+                          sx={{ fontSize: '0.875rem' }}
+                        >
+                          {reason}
+                        </Alert>
                       </Card>
                     </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <Card sx={{
-                        p: 4,
-                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                        borderRadius: 3,
-                        boxShadow: '0 8px 32px rgba(245, 87, 108, 0.3)',
-                        transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                        '&:hover': {
-                          transform: 'translateY(-4px)',
-                          boxShadow: '0 12px 48px rgba(245, 87, 108, 0.4)',
-                        }
-                      }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
-                          <Typography variant="h5" sx={{ fontWeight: 700, color: '#fff', textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>
-                            🎯 AI推奨配分
-                          </Typography>
-                        </Box>
-                        <Box sx={{ mt: 3 }}>
-                          {Object.entries(optimizationResults.recommendations).map(([fundKey, fund], index) => {
-                            const colors = ['#4caf50', '#2196f3', '#ff9800', '#f44336', '#9c27b0', '#00bcd4', '#ff5722'];
-                            const getBarColor = () => colors[index % colors.length];
-
-                            const fundNameMap: { [key: string]: string } = {
-                              'equity': '株式型',
-                              'Equity': '株式型',
-                              'usequity': '米国株式型',
-                              'usEquity': '米国株式型',
-                              'usbond': '米国債券型',
-                              'usBond': '米国債券型',
-                              'reit': 'REIT型',
-                              'REIT': 'REIT型',
-                              'global': '総合型',
-                              'Global': '総合型',
-                              'bond': '債券型',
-                              'Bond': '債券型'
-                            };
-                            const displayName = fundNameMap[fundKey] || fundKey;
-
-                            return (
-                              <Box key={fundKey} sx={{ mb: 3 }}>
-                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                  <Typography variant="body1" sx={{ fontWeight: 700, color: '#fff', fontSize: '1.1rem' }}>
-                                    {displayName}
-                                  </Typography>
-                                  <Box display="flex" alignItems="center" gap={1}>
-                                    {fund.change !== 0 && (
-                                      <Chip
-                                        label={`${fund.change > 0 ? '+' : ''}${fund.change}%`}
-                                        sx={{
-                                          fontSize: '0.9rem',
-                                          fontWeight: 'bold',
-                                          background: fund.change > 0 ? '#10b981' : '#f59e0b',
-                                          color: '#fff',
-                                          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-                                        }}
-                                      />
-                                    )}
-                                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff', fontSize: '1.3rem' }}>
-                                      {fund.recommended}%
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                                <Box sx={{ position: 'relative', height: 36 }}>
-                                  <LinearProgress
-                                    variant="determinate"
-                                    value={fund.recommended}
-                                    sx={{
-                                      height: 36,
-                                      borderRadius: 3,
-                                      backgroundColor: 'rgba(255,255,255,0.3)',
-                                      boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)',
-                                      '& .MuiLinearProgress-bar': {
-                                        backgroundColor: '#fff',
-                                        borderRadius: 3,
-                                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                                      }
-                                    }}
-                                  />
-                                  <Box
-                                    sx={{
-                                      position: 'absolute',
-                                      left: '50%',
-                                      top: '50%',
-                                      transform: 'translate(-50%, -50%)',
-                                      color: fund.recommended > 50 ? '#f5576c' : '#fff',
-                                      fontWeight: 'bold',
-                                      fontSize: '1rem'
-                                    }}
-                                  >
-                                    {fund.recommended}%
-                                  </Box>
-                                  {fund.change !== 0 && (
-                                    <Box
-                                      sx={{
-                                        position: 'absolute',
-                                        left: `${fund.current}%`,
-                                        top: -8,
-                                        bottom: -8,
-                                        width: 2,
-                                        backgroundColor: '#000',
-                                        opacity: 0.3,
-                                        '&::before': {
-                                          content: '"前"',
-                                          position: 'absolute',
-                                          bottom: -20,
-                                          left: '50%',
-                                          transform: 'translateX(-50%)',
-                                          fontSize: '0.75rem',
-                                          whiteSpace: 'nowrap'
-                                        }
-                                      }}
-                                    />
-                                  )}
-                                </Box>
-                              </Box>
-                            );
-                          })}
-                        </Box>
-                      </Card>
-                    </Grid>
-                  </Grid>
-
-                  {/* 変更理由の表示 */}
-                  <Box sx={{ mt: 4 }}>
-                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                      💡 変更理由
-                    </Typography>
-                    <Grid container spacing={2}>
-                      {Object.entries(optimizationResults.recommendations)
-                        .filter(([_, fund]) => fund.change !== 0)
-                        .map(([fundKey, fund]) => (
-                        <Grid item xs={12} sm={6} key={fundKey}>
-                          <Alert 
-                            severity={fund.change > 0 ? "info" : "warning"}
-                            sx={{ height: '100%' }}
-                          >
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              {fundKey}
-                              {fund.change > 0 ? ' 増額推奨' : ' 減額推奨'}
-                            </Typography>
-                            <Typography variant="caption">
-                              {fund.reason}
-                            </Typography>
-                          </Alert>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </Box>
-                </Grid>
-                
+                  );
+                });
+                })()}
               </Grid>
-              
             </Paper>
           ) : (
-            // 最適化結果待機中の固定レイアウト
-            <Paper sx={{ p: 2, mb: 2, border: '2px dashed #ccc', minHeight: '400px', backgroundColor: '#f8f9fa' }}>
-              <Box sx={{ textAlign: 'center', mb: 2 }}>
-                  <Typography variant="h5" gutterBottom color="text.secondary" sx={{ fontWeight: 'bold' }}>
-                    最適化推奨配分表示エリア
-                  </Typography>
-                  {!latestMarketData ? (
-                    <Alert severity="info" sx={{ mt: 2, maxWidth: 600, mx: 'auto' }}>
-                      <Typography variant="body1" gutterBottom>
-                        📊 マーケットデータをアップロードしてください
-                      </Typography>
-                      <Typography variant="body2">
-                        管理者がPDFをアップロードすると、AIが市場データを分析して最適なファンド配分を推奨します。
-                        一度アップロードすれば、リロード後もずっと表示されます。
-                      </Typography>
-                    </Alert>
-                  ) : (
-                    <Typography variant="body1" color="text.secondary">
-                      マーケットデータがアップロードされました。ファンドパフォーマンスを取得中...
-                    </Typography>
-                  )}
-                  </Box>
-                  
-                  <Typography variant="h5" gutterBottom color="text.secondary" sx={{ fontWeight: 'bold', mb: 3, mt: 4, textAlign: 'center' }}>
-                    ファンド配分の変更提案（プレビュー）
-                  </Typography>
-              
-              <Grid container spacing={2} sx={{ opacity: 0.3 }}>
-                <Grid item xs={12} md={6}>
-                  <Card sx={{ p: 2, boxShadow: 1 }}>
-                    <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                      📋 現在の配分
-                    </Typography>
-                    <Box sx={{ mt: 2 }}>
-                      {['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'].map((name, index) => (
-                        <Box key={index} sx={{ mb: 1.5 }}>
-                          <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              {name}
-                            </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              --%
-                            </Typography>
-                          </Box>
-                          <LinearProgress
-                            variant="determinate"
-                            value={0}
-                            sx={{
-                              height: 20,
-                              borderRadius: 2,
-                              backgroundColor: '#e0e0e0',
-                              '& .MuiLinearProgress-bar': {
-                                backgroundColor: 'grey.400',
-                                borderRadius: 2,
-                              }
-                            }}
-                          />
-                        </Box>
-                      ))}
-                    </Box>
-                  </Card>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <Card sx={{ p: 2, boxShadow: 1, border: '2px solid #ccc' }}>
-                    <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center', color: 'text.secondary' }}>
-                      🎯 推奨配分
-                    </Typography>
-                    <Box sx={{ mt: 2 }}>
-                      {['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'].map((name, index) => (
-                        <Box key={index} sx={{ mb: 1.5 }}>
-                          <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              {name}
-                            </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              --%
-                            </Typography>
-                          </Box>
-                          <LinearProgress
-                            variant="determinate"
-                            value={0}
-                            sx={{
-                              height: 20,
-                              borderRadius: 2,
-                              backgroundColor: '#e0e0e0',
-                              '& .MuiLinearProgress-bar': {
-                                backgroundColor: 'grey.400',
-                                borderRadius: 2,
-                              }
-                            }}
-                          />
-                        </Box>
-                      ))}
-                    </Box>
-                  </Card>
-                </Grid>
-              </Grid>
-
-              <Box sx={{ mt: 4 }}>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center', opacity: 0.3 }}>
-                  💡 変更理由
-                </Typography>
-                <Grid container spacing={2} sx={{ opacity: 0.3 }}>
-                  <Grid item xs={12} sm={6}>
-                    <Card sx={{ p: 2, bgcolor: 'grey.50' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                        最適化実行後に表示されます
-                      </Typography>
-                      <Typography variant="caption">
-                        AI分析による推奨理由が表示されます
-                      </Typography>
-                    </Card>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Card sx={{ p: 2, bgcolor: 'grey.50' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                        PDFレポート出力可能
-                      </Typography>
-                      <Typography variant="caption">
-                        PDF形式でダウンロードできます
-                      </Typography>
-                    </Card>
-                  </Grid>
-                </Grid>
-              </Box>
+            <Paper sx={{ p: 4, mb: 2, textAlign: 'center' }}>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                📊 マーケットデータをアップロードしてください
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                管理者がPDFをアップロードすると、最適化推奨配分が表示されます
+              </Typography>
             </Paper>
           )}
         </Grid>
