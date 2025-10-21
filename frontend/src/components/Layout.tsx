@@ -19,7 +19,6 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import packageJson from '../../package.json';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -52,7 +51,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               変額保険アドバイザリーシステム
             </Typography>
             <Typography variant="caption" component="div" sx={{ opacity: 0.8 }}>
-              v{packageJson.version}
+              v1.2.4
             </Typography>
           </Box>
           
