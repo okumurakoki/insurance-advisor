@@ -279,9 +279,10 @@ const CustomerForm: React.FC = () => {
                   onChange={(e) => setSelectedStaffId(parseInt(e.target.value))}
                   helperText={isEditMode ? "顧客の担当者を変更できます" : "顧客を担当する担当者を選択してください"}
                 >
+                  <MenuItem value="">選択してください</MenuItem>
                   {staffList.map((staff) => (
                     <MenuItem key={staff.id} value={staff.id}>
-                      {staff.user_id} ({staff.customerCount}/{staff.customerLimit}人担当中)
+                      {staff.name || staff.user_id} ({staff.customerCount}/{staff.customerLimit}人担当中)
                     </MenuItem>
                   ))}
                 </TextField>

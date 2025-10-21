@@ -103,7 +103,7 @@ const CustomerDetail: React.FC = () => {
       // ユーザー情報APIを呼び出す（担当者名を取得）
       const staffInfo = await api.getUser(userId);
       console.log('Staff info:', staffInfo);
-      setStaffName(staffInfo.user_id || staffInfo.userId || '担当者不明');
+      setStaffName(staffInfo.name || staffInfo.user_id || staffInfo.userId || '担当者不明');
     } catch (err) {
       console.error('Failed to fetch staff info:', err);
       setStaffName('情報取得エラー');
@@ -399,7 +399,7 @@ const CustomerDetail: React.FC = () => {
             </Box>
           </Box>
           <Typography variant="body2" color="textSecondary" gutterBottom>
-            分析日時: {latestAnalysis.id ? new Date(latestAnalysis.analysisDate).toLocaleDateString('ja-JP') : 'Invalid Date'}
+            分析日時: {latestAnalysis?.analysisDate ? new Date(latestAnalysis.analysisDate).toLocaleDateString('ja-JP') : '未実施'}
           </Typography>
 
           <Grid container spacing={3} sx={{ mt: 1 }}>
