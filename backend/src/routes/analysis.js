@@ -747,6 +747,12 @@ router.get('/statistics', authenticateToken, async (req, res) => {
             return sum + amount;
         }, 0);
 
+        // Calculate total monthly premium (sum of all customer monthly premiums)
+        const totalMonthlyPremium = customers.reduce((sum, customer) => {
+            const premium = parseFloat(customer.monthly_premium) || 0;
+            return sum + premium;
+        }, 0);
+
         // Calculate average return from all analysis results
         let totalReturn = 0;
         let returnCount = 0;
@@ -786,6 +792,7 @@ router.get('/statistics', authenticateToken, async (req, res) => {
             customerCount,
             reportCount,
             totalAssets,
+            totalMonthlyPremium,
             averageReturn: parseFloat(averageReturn.toFixed(1))
         });
     } catch (error) {
