@@ -113,7 +113,12 @@ const CustomerForm: React.FC = () => {
         await api.updateCustomer(parseInt(id), updateData);
         setSuccess('顧客情報を更新しました');
       } else {
-        const result = await api.createCustomer(formData);
+        const createData: any = { ...formData };
+        // 代理店アカウントの場合は担当者IDを含める
+        if (currentUser?.accountType === 'parent' && selectedStaffId) {
+          createData.staffId = selectedStaffId;
+        }
+        const result = await api.createCustomer(createData);
         setSuccess('顧客を登録しました');
         setTimeout(() => {
           navigate(`/customers/${result.id}`);
@@ -255,7 +260,7 @@ const CustomerForm: React.FC = () => {
             </Grid>
 
             {/* 代理店アカウントの場合、担当者選択フィールドを表示 */}
-            {isEditMode && currentUser?.accountType === 'parent' && staffList.length > 0 && (
+            {currentUser?.accountType === 'parent' && staffList.length > 0 && (
               <Grid item xs={12} sm={6}>
                 <TextField
                   required
@@ -264,11 +269,11 @@ const CustomerForm: React.FC = () => {
                   label="担当者"
                   value={selectedStaffId || ''}
                   onChange={(e) => setSelectedStaffId(parseInt(e.target.value))}
-                  helperText="顧客の担当者を変更できます"
+                  helperText={isEditMode ? "顧客の担当者を変更できます" : "顧客を担当する担当者を選択してください"}
                 >
                   {staffList.map((staff) => (
                     <MenuItem key={staff.id} value={staff.id}>
-                      {staff.user_id} ({staff.customerCount}/{staff.customerLimit}人)
+                      {staff.user_id} ({staff.customerCount}/{staff.customerLimit}人担当中)
                     </MenuItem>
                   ))}
                 </TextField>
@@ -314,7 +319,8 @@ const CustomerForm: React.FC = () => {
                 !formData.name ||
                 !formData.contractAmount ||
                 !formData.monthlyPremium ||
-                (!isEditMode && currentUser && !currentUser.canAddCustomer)
+                (!isEditMode && currentUser && !currentUser.canAddCustomer) ||
+                (currentUser?.accountType === 'parent' && !selectedStaffId)
               }
             >
               {loading ? <CircularProgress size={24} /> : (isEditMode ? '更新' : '登録')}
