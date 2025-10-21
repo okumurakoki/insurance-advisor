@@ -70,6 +70,11 @@ class ApiService {
     return response.data;
   }
 
+  async getUser(userId: number): Promise<User> {
+    const response = await this.api.get(`/users/${userId}`);
+    return response.data;
+  }
+
   async getChildren(): Promise<User[]> {
     const response = await this.api.get('/users/children');
     return response.data;
