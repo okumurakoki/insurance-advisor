@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import packageJson from '../../package.json';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -130,6 +131,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Box component="footer" sx={{ py: 3, px: 2, mt: 'auto', backgroundColor: 'background.paper' }}>
         <Typography variant="body2" color="text.secondary" align="center">
           © 2024 変額保険アドバイザリーシステム
+        </Typography>
+        <Typography variant="caption" color="text.secondary" align="center" display="block" sx={{ mt: 0.5 }}>
+          v{packageJson.version} • Build: {new Date().toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
         </Typography>
       </Box>
     </Box>
