@@ -47,9 +47,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="static">
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            変額保険アドバイザリーシステム
-          </Typography>
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="h6" component="div">
+              変額保険アドバイザリーシステム
+            </Typography>
+            <Typography variant="caption" component="div" sx={{ opacity: 0.8 }}>
+              v{packageJson.version}
+            </Typography>
+          </Box>
           
           <Button
             color="inherit"
@@ -131,9 +136,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Box component="footer" sx={{ py: 3, px: 2, mt: 'auto', backgroundColor: 'background.paper' }}>
         <Typography variant="body2" color="text.secondary" align="center">
           © 2024 変額保険アドバイザリーシステム
-        </Typography>
-        <Typography variant="caption" color="text.secondary" align="center" display="block" sx={{ mt: 0.5 }}>
-          v{packageJson.version} • Build: {new Date().toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
         </Typography>
       </Box>
     </Box>

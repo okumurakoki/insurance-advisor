@@ -1,6 +1,6 @@
 {
   "name": "insurance-advisor-frontend",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Variable Insurance Advisory System Frontend",
   "private": true,
   "dependencies": {
