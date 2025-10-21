@@ -118,6 +118,9 @@ const CustomerForm: React.FC = () => {
         if (currentUser?.accountType === 'parent' && selectedStaffId) {
           createData.staffId = selectedStaffId;
         }
+        console.log('Creating customer with data:', createData);
+        console.log('Current user:', currentUser);
+        console.log('Selected staff ID:', selectedStaffId);
         const result = await api.createCustomer(createData);
         setSuccess('顧客を登録しました');
         setTimeout(() => {
@@ -125,6 +128,8 @@ const CustomerForm: React.FC = () => {
         }, 1500);
       }
     } catch (err: any) {
+      console.error('Customer creation error:', err);
+      console.error('Error response:', err.response?.data);
       setError(err.response?.data?.error || '操作に失敗しました');
     } finally {
       setLoading(false);
@@ -221,9 +226,10 @@ const CustomerForm: React.FC = () => {
                 required
                 fullWidth
                 type="number"
-                label="契約金額"
+                label="契約金額（総額）"
                 value={formData.contractAmount}
                 onChange={(e) => handleChange('contractAmount', parseFloat(e.target.value) || 0)}
+                helperText="変額保険の契約総額を入力してください"
                 InputProps={{
                   startAdornment: '¥',
                 }}
@@ -235,9 +241,10 @@ const CustomerForm: React.FC = () => {
                 required
                 fullWidth
                 type="number"
-                label="月額保険料"
+                label="月額保険料（毎月）"
                 value={formData.monthlyPremium}
                 onChange={(e) => handleChange('monthlyPremium', parseFloat(e.target.value) || 0)}
+                helperText="毎月支払う保険料を入力してください"
                 InputProps={{
                   startAdornment: '¥',
                 }}
