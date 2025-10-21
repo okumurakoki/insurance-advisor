@@ -1,67 +1,28 @@
 const request = require('supertest');
 const app = require('../src/app');
-const db = require('../src/utils/database');
+const db = require('../src/utils/database-factory');
 const User = require('../src/models/User');
-
-// Test database setup
-const testDb = {
-  host: 'localhost',
-  user: 'root',
-  password: 'test_password',
-  database: 'insurance_advisor_test'
-};
 
 describe('Authentication Tests', () => {
   beforeAll(async () => {
-    // Setup test database
+    // Setup test environment - use production Supabase database
     process.env.NODE_ENV = 'test';
-    process.env.DB_NAME = 'insurance_advisor_test';
-    process.env.JWT_SECRET = 'test-jwt-secret';
-    
-    // Clean test database
-    await db.query('DROP DATABASE IF EXISTS insurance_advisor_test');
-    await db.query('CREATE DATABASE insurance_advisor_test');
-    await db.query('USE insurance_advisor_test');
-    
-    // Create tables (simplified for testing)
-    await db.query(`
-      CREATE TABLE users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id VARCHAR(50) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        account_type ENUM('parent', 'child', 'grandchild') NOT NULL,
-        plan_type ENUM('standard', 'master', 'exceed') DEFAULT 'standard',
-        parent_id INT NULL,
-        customer_limit INT DEFAULT 10,
-        is_active BOOLEAN DEFAULT TRUE,
-        last_login TIMESTAMP NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `);
-    
-    await db.query(`
-      CREATE TABLE user_sessions (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        token_hash VARCHAR(255) NOT NULL UNIQUE,
-        ip_address VARCHAR(45),
-        user_agent TEXT,
-        expires_at TIMESTAMP NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
+
+    // Initialize database connection
+    await db.initialize();
+
+    console.log('✅ Test database connected successfully');
   });
 
   afterAll(async () => {
-    await db.query('DROP DATABASE IF EXISTS insurance_advisor_test');
     await db.close();
   });
 
   beforeEach(async () => {
-    // Clear test data
-    await db.query('DELETE FROM user_sessions');
-    await db.query('DELETE FROM users');
+    // Clear test data from test users only
+    await db.query('DELETE FROM user_sessions WHERE user_id IN (SELECT id FROM users WHERE user_id LIKE \'test%\')');
+    await db.query('DELETE FROM users WHERE user_id LIKE \'test%\'');
   });
 
   describe('POST /api/auth/register', () => {

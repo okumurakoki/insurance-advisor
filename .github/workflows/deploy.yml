@@ -37,6 +37,9 @@ jobs:
       - name: Run Backend Tests
         working-directory: ./backend
         run: npm test
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
       
       - name: Run Linting
         run: |

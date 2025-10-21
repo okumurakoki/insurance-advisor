@@ -1,6 +1,6 @@
 const request = require('supertest');
 const app = require('../src/app');
-const db = require('../src/utils/database');
+const db = require('../src/utils/database-factory');
 const User = require('../src/models/User');
 const Customer = require('../src/models/Customer');
 
@@ -10,14 +10,23 @@ describe('Customer Management Tests', () => {
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
-    process.env.DB_NAME = 'insurance_advisor_test';
-    process.env.JWT_SECRET = 'test-jwt-secret';
+    process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
+
+    // Initialize database connection
+    await db.initialize();
+
+    console.log('✅ Test database connected successfully');
+  });
+
+  afterAll(async () => {
+    await db.close();
   });
 
   beforeEach(async () => {
-    // Clean test data
-    await db.query('DELETE FROM customers');
-    await db.query('DELETE FROM users');
+    // Clean test data from test users/customers only
+    await db.query('DELETE FROM customers WHERE user_id IN (SELECT id FROM users WHERE user_id LIKE \'test%\')');
+    await db.query('DELETE FROM user_sessions WHERE user_id IN (SELECT id FROM users WHERE user_id LIKE \'test%\')');
+    await db.query('DELETE FROM users WHERE user_id LIKE \'test%\'');
 
     // Create test user
     userId = await User.create({
@@ -263,8 +272,8 @@ describe('Customer Management Tests', () => {
       expect(response.body).toHaveProperty('message', 'Customer deactivated successfully');
 
       // Verify deactivation
-      const customer = await db.query('SELECT * FROM customers WHERE id = ?', [customerId]);
-      expect(customer[0].is_active).toBe(0);
+      const customer = await db.query('SELECT * FROM customers WHERE id = $1', [customerId]);
+      expect(customer[0].is_active).toBe(false);
     });
   });
 });
