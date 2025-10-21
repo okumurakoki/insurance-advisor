@@ -242,6 +242,7 @@ class ApiService {
     customerCount: number;
     reportCount: number;
     totalAssets: number;
+    totalMonthlyPremium: number;
     averageReturn: number;
   }> {
     const response = await this.api.get('/analysis/statistics');

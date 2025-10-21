@@ -33,6 +33,7 @@ const Dashboard: React.FC = () => {
     customerCount: 0,
     reportCount: 0,
     totalAssets: 0,
+    totalMonthlyPremium: 0,
     averageReturn: 0,
   });
   const [marketData, setMarketData] = useState<any[]>([]);
@@ -137,7 +138,7 @@ const Dashboard: React.FC = () => {
         )}
 
         {/* Statistics Cards */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -155,7 +156,7 @@ const Dashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -173,13 +174,13 @@ const Dashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    総運用額
+                    契約金額合計
                   </Typography>
                   <Typography variant="h5">
                     ¥{Math.round(stats.totalAssets).toLocaleString()}
@@ -191,7 +192,25 @@ const Dashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={6}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="textSecondary" gutterBottom>
+                    月額保険料合計
+                  </Typography>
+                  <Typography variant="h5">
+                    ¥{Math.round(stats.totalMonthlyPremium).toLocaleString()}/月
+                  </Typography>
+                </Box>
+                <TrendingUpIcon color="info" sx={{ fontSize: 40 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={6}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">

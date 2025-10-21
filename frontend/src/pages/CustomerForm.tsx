@@ -63,6 +63,7 @@ const CustomerForm: React.FC = () => {
       // 代理店アカウントの場合は担当者リストを取得
       if (userInfo.accountType === 'parent') {
         const staff = await api.getStaff();
+        console.log('Staff list from API:', staff);
         setStaffList(staff);
       }
     } catch (err) {
