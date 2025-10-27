@@ -29,7 +29,7 @@ import {
   Delete as DeleteIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
-import api from '../services/api';
+import api from '../services/api.ts';
 
 interface InsuranceCompany {
   id: number;
