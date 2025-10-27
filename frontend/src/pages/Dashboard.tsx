@@ -37,9 +37,12 @@ const Dashboard: React.FC = () => {
     averageReturn: 0,
   });
   const [marketData, setMarketData] = useState<any[]>([]);
+  const [insuranceCompanies, setInsuranceCompanies] = useState<any[]>([]);
+  const [companiesPerformance, setCompaniesPerformance] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchInsuranceCompanies();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -68,6 +71,36 @@ const Dashboard: React.FC = () => {
       setError('データの取得に失敗しました');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInsuranceCompanies = async () => {
+    try {
+      // Get user's contracted insurance companies
+      const companies = await api.getMyInsuranceCompanies();
+      setInsuranceCompanies(companies);
+
+      // Fetch performance data for each company
+      const performancePromises = companies.map(async (company: any) => {
+        try {
+          const performance = await api.getLatestPerformanceByCompany(company.company_code);
+          return {
+            company,
+            performance,
+          };
+        } catch (err) {
+          console.error(`Failed to fetch performance for ${company.company_code}:`, err);
+          return {
+            company,
+            performance: [],
+          };
+        }
+      });
+
+      const performanceData = await Promise.all(performancePromises);
+      setCompaniesPerformance(performanceData);
+    } catch (err) {
+      console.error('Failed to fetch insurance companies:', err);
     }
   };
 
@@ -255,6 +288,99 @@ const Dashboard: React.FC = () => {
             )}
           </Box>
         </Grid>
+
+        {/* Insurance Companies Performance */}
+        {companiesPerformance.length > 0 && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3, mb: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                🏢 契約保険会社の運用実績
+              </Typography>
+              {companiesPerformance.map((item, companyIndex) => (
+                <Box key={companyIndex} sx={{ mb: companyIndex < companiesPerformance.length - 1 ? 4 : 0 }}>
+                  <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {item.company.display_name}
+                    <Chip
+                      label={`${item.performance.length}ファンド`}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {item.performance.slice(0, 6).map((perf: any, index: number) => (
+                      <Grid item xs={12} sm={6} md={4} key={index}>
+                        <Card variant="outlined">
+                          <CardContent>
+                            <Typography variant="subtitle2" gutterBottom noWrap>
+                              {perf.account_name}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                              {perf.account_code}
+                            </Typography>
+                            <Box sx={{ mt: 1 }}>
+                              <Typography variant="body2" color="textSecondary">
+                                基準価額
+                              </Typography>
+                              <Typography variant="h6" color="primary">
+                                ¥{parseFloat(perf.unit_price).toLocaleString()}
+                              </Typography>
+                            </Box>
+                            <Grid container spacing={1} sx={{ mt: 1 }}>
+                              <Grid item xs={4}>
+                                <Typography variant="caption" color="textSecondary">1ヶ月</Typography>
+                                <Typography
+                                  variant="body2"
+                                  color={parseFloat(perf.return_1m) >= 0 ? 'success.main' : 'error.main'}
+                                  fontWeight="bold"
+                                >
+                                  {parseFloat(perf.return_1m) >= 0 ? '+' : ''}{parseFloat(perf.return_1m).toFixed(2)}%
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={4}>
+                                <Typography variant="caption" color="textSecondary">3ヶ月</Typography>
+                                <Typography
+                                  variant="body2"
+                                  color={parseFloat(perf.return_3m) >= 0 ? 'success.main' : 'error.main'}
+                                  fontWeight="bold"
+                                >
+                                  {parseFloat(perf.return_3m) >= 0 ? '+' : ''}{parseFloat(perf.return_3m).toFixed(2)}%
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={4}>
+                                <Typography variant="caption" color="textSecondary">1年</Typography>
+                                <Typography
+                                  variant="body2"
+                                  color={parseFloat(perf.return_1y) >= 0 ? 'success.main' : 'error.main'}
+                                  fontWeight="bold"
+                                >
+                                  {parseFloat(perf.return_1y) >= 0 ? '+' : ''}{parseFloat(perf.return_1y).toFixed(2)}%
+                                </Typography>
+                              </Grid>
+                            </Grid>
+                            <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                              更新日: {new Date(perf.performance_date).toLocaleDateString('ja-JP')}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                  {item.performance.length > 6 && (
+                    <Box sx={{ mt: 2, textAlign: 'center' }}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => navigate('/insurance-companies')}
+                      >
+                        すべて表示 ({item.performance.length}ファンド)
+                      </Button>
+                    </Box>
+                  )}
+                </Box>
+              ))}
+            </Paper>
+          </Grid>
+        )}
 
         {/* Market Data */}
         {marketData.length > 0 && (
