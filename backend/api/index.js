@@ -56,7 +56,8 @@ app.get('/', (req, res) => {
         status: 'OK',
         timestamp: new Date().toISOString(),
         version: '1.3.0',
-        deployment: 'auto'
+        deployment: 'auto',
+        testMarker: 'DEPLOYMENT_TEST_2025_10_27_v2'
     });
 });
 
