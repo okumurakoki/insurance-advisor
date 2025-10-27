@@ -59,45 +59,55 @@ import {
 import Login from './components/Login.tsx';
 import InsuranceCompanies from './pages/InsuranceCompanies.tsx';
 import AdminAgencyManagement from './pages/AdminAgencyManagement.tsx';
+import { getUserTheme, defaultTheme, InsuranceCompanyTheme } from './config/insuranceCompanyThemes';
 
 // API Configuration
 const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com').replace(/\/+$/, '');
 
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
+// 動的テーマ生成関数
+const createDynamicTheme = (companyTheme: InsuranceCompanyTheme) => {
+  return createTheme({
+    palette: {
+      primary: {
+        main: companyTheme.colors.primary,
+      },
+      secondary: {
+        main: companyTheme.colors.secondary,
+      },
+      background: {
+        default: companyTheme.colors.background,
+      },
     },
-    secondary: {
-      main: '#dc004e',
+    typography: {
+      fontFamily: [
+        '"Noto Sans JP"',
+        '-apple-system',
+        'BlinkMacSystemFont',
+        '"Segoe UI"',
+        'Roboto',
+        '"Helvetica Neue"',
+        'Arial',
+        'sans-serif',
+      ].join(','),
+      fontWeightLight: 300,
+      fontWeightRegular: 400,
+      fontWeightMedium: 500,
+      fontWeightBold: 700,
+      h1: { fontWeight: 700 },
+      h2: { fontWeight: 700 },
+      h3: { fontWeight: 700 },
+      h4: { fontWeight: 700 },
+      h5: { fontWeight: 600 },
+      h6: { fontWeight: 600 },
+      body1: { fontWeight: 400 },
+      body2: { fontWeight: 400 },
     },
-  },
-  typography: {
-    fontFamily: [
-      '"Noto Sans JP"',
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"Segoe UI"',
-      'Roboto',
-      '"Helvetica Neue"',
-      'Arial',
-      'sans-serif',
-    ].join(','),
-    fontWeightLight: 300,
-    fontWeightRegular: 400,
-    fontWeightMedium: 500,
-    fontWeightBold: 700,
-    h1: { fontWeight: 700 },
-    h2: { fontWeight: 700 },
-    h3: { fontWeight: 700 },
-    h4: { fontWeight: 700 },
-    h5: { fontWeight: 600 },
-    h6: { fontWeight: 600 },
-    body1: { fontWeight: 400 },
-    body2: { fontWeight: 400 },
-  },
-});
+  });
+};
+
+// デフォルトテーマ
+const defaultAppTheme = createDynamicTheme(defaultTheme);
 
 interface User {
   id: number;
@@ -110,22 +120,29 @@ interface User {
 }
 
 function App() {
+  const [currentTheme, setCurrentTheme] = useState(defaultAppTheme);
+
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={currentTheme}>
       <CssBaseline />
       <Router>
-        <AppContent />
+        <AppContent onThemeChange={setCurrentTheme} />
       </Router>
     </ThemeProvider>
   );
 }
 
-function AppContent() {
+interface AppContentProps {
+  onThemeChange: (theme: any) => void;
+}
+
+function AppContent({ onThemeChange }: AppContentProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [marketData, setMarketData] = useState<any[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [myInsuranceCompanies, setMyInsuranceCompanies] = useState<any[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -136,10 +153,38 @@ function AppContent() {
     const userData = localStorage.getItem('user');
     if (token && userData) {
       setIsLoggedIn(true);
-      setUser(JSON.parse(userData));
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
       fetchMarketData();
+      // 保険会社情報を取得してテーマを設定
+      fetchInsuranceCompaniesAndSetTheme(parsedUser, token);
     }
   }, []);
+
+  // 保険会社情報を取得してテーマを変更
+  const fetchInsuranceCompaniesAndSetTheme = async (user: User, token: string) => {
+    if (user.accountType === 'parent' || user.accountType === 'child') {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/insurance/my-companies`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const companies = await response.json();
+          setMyInsuranceCompanies(companies);
+
+          // 保険会社に基づいてテーマを変更
+          const companyTheme = getUserTheme(companies);
+          const newTheme = createDynamicTheme(companyTheme);
+          onThemeChange(newTheme);
+        }
+      } catch (error) {
+        console.error('Failed to fetch insurance companies for theme:', error);
+      }
+    }
+  };
 
   const fetchMarketData = async () => {
     try {
@@ -393,6 +438,8 @@ function AppContent() {
     setIsLoggedIn(true);
     setUser(userData);
     fetchMarketData();
+    // ログイン時にも保険会社情報を取得してテーマを設定
+    fetchInsuranceCompaniesAndSetTheme(userData, token);
   };
 
   return <Login onLoginSuccess={handleLoginSuccess} apiBaseUrl={API_BASE_URL} />;
