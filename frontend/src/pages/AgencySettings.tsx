@@ -214,7 +214,13 @@ const AgencySettings: React.FC = () => {
       </Paper>
 
       {/* Add Company Dialog */}
-      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openAddDialog}
+        onClose={() => setOpenAddDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        disableRestoreFocus
+      >
         <DialogTitle>保険会社を追加</DialogTitle>
         <DialogContent>
           <FormControl fullWidth sx={{ mt: 2 }}>
@@ -223,6 +229,7 @@ const AgencySettings: React.FC = () => {
               value={selectedCompanyId}
               onChange={(e) => setSelectedCompanyId(e.target.value as number)}
               label="保険会社"
+              autoFocus
             >
               <MenuItem value={0}>選択してください</MenuItem>
               {availableCompanies.map((company) => (

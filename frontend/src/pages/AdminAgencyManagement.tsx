@@ -301,7 +301,13 @@ const AdminAgencyManagement: React.FC = () => {
       </Grid>
 
       {/* 保険会社追加ダイアログ */}
-      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openAddDialog}
+        onClose={() => setOpenAddDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        disableRestoreFocus
+      >
         <DialogTitle>保険会社を追加</DialogTitle>
         <DialogContent>
           <FormControl fullWidth sx={{ mt: 2 }}>
@@ -310,6 +316,7 @@ const AdminAgencyManagement: React.FC = () => {
               value={selectedCompanyId}
               onChange={(e) => setSelectedCompanyId(e.target.value as number)}
               label="保険会社"
+              autoFocus
             >
               <MenuItem value={0}>選択してください</MenuItem>
               {availableCompanies.map((company) => (
