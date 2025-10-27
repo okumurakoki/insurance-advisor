@@ -439,9 +439,21 @@ router.get('/agency-companies/:userId', authenticateToken, async (req, res) => {
         }
 
         const query = `
-            SELECT * FROM v_agency_companies
-            WHERE user_id = $1
-            ORDER BY company_code
+            SELECT
+                aic.id,
+                aic.user_id,
+                aic.company_id,
+                ic.company_code,
+                ic.company_name,
+                ic.company_name_en,
+                ic.display_name,
+                aic.contract_start_date,
+                aic.contract_end_date,
+                aic.is_active
+            FROM agency_insurance_companies aic
+            JOIN insurance_companies ic ON aic.company_id = ic.id
+            WHERE aic.user_id = $1 AND aic.is_active = TRUE
+            ORDER BY ic.company_code
         `;
 
         const companies = await db.query(query, [req.params.userId]);
