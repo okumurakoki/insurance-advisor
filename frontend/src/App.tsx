@@ -57,8 +57,8 @@ import {
   Settings as SettingsIcon,
 } from '@mui/icons-material';
 import Login from './components/Login.tsx';
-import InsuranceCompanies from './pages/InsuranceCompanies';
-import AgencySettings from './pages/AgencySettings';
+import InsuranceCompanies from './pages/InsuranceCompanies.tsx';
+import AgencySettings from './pages/AgencySettings.tsx';
 
 // API Configuration
 const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com').replace(/\/+$/, '');
