@@ -133,6 +133,14 @@ try {
     console.error('❌ Failed to load admin routes:', error.message);
 }
 
+try {
+    const insuranceRoutes = require('../src/routes/insurance');
+    app.use('/api/insurance', insuranceRoutes);
+    console.log('✅ Insurance routes loaded');
+} catch (error) {
+    console.error('❌ Failed to load insurance routes:', error.message);
+}
+
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
