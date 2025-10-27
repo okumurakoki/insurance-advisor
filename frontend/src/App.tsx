@@ -59,7 +59,7 @@ import {
 import Login from './components/Login.tsx';
 import InsuranceCompanies from './pages/InsuranceCompanies.tsx';
 import AdminAgencyManagement from './pages/AdminAgencyManagement.tsx';
-import { getUserTheme, defaultTheme, InsuranceCompanyTheme } from './config/insuranceCompanyThemes';
+import { getUserTheme, defaultTheme, InsuranceCompanyTheme } from './config/insuranceCompanyThemes.ts';
 
 // API Configuration
 const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com').replace(/\/+$/, '');
