@@ -265,7 +265,7 @@ class ApiService {
     created_at: string;
     updated_at: string;
   }>> {
-    const response = await this.api.get('insurance/companies');
+    const response = await this.api.get('/insurance/companies');
     return response.data;
   }
 
@@ -279,7 +279,7 @@ class ApiService {
     created_at: string;
     updated_at: string;
   }> {
-    const response = await this.api.get(`insurance/companies/${id}`);
+    const response = await this.api.get(`/insurance/companies/${id}`);
     return response.data;
   }
 
@@ -294,7 +294,7 @@ class ApiService {
     contract_start_date: string;
     contract_end_date: string | null;
   }>> {
-    const response = await this.api.get('insurance/my-companies');
+    const response = await this.api.get('/insurance/my-companies');
     return response.data;
   }
 
@@ -305,7 +305,7 @@ class ApiService {
     contract_start_date?: string;
     notes?: string;
   }): Promise<{ message: string; data: any }> {
-    const response = await this.api.post('insurance/agency-companies', data);
+    const response = await this.api.post('/insurance/agency-companies', data);
     return response.data;
   }
 
@@ -315,7 +315,7 @@ class ApiService {
     user_id: string;
     account_type: string;
   }>> {
-    const response = await this.api.get('admin/agencies');
+    const response = await this.api.get('/admin/agencies');
     return response.data;
   }
 
@@ -330,13 +330,13 @@ class ApiService {
     contract_end_date: string | null;
     is_active: boolean;
   }>> {
-    const response = await this.api.get(`insurance/agency-companies/${agencyId}`);
+    const response = await this.api.get(`/insurance/agency-companies/${agencyId}`);
     return response.data;
   }
 
   // Remove insurance company from agency
   async removeAgencyCompany(id: number): Promise<{ message: string }> {
-    const response = await this.api.delete(`insurance/agency-companies/${id}`);
+    const response = await this.api.delete(`/insurance/agency-companies/${id}`);
     return response.data;
   }
 
@@ -356,7 +356,7 @@ class ApiService {
     company_name: string;
   }>> {
     const params = companyCode ? { company_code: companyCode } : {};
-    const response = await this.api.get('insurance/special-accounts', { params });
+    const response = await this.api.get('/insurance/special-accounts', { params });
     return response.data;
   }
 
@@ -375,7 +375,7 @@ class ApiService {
     company_code: string;
     company_name: string;
   }>> {
-    const response = await this.api.get(`insurance/companies/${companyId}/special-accounts`);
+    const response = await this.api.get(`/insurance/companies/${companyId}/special-accounts`);
     return response.data;
   }
 
@@ -404,7 +404,7 @@ class ApiService {
     company_code: string;
     company_name: string;
   }>> {
-    const response = await this.api.get(`insurance/special-accounts/${accountId}/performance`, {
+    const response = await this.api.get(`/insurance/special-accounts/${accountId}/performance`, {
       params: options,
     });
     return response.data;
@@ -430,7 +430,7 @@ class ApiService {
     company_name: string;
   }>> {
     const params = companyCode ? { company_code: companyCode } : {};
-    const response = await this.api.get('insurance/performance/latest', { params });
+    const response = await this.api.get('/insurance/performance/latest', { params });
     return response.data;
   }
 }
