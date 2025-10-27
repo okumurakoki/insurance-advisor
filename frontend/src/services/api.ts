@@ -312,11 +312,24 @@ class ApiService {
   // Get agencies list (admin only)
   async getAgencies(): Promise<Array<{
     id: number;
-    user_id: string;
-    account_type: string;
+    userId: string;
+    user_id?: string;
+    account_type?: string;
+    planType?: string;
+    isActive?: boolean;
+    createdAt?: string;
+    staffCount?: number;
+    staffLimit?: number;
+    customerCount?: number;
+    customerLimit?: number;
   }>> {
     const response = await this.api.get('/admin/agencies');
-    return response.data;
+    // Map userId to user_id for backward compatibility
+    return response.data.map((agency: any) => ({
+      ...agency,
+      user_id: agency.userId || agency.user_id,
+      account_type: 'parent',
+    }));
   }
 
   // Get agency's contracted insurance companies (admin only)

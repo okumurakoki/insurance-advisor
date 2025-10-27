@@ -35,8 +35,11 @@ import api from '../services/api.ts';
 
 interface Agency {
   id: number;
-  user_id: string;
-  account_type: string;
+  user_id?: string;
+  userId?: string;
+  account_type?: string;
+  planType?: string;
+  isActive?: boolean;
 }
 
 interface InsuranceCompany {
@@ -225,7 +228,7 @@ const AdminAgencyManagement: React.FC = () => {
                 >
                   {agencies.map((agency) => (
                     <MenuItem key={agency.id} value={agency.id}>
-                      {agency.user_id}
+                      {agency.userId || agency.user_id}
                     </MenuItem>
                   ))}
                 </Select>
@@ -233,8 +236,13 @@ const AdminAgencyManagement: React.FC = () => {
               {selectedAgency && (
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="body2" color="text.secondary">
-                    アカウントタイプ: {selectedAgency.account_type}
+                    アカウントタイプ: {selectedAgency.account_type || 'parent'}
                   </Typography>
+                  {selectedAgency.planType && (
+                    <Typography variant="body2" color="text.secondary">
+                      プラン: {selectedAgency.planType}
+                    </Typography>
+                  )}
                 </Box>
               )}
             </CardContent>
