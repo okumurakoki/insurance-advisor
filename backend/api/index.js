@@ -160,5 +160,6 @@ app.use((err, req, res, next) => {
 });
 
 console.log('✅ Application initialized');
+console.log('🚀 Ready for auto-deployment');
 
 module.exports = app;
