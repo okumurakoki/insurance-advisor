@@ -1,4 +1,4 @@
--- プルデンシャル生命変額保険最適化システム
+-- 変額保険最適化システム
 -- 初期データベーススキーマ
 
 -- 1. KVストアテーブル（システム設定用）
@@ -9,14 +9,14 @@ CREATE TABLE IF NOT EXISTS kv_store_e075ba47 (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 2. ユーザーテーブル（プルデンシャル認証）
+-- 2. ユーザーテーブル
 CREATE TABLE prudential_users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   username TEXT UNIQUE NOT NULL,
   email TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   user_type TEXT NOT NULL CHECK (user_type IN ('agency', 'staff', 'customer', 'admin')),
-  company TEXT DEFAULT 'プルデンシャル生命',
+  company TEXT DEFAULT '変額保険',
   password_hash TEXT NOT NULL,
   is_active BOOLEAN DEFAULT true,
   last_login TIMESTAMP WITH TIME ZONE,

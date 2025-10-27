@@ -2,7 +2,7 @@ const pdf = require('pdf-parse');
 const logger = require('./logger');
 
 /**
- * プルデンシャルのPDFから運用実績データを抽出
+ * 変額保険のPDFから運用実績データを抽出
  */
 class PDFParser {
     /**
@@ -47,7 +47,7 @@ class PDFParser {
     }
 
     /**
-     * プルデンシャルPDFから特別勘定の運用実績を抽出
+     * 変額保険PDFから特別勘定の運用実績を抽出
      * @param {Buffer} pdfBuffer
      * @returns {Promise<Object>} { fundName: performance }
      */
@@ -55,7 +55,7 @@ class PDFParser {
         try {
             const text = await this.extractText(pdfBuffer);
 
-            // プルデンシャルのPDFは「直近1年」テーブル形式でデータを提供
+            // 変額保険のPDFは「直近1年」テーブル形式でデータを提供
             // 直接テーブル抽出を使用（正規表現は信託報酬などの他のデータにマッチする可能性があるため）
             const funds = this.extractPerformanceTable(text);
 

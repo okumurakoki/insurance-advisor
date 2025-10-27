@@ -370,7 +370,7 @@ function AppContent() {
         
         <Box component="footer" sx={{ py: 3, px: 2, mt: 'auto', backgroundColor: 'background.paper' }}>
           <Typography variant="body2" color="text.secondary" align="center">
-            © 2024 プルデンシャル生命保険株式会社 - 変額保険アドバイザリーシステム
+            © 2025 変額保険アドバイザリーシステム
           </Typography>
         </Box>
       </Box>
@@ -1175,7 +1175,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           <Paper sx={{ p: 3, mb: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
               <Typography variant="h6">
-                プルデンシャル変額保険ファンド分析
+                変額保険ファンド分析
               </Typography>
               <Chip label="PDF分析結果" color="primary" size="small" />
             </Box>
@@ -1416,7 +1416,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         {/* Welcome Message */}
         <Grid item xs={12}>
           <Alert severity="success">
-            プルデンシャル生命変額保険最適化システムへようこそ！
+            変額保険アドバイザリーシステムへようこそ！
             AI搭載の分析機能で最適な投資戦略をご提案します。
           </Alert>
         </Grid>

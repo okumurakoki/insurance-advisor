@@ -1,4 +1,4 @@
--- プルデンシャル変額保険最適化システム データベーススキーマ
+-- 変額保険最適化システム データベーススキーマ
 
 -- ユーザー管理テーブル
 CREATE TABLE users (
@@ -39,7 +39,7 @@ CREATE TABLE funds (
     code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     category VARCHAR(50) NOT NULL,
-    provider VARCHAR(100) DEFAULT 'prudential',
+    provider VARCHAR(100) DEFAULT 'variable_insurance',
     expected_return DECIMAL(6,4) NOT NULL,
     management_fee DECIMAL(6,4) NOT NULL DEFAULT 0,
     min_amount DECIMAL(12,2) DEFAULT 100000,

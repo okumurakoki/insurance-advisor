@@ -120,7 +120,7 @@ const AnalysisResult: React.FC = () => {
         printWindow.document.write(`
           <html>
             <head>
-              <title>プルデンシャル生命 投資分析レポート</title>
+              <title>変額保険 投資分析レポート</title>
               <style>
                 body { font-family: 'Noto Sans JP', sans-serif; margin: 20px; }
                 .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1976d2; padding-bottom: 20px; }
@@ -131,8 +131,7 @@ const AnalysisResult: React.FC = () => {
             </head>
             <body>
               <div class="header">
-                <h1>プルデンシャル生命保険株式会社</h1>
-                <h2>変額保険 AI分析レポート</h2>
+                <h1>変額保険 AI分析レポート</h1>
                 <p>生成日時: ${new Date().toLocaleDateString('ja-JP')}</p>
               </div>
               <div class="section">

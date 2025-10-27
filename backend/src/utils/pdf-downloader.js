@@ -2,9 +2,9 @@ const axios = require('axios');
 const logger = require('./logger');
 
 /**
- * プルデンシャルのウェブサイトから最新のディスクロージャーPDFをダウンロード
+ * 変額保険のウェブサイトから最新のディスクロージャーPDFをダウンロード
  */
-class PrudentialPDFDownloader {
+class PDFDownloader {
     constructor() {
         this.baseUrl = 'https://www.prudential.co.jp';
         this.pdfs = [
@@ -106,4 +106,4 @@ class PrudentialPDFDownloader {
     }
 }
 
-module.exports = new PrudentialPDFDownloader();
+module.exports = new PDFDownloader();

@@ -70,7 +70,7 @@ async function handlePing() {
     JSON.stringify({ 
       status: 'OK', 
       timestamp: new Date().toISOString(),
-      message: 'プルデンシャル生命変額保険最適化システム API'
+      message: '変額保険最適化システム API'
     }),
     { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -272,7 +272,7 @@ function generateReportHTML(reportType: string, customerId: string, dateRange: a
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>プルデンシャル生命 分析レポート</title>
+  <title>変額保険 分析レポート</title>
   <style>
     body { 
       font-family: 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif; 
@@ -340,7 +340,7 @@ function generateReportHTML(reportType: string, customerId: string, dateRange: a
 </head>
 <body>
   <div class="header">
-    <div class="company-logo">プルデンシャル生命保険株式会社</div>
+    <div class="company-logo">変額保険アドバイザリーシステム</div>
     <div class="report-title">変額保険 AI分析レポート</div>
     <div class="report-date">生成日時: ${currentDate}</div>
   </div>
@@ -409,7 +409,7 @@ function generateReportHTML(reportType: string, customerId: string, dateRange: a
 
   <div class="footer">
     <p>このレポートは情報提供を目的として作成されており、投資勧誘を目的としたものではありません。</p>
-    <p>プルデンシャル生命保険株式会社 | 変額保険最適化システム</p>
+    <p>変額保険アドバイザリーシステム | 変額保険最適化システム</p>
   </div>
 </body>
 </html>`

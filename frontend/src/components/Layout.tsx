@@ -51,7 +51,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               変額保険アドバイザリーシステム
             </Typography>
             <Typography variant="caption" component="div" sx={{ opacity: 0.8 }}>
-              v1.2.4
+              v1.2.5
             </Typography>
           </Box>
           

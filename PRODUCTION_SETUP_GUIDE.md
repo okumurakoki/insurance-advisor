@@ -1,4 +1,4 @@
-# プルデンシャル変額保険最適化システム - 本番環境構築ガイド
+# 変額保険最適化システム - 本番環境構築ガイド
 
 ## 概要
 このシステムを本番環境で運用するためのセットアップガイドです。
@@ -68,7 +68,7 @@ fly deploy
 ### 3. フロントエンド
 
 既にデプロイ済み:
-- 本番URL: https://prudential-insurance-optimizer-frontend-7c7krg48v.vercel.app
+- 本番URL: https://insurance-optimizer-frontend-7c7krg48v.vercel.app
 - カスタムドメイン設定可能: app.insurance-optimizer.jp
 
 ## セットアップ手順

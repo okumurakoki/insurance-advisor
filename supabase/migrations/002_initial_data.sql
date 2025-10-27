@@ -1,18 +1,18 @@
 -- 初期データ投入スクリプト
 
 -- 1. 初期管理者アカウント作成
--- パスワード: Admin@Prudential2024! (本番環境では必ず変更してください)
-INSERT INTO prudential_users (username, email, name, user_type, password_hash) VALUES 
-('admin', 'admin@prudential.co.jp', 'システム管理者', 'admin', '$2a$12$xH8zN5qKPVH3Y9xC7T6Oq.QGvx8yK3C.gNHKc4bXVHKBqWYxN.YYq'),
-('demo_agency', 'agency@prudential.co.jp', 'デモ代理店', 'agency', '$2a$12$xH8zN5qKPVH3Y9xC7T6Oq.QGvx8yK3C.gNHKc4bXVHKBqWYxN.YYq'),
-('demo_staff', 'staff@prudential.co.jp', 'デモスタッフ', 'staff', '$2a$12$xH8zN5qKPVH3Y9xC7T6Oq.QGvx8yK3C.gNHKc4bXVHKBqWYxN.YYq')
+-- パスワード: Admin@Insurance2025! (本番環境では必ず変更してください)
+INSERT INTO prudential_users (username, email, name, user_type, password_hash) VALUES
+('admin', 'admin@insurance-optimizer.com', 'システム管理者', 'admin', '$2a$12$xH8zN5qKPVH3Y9xC7T6Oq.QGvx8yK3C.gNHKc4bXVHKBqWYxN.YYq'),
+('demo_agency', 'agency@insurance-optimizer.com', 'デモ代理店', 'agency', '$2a$12$xH8zN5qKPVH3Y9xC7T6Oq.QGvx8yK3C.gNHKc4bXVHKBqWYxN.YYq'),
+('demo_staff', 'staff@insurance-optimizer.com', 'デモスタッフ', 'staff', '$2a$12$xH8zN5qKPVH3Y9xC7T6Oq.QGvx8yK3C.gNHKc4bXVHKBqWYxN.YYq')
 ON CONFLICT (username) DO NOTHING;
 
 -- 2. システム設定の初期値
 INSERT INTO kv_store_e075ba47 (key, value) VALUES 
 ('system_config', '{
   "version": "1.0.0",
-  "company_name": "プルデンシャル生命保険株式会社",
+  "company_name": "変額保険アドバイザリーシステム",
   "features": {
     "ai_analysis": true,
     "market_data": true,

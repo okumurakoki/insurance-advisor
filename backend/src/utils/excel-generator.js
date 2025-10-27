@@ -5,7 +5,7 @@ class ExcelReportGenerator {
         const workbook = new ExcelJS.Workbook();
 
         // Set workbook properties
-        workbook.creator = 'Prudential Insurance Optimizer';
+        workbook.creator = 'Variable Insurance Optimizer';
         workbook.created = new Date();
         workbook.modified = new Date();
 
