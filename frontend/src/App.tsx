@@ -413,6 +413,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [statistics, setStatistics] = useState<any>(null);
   const [latestMarketData, setLatestMarketData] = useState<any>(null);
   const [riskProfile, setRiskProfile] = useState<'conservative' | 'balanced' | 'aggressive'>('balanced');
+  const [myInsuranceCompanies, setMyInsuranceCompanies] = useState<any[]>([]);
 
   // Generate optimization results from fund performance data
   useEffect(() => {
@@ -420,6 +421,25 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
+
+        // Fetch contracted insurance companies (for parent and child accounts only)
+        if (user.accountType === 'parent' || user.accountType === 'child') {
+          try {
+            const companiesResponse = await fetch(`${API_BASE_URL}/api/insurance/my-companies`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+
+            if (companiesResponse.ok) {
+              const companies = await companiesResponse.json();
+              console.log('My insurance companies:', companies);
+              setMyInsuranceCompanies(companies);
+            }
+          } catch (error) {
+            console.error('Failed to fetch insurance companies:', error);
+          }
+        }
 
         // Fetch fund performance
         const perfResponse = await fetch(`${API_BASE_URL}/api/analysis/fund-performance`, {
@@ -676,6 +696,57 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                 )}
               </Box>
             </Card>
+          </Grid>
+        )}
+
+        {/* Contracted Insurance Companies (代理店・担当者のみ) */}
+        {(user.accountType === 'parent' || user.accountType === 'child') && myInsuranceCompanies.length > 0 && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <BusinessIcon />
+                契約中の保険会社
+              </Typography>
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                {myInsuranceCompanies.map((company) => (
+                  <Grid item xs={12} sm={6} md={4} key={company.id}>
+                    <Card sx={{
+                      p: 2,
+                      textAlign: 'center',
+                      bgcolor: 'primary.50',
+                      border: '2px solid',
+                      borderColor: 'primary.main',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: 'primary.100',
+                        transform: 'translateY(-2px)',
+                        transition: 'all 0.2s'
+                      }
+                    }}
+                    onClick={() => navigate('/insurance-companies')}
+                    >
+                      <BusinessIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
+                      <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                        {company.display_name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        契約開始: {new Date(company.contract_start_date).toLocaleDateString('ja-JP')}
+                      </Typography>
+                      <Chip label="契約中" color="success" size="small" sx={{ mt: 1 }} />
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+              <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<BusinessIcon />}
+                  onClick={() => navigate('/insurance-companies')}
+                >
+                  保険会社の詳細を見る
+                </Button>
+              </Box>
+            </Paper>
           </Grid>
         )}
 
