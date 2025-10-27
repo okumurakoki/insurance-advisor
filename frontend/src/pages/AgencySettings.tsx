@@ -201,7 +201,7 @@ const AgencySettings: React.FC = () => {
                   <IconButton
                     edge="end"
                     aria-label="delete"
-                    onClick={() => handleRemoveCompany(company.id)}
+                    onClick={() => handleRemoveCompany(company.agency_company_id || company.id)}
                     color="error"
                   >
                     <DeleteIcon />

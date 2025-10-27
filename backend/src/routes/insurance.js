@@ -382,6 +382,7 @@ router.get('/my-companies', authenticateToken, async (req, res) => {
                     ic.company_name_en,
                     ic.display_name,
                     ic.is_active,
+                    aic.id as agency_company_id,
                     aic.contract_start_date,
                     aic.contract_end_date
                 FROM insurance_companies ic
@@ -401,6 +402,7 @@ router.get('/my-companies', authenticateToken, async (req, res) => {
                     ic.company_name_en,
                     ic.display_name,
                     ic.is_active,
+                    aic.id as agency_company_id,
                     aic.contract_start_date,
                     aic.contract_end_date
                 FROM insurance_companies ic
