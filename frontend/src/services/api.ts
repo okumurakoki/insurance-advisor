@@ -298,13 +298,39 @@ class ApiService {
     return response.data;
   }
 
-  // Add insurance company to agency
+  // Add insurance company to agency (admin only)
   async addAgencyCompany(data: {
+    user_id?: number;
     company_id: number;
     contract_start_date?: string;
     notes?: string;
   }): Promise<{ message: string; data: any }> {
     const response = await this.api.post('/insurance/agency-companies', data);
+    return response.data;
+  }
+
+  // Get agencies list (admin only)
+  async getAgencies(): Promise<Array<{
+    id: number;
+    user_id: string;
+    account_type: string;
+  }>> {
+    const response = await this.api.get('/admin/agencies');
+    return response.data;
+  }
+
+  // Get agency's contracted insurance companies (admin only)
+  async getAgencyCompanies(agencyId: number): Promise<Array<{
+    id: number;
+    company_id: number;
+    company_code: string;
+    company_name: string;
+    display_name: string;
+    contract_start_date: string;
+    contract_end_date: string | null;
+    is_active: boolean;
+  }>> {
+    const response = await this.api.get(`/insurance/agency-companies/${agencyId}`);
     return response.data;
   }
 

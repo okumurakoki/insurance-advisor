@@ -58,7 +58,7 @@ import {
 } from '@mui/icons-material';
 import Login from './components/Login.tsx';
 import InsuranceCompanies from './pages/InsuranceCompanies.tsx';
-import AgencySettings from './pages/AgencySettings.tsx';
+import AdminAgencyManagement from './pages/AdminAgencyManagement.tsx';
 
 // API Configuration
 const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com').replace(/\/+$/, '');
@@ -222,10 +222,10 @@ function AppContent() {
   const navigationItems = [
     { path: '/dashboard', icon: <DashboardIcon />, text: 'ダッシュボード' },
     ...(user?.accountType === 'admin' ? [{ path: '/agencies', icon: <PeopleIcon />, text: '代理店管理' }] : []),
+    ...(user?.accountType === 'admin' ? [{ path: '/admin/agency-management', icon: <BusinessIcon />, text: '保険会社管理' }] : []),
     ...(user?.accountType === 'parent' ? [{ path: '/staff', icon: <PeopleIcon />, text: '担当者管理' }] : []),
     ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/customers', icon: <PeopleIcon />, text: '顧客管理' }] : []),
     ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/insurance-companies', icon: <BusinessIcon />, text: '保険会社' }] : []),
-    ...(user?.accountType === 'parent' ? [{ path: '/settings/agency-companies', icon: <SettingsIcon />, text: '取扱会社設定' }] : []),
   ];
 
   const drawerContent = (
@@ -359,10 +359,14 @@ function AppContent() {
               <Route path="/agencies" element={<AgencyList user={user} navigate={navigate} />} />
             </>
           )}
+          {user?.accountType === 'admin' && (
+            <>
+              <Route path="/admin/agency-management" element={<AdminAgencyManagement />} />
+            </>
+          )}
           {user?.accountType === 'parent' && (
             <>
               <Route path="/staff" element={<StaffList user={user} navigate={navigate} />} />
-              <Route path="/settings/agency-companies" element={<AgencySettings />} />
             </>
           )}
           {(user?.accountType === 'parent' || user?.accountType === 'child') && (

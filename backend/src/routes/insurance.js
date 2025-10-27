@@ -431,9 +431,9 @@ router.get('/my-companies', authenticateToken, async (req, res) => {
  */
 router.get('/agency-companies/:userId', authenticateToken, async (req, res) => {
     try {
-        // Only allow parent accounts to view
-        if (req.user.accountType !== 'parent') {
-            return res.status(403).json({ error: 'Access denied' });
+        // Only allow admin accounts to view
+        if (req.user.accountType !== 'admin') {
+            return res.status(403).json({ error: 'Admin access required' });
         }
 
         const query = `
@@ -456,13 +456,18 @@ router.get('/agency-companies/:userId', authenticateToken, async (req, res) => {
  */
 router.post('/agency-companies', authenticateToken, async (req, res) => {
     try {
-        // Only allow parent accounts
-        if (req.user.accountType !== 'parent') {
-            return res.status(403).json({ error: 'Access denied' });
+        // Only allow admin accounts
+        if (req.user.accountType !== 'admin') {
+            return res.status(403).json({ error: 'Admin access required' });
         }
 
-        const { company_id, contract_start_date, notes } = req.body;
-        const userId = req.user.id;
+        const { user_id, company_id, contract_start_date, notes } = req.body;
+
+        if (!user_id) {
+            return res.status(400).json({ error: 'user_id is required' });
+        }
+
+        const userId = user_id;
 
         if (!company_id) {
             return res.status(400).json({ error: 'company_id is required' });
@@ -499,12 +504,12 @@ router.post('/agency-companies', authenticateToken, async (req, res) => {
 
 /**
  * PUT /api/insurance/agency-companies/:id
- * Update agency-company relationship
+ * Update agency-company relationship (admin only)
  */
 router.put('/agency-companies/:id', authenticateToken, async (req, res) => {
     try {
-        if (req.user.accountType !== 'parent') {
-            return res.status(403).json({ error: 'Access denied' });
+        if (req.user.accountType !== 'admin') {
+            return res.status(403).json({ error: 'Admin access required' });
         }
 
         const { contract_start_date, contract_end_date, is_active, notes } = req.body;
@@ -517,7 +522,7 @@ router.put('/agency-companies/:id', authenticateToken, async (req, res) => {
                 is_active = COALESCE($3, is_active),
                 notes = $4,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = $5 AND user_id = $6
+            WHERE id = $5
             RETURNING *
         `;
 
@@ -526,8 +531,7 @@ router.put('/agency-companies/:id', authenticateToken, async (req, res) => {
             contract_end_date,
             is_active,
             notes,
-            req.params.id,
-            req.user.id
+            req.params.id
         ]);
 
         if (result.length === 0) {
@@ -546,22 +550,22 @@ router.put('/agency-companies/:id', authenticateToken, async (req, res) => {
 
 /**
  * DELETE /api/insurance/agency-companies/:id
- * Remove insurance company from agency (soft delete)
+ * Remove insurance company from agency (soft delete, admin only)
  */
 router.delete('/agency-companies/:id', authenticateToken, async (req, res) => {
     try {
-        if (req.user.accountType !== 'parent') {
-            return res.status(403).json({ error: 'Access denied' });
+        if (req.user.accountType !== 'admin') {
+            return res.status(403).json({ error: 'Admin access required' });
         }
 
         const query = `
             UPDATE agency_insurance_companies
             SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $1 AND user_id = $2
+            WHERE id = $1
             RETURNING *
         `;
 
-        const result = await db.query(query, [req.params.id, req.user.id]);
+        const result = await db.query(query, [req.params.id]);
 
         if (result.length === 0) {
             return res.status(404).json({ error: 'Record not found' });
