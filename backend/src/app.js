@@ -84,6 +84,7 @@ const analysisRoutes = require('./routes/analysis');
 const lineRoutes = require('./routes/line');
 const cronRoutes = require('./routes/cron');
 const adminRoutes = require('./routes/admin');
+const insuranceRoutes = require('./routes/insurance');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -92,6 +93,7 @@ app.use('/api/analysis', analysisRoutes);
 app.use('/api/line', lineRoutes);
 app.use('/api/cron', cronRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/insurance', insuranceRoutes);
 
 // Add basic root route
 app.get('/', (req, res) => {

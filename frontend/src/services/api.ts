@@ -253,6 +253,160 @@ class ApiService {
     const response = await this.api.get('/analysis/statistics');
     return response.data;
   }
+
+  // Insurance Company endpoints
+  async getInsuranceCompanies(): Promise<Array<{
+    id: number;
+    company_code: string;
+    company_name: string;
+    company_name_en: string;
+    display_name: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+  }>> {
+    const response = await this.api.get('/insurance/companies');
+    return response.data;
+  }
+
+  async getInsuranceCompany(id: number): Promise<{
+    id: number;
+    company_code: string;
+    company_name: string;
+    company_name_en: string;
+    display_name: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+  }> {
+    const response = await this.api.get(`/insurance/companies/${id}`);
+    return response.data;
+  }
+
+  // Get insurance companies available to current user
+  async getMyInsuranceCompanies(): Promise<Array<{
+    id: number;
+    company_code: string;
+    company_name: string;
+    company_name_en: string;
+    display_name: string;
+    is_active: boolean;
+    contract_start_date: string;
+    contract_end_date: string | null;
+  }>> {
+    const response = await this.api.get('/insurance/my-companies');
+    return response.data;
+  }
+
+  // Add insurance company to agency
+  async addAgencyCompany(data: {
+    company_id: number;
+    contract_start_date?: string;
+    notes?: string;
+  }): Promise<{ message: string; data: any }> {
+    const response = await this.api.post('/insurance/agency-companies', data);
+    return response.data;
+  }
+
+  // Remove insurance company from agency
+  async removeAgencyCompany(id: number): Promise<{ message: string }> {
+    const response = await this.api.delete(`/insurance/agency-companies/${id}`);
+    return response.data;
+  }
+
+  async getSpecialAccounts(companyCode?: string): Promise<Array<{
+    id: number;
+    company_id: number;
+    account_code: string;
+    account_name: string;
+    account_type: string;
+    investment_policy: string | null;
+    benchmark: string | null;
+    base_currency: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    company_code: string;
+    company_name: string;
+  }>> {
+    const params = companyCode ? { company_code: companyCode } : {};
+    const response = await this.api.get('/insurance/special-accounts', { params });
+    return response.data;
+  }
+
+  async getSpecialAccountsByCompany(companyId: number): Promise<Array<{
+    id: number;
+    company_id: number;
+    account_code: string;
+    account_name: string;
+    account_type: string;
+    investment_policy: string | null;
+    benchmark: string | null;
+    base_currency: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    company_code: string;
+    company_name: string;
+  }>> {
+    const response = await this.api.get(`/insurance/companies/${companyId}/special-accounts`);
+    return response.data;
+  }
+
+  async getSpecialAccountPerformance(
+    accountId: number,
+    options?: {
+      start_date?: string;
+      end_date?: string;
+      limit?: number;
+    }
+  ): Promise<Array<{
+    id: number;
+    special_account_id: number;
+    performance_date: string;
+    unit_price: string;
+    return_1m: string;
+    return_3m: string;
+    return_6m: string;
+    return_1y: string;
+    return_3y: string;
+    return_since_inception: string;
+    total_assets: string | null;
+    created_at: string;
+    account_code: string;
+    account_name: string;
+    company_code: string;
+    company_name: string;
+  }>> {
+    const response = await this.api.get(`/insurance/special-accounts/${accountId}/performance`, {
+      params: options,
+    });
+    return response.data;
+  }
+
+  async getLatestPerformanceByCompany(companyCode?: string): Promise<Array<{
+    id: number;
+    special_account_id: number;
+    performance_date: string;
+    unit_price: string;
+    return_1m: string;
+    return_3m: string;
+    return_6m: string;
+    return_1y: string;
+    return_3y: string;
+    return_since_inception: string;
+    total_assets: string | null;
+    account_code: string;
+    account_name: string;
+    account_type: string;
+    benchmark: string | null;
+    company_code: string;
+    company_name: string;
+  }>> {
+    const params = companyCode ? { company_code: companyCode } : {};
+    const response = await this.api.get('/insurance/performance/latest', { params });
+    return response.data;
+  }
 }
 
 export default new ApiService();

@@ -53,8 +53,12 @@ import {
   PictureAsPdf as PdfIcon,
   Menu as MenuIcon,
   TableChart as TableIcon,
+  Business as BusinessIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import Login from './components/Login.tsx';
+import InsuranceCompanies from './pages/InsuranceCompanies';
+import AgencySettings from './pages/AgencySettings';
 
 // API Configuration
 const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com').replace(/\/+$/, '');
@@ -220,6 +224,8 @@ function AppContent() {
     ...(user?.accountType === 'admin' ? [{ path: '/agencies', icon: <PeopleIcon />, text: '代理店管理' }] : []),
     ...(user?.accountType === 'parent' ? [{ path: '/staff', icon: <PeopleIcon />, text: '担当者管理' }] : []),
     ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/customers', icon: <PeopleIcon />, text: '顧客管理' }] : []),
+    ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/insurance-companies', icon: <BusinessIcon />, text: '保険会社' }] : []),
+    ...(user?.accountType === 'parent' ? [{ path: '/settings/agency-companies', icon: <SettingsIcon />, text: '取扱会社設定' }] : []),
   ];
 
   const drawerContent = (
@@ -356,6 +362,7 @@ function AppContent() {
           {user?.accountType === 'parent' && (
             <>
               <Route path="/staff" element={<StaffList user={user} navigate={navigate} />} />
+              <Route path="/settings/agency-companies" element={<AgencySettings />} />
             </>
           )}
           {(user?.accountType === 'parent' || user?.accountType === 'child') && (
@@ -364,6 +371,7 @@ function AppContent() {
               <Route path="/customers/new" element={<CustomerForm user={user} navigate={navigate} isEdit={false} />} />
               <Route path="/customers/:id" element={<CustomerDetail user={user} navigate={navigate} />} />
               <Route path="/customers/:id/edit" element={<CustomerForm user={user} navigate={navigate} isEdit={true} />} />
+              <Route path="/insurance-companies" element={<InsuranceCompanies />} />
             </>
           )}
         </Routes>
