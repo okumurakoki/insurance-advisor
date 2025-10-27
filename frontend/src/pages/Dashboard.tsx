@@ -11,6 +11,10 @@ import {
   Chip,
   CircularProgress,
   Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
@@ -21,6 +25,7 @@ import {
   Assessment as AssessmentIcon,
   Add as AddIcon,
   TrendingUp as TrendingUpIcon,
+  Business as BusinessIcon,
 } from '@mui/icons-material';
 
 const Dashboard: React.FC = () => {
@@ -39,6 +44,7 @@ const Dashboard: React.FC = () => {
   const [marketData, setMarketData] = useState<any[]>([]);
   const [insuranceCompanies, setInsuranceCompanies] = useState<any[]>([]);
   const [companiesPerformance, setCompaniesPerformance] = useState<any[]>([]);
+  const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('');
 
   useEffect(() => {
     fetchDashboardData();
@@ -79,6 +85,11 @@ const Dashboard: React.FC = () => {
       // Get user's contracted insurance companies
       const companies = await api.getMyInsuranceCompanies();
       setInsuranceCompanies(companies);
+
+      // Auto-select first company if available
+      if (companies.length > 0 && !selectedCompanyCode) {
+        setSelectedCompanyCode(companies[0].company_code);
+      }
 
       // Fetch performance data for each company
       const performancePromises = companies.map(async (company: any) => {
@@ -293,91 +304,118 @@ const Dashboard: React.FC = () => {
         {companiesPerformance.length > 0 && (
           <Grid item xs={12}>
             <Paper sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                🏢 契約保険会社の運用実績
-              </Typography>
-              {companiesPerformance.map((item, companyIndex) => (
-                <Box key={companyIndex} sx={{ mb: companyIndex < companiesPerformance.length - 1 ? 4 : 0 }}>
-                  <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {item.company.display_name}
-                    <Chip
-                      label={`${item.performance.length}ファンド`}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </Typography>
-                  <Grid container spacing={2}>
-                    {item.performance.slice(0, 6).map((perf: any, index: number) => (
-                      <Grid item xs={12} sm={6} md={4} key={index}>
-                        <Card variant="outlined">
-                          <CardContent>
-                            <Typography variant="subtitle2" gutterBottom noWrap>
-                              {perf.account_name}
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                              {perf.account_code}
-                            </Typography>
-                            <Box sx={{ mt: 1 }}>
-                              <Typography variant="body2" color="textSecondary">
-                                基準価額
-                              </Typography>
-                              <Typography variant="h6" color="primary">
-                                ¥{parseFloat(perf.unit_price).toLocaleString()}
-                              </Typography>
-                            </Box>
-                            <Grid container spacing={1} sx={{ mt: 1 }}>
-                              <Grid item xs={4}>
-                                <Typography variant="caption" color="textSecondary">1ヶ月</Typography>
-                                <Typography
-                                  variant="body2"
-                                  color={parseFloat(perf.return_1m) >= 0 ? 'success.main' : 'error.main'}
-                                  fontWeight="bold"
-                                >
-                                  {parseFloat(perf.return_1m) >= 0 ? '+' : ''}{parseFloat(perf.return_1m).toFixed(2)}%
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={4}>
-                                <Typography variant="caption" color="textSecondary">3ヶ月</Typography>
-                                <Typography
-                                  variant="body2"
-                                  color={parseFloat(perf.return_3m) >= 0 ? 'success.main' : 'error.main'}
-                                  fontWeight="bold"
-                                >
-                                  {parseFloat(perf.return_3m) >= 0 ? '+' : ''}{parseFloat(perf.return_3m).toFixed(2)}%
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={4}>
-                                <Typography variant="caption" color="textSecondary">1年</Typography>
-                                <Typography
-                                  variant="body2"
-                                  color={parseFloat(perf.return_1y) >= 0 ? 'success.main' : 'error.main'}
-                                  fontWeight="bold"
-                                >
-                                  {parseFloat(perf.return_1y) >= 0 ? '+' : ''}{parseFloat(perf.return_1y).toFixed(2)}%
-                                </Typography>
-                              </Grid>
-                            </Grid>
-                            <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                              更新日: {new Date(perf.performance_date).toLocaleDateString('ja-JP')}
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                      </Grid>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <BusinessIcon />
+                  契約保険会社の運用実績
+                </Typography>
+                <FormControl sx={{ minWidth: 250 }}>
+                  <InputLabel>保険会社を選択</InputLabel>
+                  <Select
+                    value={selectedCompanyCode}
+                    onChange={(e) => setSelectedCompanyCode(e.target.value)}
+                    label="保険会社を選択"
+                    size="small"
+                  >
+                    {insuranceCompanies.map((company: any) => (
+                      <MenuItem key={company.company_code} value={company.company_code}>
+                        {company.display_name}
+                      </MenuItem>
                     ))}
-                  </Grid>
-                  {item.performance.length > 6 && (
-                    <Box sx={{ mt: 2, textAlign: 'center' }}>
-                      <Button
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {companiesPerformance
+                .filter((item) => item.company.company_code === selectedCompanyCode)
+                .map((item, companyIndex) => (
+                  <Box key={companyIndex}>
+                    <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                        {item.company.display_name}
+                      </Typography>
+                      <Chip
+                        label={`${item.performance.length}ファンド`}
+                        color="primary"
                         variant="outlined"
-                        onClick={() => navigate('/insurance-companies')}
-                      >
-                        すべて表示 ({item.performance.length}ファンド)
-                      </Button>
+                      />
+                      <Chip
+                        label="契約中"
+                        color="success"
+                        size="small"
+                      />
                     </Box>
-                  )}
-                </Box>
-              ))}
+                    <Grid container spacing={2}>
+                      {item.performance.map((perf: any, index: number) => (
+                        <Grid item xs={12} sm={6} md={4} key={index}>
+                          <Card variant="outlined" sx={{ height: '100%' }}>
+                            <CardContent>
+                              <Typography variant="subtitle2" gutterBottom noWrap>
+                                {perf.account_name}
+                              </Typography>
+                              <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
+                                {perf.account_code}
+                              </Typography>
+                              <Box sx={{ mt: 1 }}>
+                                <Typography variant="body2" color="textSecondary">
+                                  基準価額
+                                </Typography>
+                                <Typography variant="h6" color="primary">
+                                  ¥{parseFloat(perf.unit_price).toLocaleString()}
+                                </Typography>
+                              </Box>
+                              <Grid container spacing={1} sx={{ mt: 1 }}>
+                                <Grid item xs={4}>
+                                  <Typography variant="caption" color="textSecondary">1ヶ月</Typography>
+                                  <Typography
+                                    variant="body2"
+                                    color={parseFloat(perf.return_1m) >= 0 ? 'success.main' : 'error.main'}
+                                    fontWeight="bold"
+                                  >
+                                    {parseFloat(perf.return_1m) >= 0 ? '+' : ''}{parseFloat(perf.return_1m).toFixed(2)}%
+                                  </Typography>
+                                </Grid>
+                                <Grid item xs={4}>
+                                  <Typography variant="caption" color="textSecondary">3ヶ月</Typography>
+                                  <Typography
+                                    variant="body2"
+                                    color={parseFloat(perf.return_3m) >= 0 ? 'success.main' : 'error.main'}
+                                    fontWeight="bold"
+                                  >
+                                    {parseFloat(perf.return_3m) >= 0 ? '+' : ''}{parseFloat(perf.return_3m).toFixed(2)}%
+                                  </Typography>
+                                </Grid>
+                                <Grid item xs={4}>
+                                  <Typography variant="caption" color="textSecondary">1年</Typography>
+                                  <Typography
+                                    variant="body2"
+                                    color={parseFloat(perf.return_1y) >= 0 ? 'success.main' : 'error.main'}
+                                    fontWeight="bold"
+                                  >
+                                    {parseFloat(perf.return_1y) >= 0 ? '+' : ''}{parseFloat(perf.return_1y).toFixed(2)}%
+                                  </Typography>
+                                </Grid>
+                              </Grid>
+                              <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                                更新日: {new Date(perf.performance_date).toLocaleDateString('ja-JP')}
+                              </Typography>
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      ))}
+                    </Grid>
+                    {item.performance.length > 6 && (
+                      <Box sx={{ mt: 2, textAlign: 'center' }}>
+                        <Button
+                          variant="outlined"
+                          onClick={() => navigate('/insurance-companies')}
+                        >
+                          すべて表示 ({item.performance.length}ファンド)
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                ))}
             </Paper>
           </Grid>
         )}
