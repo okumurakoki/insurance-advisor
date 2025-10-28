@@ -34,6 +34,7 @@ const CustomerForm: React.FC = () => {
     riskTolerance: 'balanced',
     investmentGoal: '',
     notes: '',
+    companyId: undefined,
   });
 
   const [loading, setLoading] = useState(false);
@@ -44,6 +45,7 @@ const CustomerForm: React.FC = () => {
   const [loadingUserInfo, setLoadingUserInfo] = useState(true);
   const [staffList, setStaffList] = useState<any[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
+  const [insuranceCompanies, setInsuranceCompanies] = useState<any[]>([]);
 
   useEffect(() => {
     if (isEditMode && id) {
@@ -53,6 +55,7 @@ const CustomerForm: React.FC = () => {
 
   useEffect(() => {
     fetchUserInfo();
+    fetchInsuranceCompanies();
   }, []);
 
   const fetchUserInfo = async () => {
@@ -73,6 +76,15 @@ const CustomerForm: React.FC = () => {
     }
   };
 
+  const fetchInsuranceCompanies = async () => {
+    try {
+      const companies = await api.getMyInsuranceCompanies();
+      setInsuranceCompanies(companies);
+    } catch (err) {
+      console.error('Failed to fetch insurance companies:', err);
+    }
+  };
+
   const fetchCustomer = async (customerId: number) => {
     try {
       const customer = await api.getCustomer(customerId);
@@ -86,10 +98,11 @@ const CustomerForm: React.FC = () => {
         riskTolerance: customer.riskTolerance,
         investmentGoal: customer.investmentGoal || '',
         notes: customer.notes || '',
+        companyId: customer.companyId,
       });
       // 編集時に現在の担当者IDを設定
-      if (customer.user_id) {
-        setSelectedStaffId(customer.user_id);
+      if (customer.userId) {
+        setSelectedStaffId(customer.userId);
       }
     } catch (err: any) {
       setError('顧客情報の取得に失敗しました');
@@ -220,6 +233,24 @@ const CustomerForm: React.FC = () => {
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
               />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                select
+                label="加入保険会社"
+                value={formData.companyId || ''}
+                onChange={(e) => handleChange('companyId', e.target.value ? parseInt(e.target.value) : undefined)}
+                helperText="顧客が加入している保険会社を選択してください"
+              >
+                <MenuItem value="">選択なし</MenuItem>
+                {insuranceCompanies.map((company: any) => (
+                  <MenuItem key={company.id} value={company.id}>
+                    {company.display_name}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
 
             <Grid item xs={12} sm={6}>

@@ -85,7 +85,7 @@ async function checkCustomerAccess(user, customer) {
 }
 
 router.post('/', authenticateToken, async (req, res) => {
-    const { name, email, phone, contractDate, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes, staffId } = req.body;
+    const { name, email, phone, contractDate, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes, staffId, companyId } = req.body;
 
     if (!name || !contractDate || !contractAmount || !monthlyPremium) {
         return res.status(400).json({
@@ -139,7 +139,8 @@ router.post('/', authenticateToken, async (req, res) => {
             monthly_premium: monthlyPremium,
             risk_tolerance: riskTolerance || 'balanced',
             investment_goal: investmentGoal,
-            notes
+            notes,
+            company_id: companyId
         });
 
         logger.info(`Customer created: ${name} by user: ${req.user.userId}, assigned to: ${assignedUserId}`);
@@ -155,7 +156,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 router.put('/:id', authenticateToken, async (req, res) => {
-    const { name, email, phone, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes, staffId } = req.body;
+    const { name, email, phone, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes, staffId, companyId } = req.body;
 
     try {
         const customer = await Customer.findById(req.params.id);
@@ -178,7 +179,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
             monthly_premium: monthlyPremium,
             risk_tolerance: riskTolerance,
             investment_goal: investmentGoal,
-            notes
+            notes,
+            company_id: companyId
         };
 
         // 代理店の場合、担当者変更が可能

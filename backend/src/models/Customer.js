@@ -2,29 +2,30 @@ const db = require('../utils/database-factory');
 
 class Customer {
     static async create(customerData) {
-        const { 
-            user_id, 
-            name, 
-            email, 
-            phone, 
-            contract_date, 
-            contract_amount, 
+        const {
+            user_id,
+            name,
+            email,
+            phone,
+            contract_date,
+            contract_amount,
             monthly_premium,
-            risk_tolerance, 
-            investment_goal, 
-            notes 
+            risk_tolerance,
+            investment_goal,
+            notes,
+            company_id
         } = customerData;
-        
+
         const sql = `
             INSERT INTO customers (
-                user_id, name, email, phone, contract_date, 
-                contract_amount, monthly_premium, risk_tolerance, 
-                investment_goal, notes
+                user_id, name, email, phone, contract_date,
+                contract_amount, monthly_premium, risk_tolerance,
+                investment_goal, notes, company_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id
         `;
-        
+
         const result = await db.query(sql, [
             user_id,
             name,
@@ -35,23 +36,41 @@ class Customer {
             monthly_premium,
             risk_tolerance || 'balanced',
             investment_goal || null,
-            notes || null
+            notes || null,
+            company_id || null
         ]);
 
         return result.insertId || result[0]?.id;
     }
 
     static async findById(id) {
-        const sql = 'SELECT * FROM customers WHERE id = $1 AND is_active = TRUE';
+        const sql = `
+            SELECT
+                c.*,
+                ic.id as company_id,
+                ic.company_code,
+                ic.company_name,
+                ic.display_name
+            FROM customers c
+            LEFT JOIN insurance_companies ic ON c.company_id = ic.id
+            WHERE c.id = $1 AND c.is_active = TRUE
+        `;
         const results = await db.query(sql, [id]);
         return results[0] || null;
     }
 
     static async getByUserId(userId) {
         const sql = `
-            SELECT * FROM customers
-            WHERE user_id = $1 AND is_active = TRUE
-            ORDER BY created_at DESC
+            SELECT
+                c.*,
+                ic.id as company_id,
+                ic.company_code,
+                ic.company_name,
+                ic.display_name
+            FROM customers c
+            LEFT JOIN insurance_companies ic ON c.company_id = ic.id
+            WHERE c.user_id = $1 AND c.is_active = TRUE
+            ORDER BY c.created_at DESC
         `;
         return await db.query(sql, [userId]);
     }
@@ -59,9 +78,17 @@ class Customer {
     static async getByAgencyId(agencyId) {
         // 代理店配下の全担当者の全顧客を取得（customersテーブルの場合）
         const sql = `
-            SELECT c.*, u.user_id as staff_user_id, u.id as staff_id
+            SELECT
+                c.*,
+                u.user_id as staff_user_id,
+                u.id as staff_id,
+                ic.id as company_id,
+                ic.company_code,
+                ic.company_name,
+                ic.display_name
             FROM customers c
             INNER JOIN users u ON c.user_id = u.id
+            LEFT JOIN insurance_companies ic ON c.company_id = ic.id
             WHERE u.parent_id = $1 AND c.is_active = TRUE
             ORDER BY c.created_at DESC
         `;

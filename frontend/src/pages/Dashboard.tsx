@@ -45,6 +45,7 @@ const Dashboard: React.FC = () => {
   const [insuranceCompanies, setInsuranceCompanies] = useState<any[]>([]);
   const [companiesPerformance, setCompaniesPerformance] = useState<any[]>([]);
   const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('');
+  const [customerCompanyFilter, setCustomerCompanyFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchDashboardData();
@@ -457,57 +458,89 @@ const Dashboard: React.FC = () => {
         {/* Recent Customers */}
         <Grid item xs={12}>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              最近の顧客
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">最近の顧客</Typography>
+              {customers.length > 0 && (
+                <FormControl sx={{ minWidth: 200 }} size="small">
+                  <InputLabel>保険会社で絞り込み</InputLabel>
+                  <Select
+                    value={customerCompanyFilter}
+                    onChange={(e) => setCustomerCompanyFilter(e.target.value)}
+                    label="保険会社で絞り込み"
+                  >
+                    <MenuItem value="all">すべて</MenuItem>
+                    {insuranceCompanies.map((company: any) => (
+                      <MenuItem key={company.company_code} value={company.company_code}>
+                        {company.display_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            </Box>
             {customers.length === 0 ? (
               <Typography color="textSecondary">
                 まだ顧客が登録されていません
               </Typography>
             ) : (
               <Grid container spacing={2}>
-                {customers.slice(0, 5).map((customer) => (
-                  <Grid item xs={12} key={customer.id}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Box display="flex" justifyContent="space-between" alignItems="center">
-                          <Box>
-                            <Typography variant="h6">{customer.name}</Typography>
-                            <Typography color="textSecondary" variant="body2">
-                              契約日: {new Date(customer.contractDate).toLocaleDateString('ja-JP')}
-                            </Typography>
-                            <Typography color="textSecondary" variant="body2">
-                              月額保険料: ¥{customer.monthlyPremium.toLocaleString()}
-                            </Typography>
+                {customers
+                  .filter((customer) =>
+                    customerCompanyFilter === 'all' || customer.companyCode === customerCompanyFilter
+                  )
+                  .slice(0, 10)
+                  .map((customer) => (
+                    <Grid item xs={12} key={customer.id}>
+                      <Card variant="outlined">
+                        <CardContent>
+                          <Box display="flex" justifyContent="space-between" alignItems="center">
+                            <Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                <Typography variant="h6">{customer.name}</Typography>
+                                {customer.displayName && (
+                                  <Chip
+                                    label={customer.displayName}
+                                    size="small"
+                                    color="secondary"
+                                    variant="outlined"
+                                  />
+                                )}
+                              </Box>
+                              <Typography color="textSecondary" variant="body2">
+                                契約日: {new Date(customer.contractDate).toLocaleDateString('ja-JP')}
+                              </Typography>
+                              <Typography color="textSecondary" variant="body2">
+                                月額保険料: ¥{customer.monthlyPremium.toLocaleString()}
+                              </Typography>
+                            </Box>
+                            <Box display="flex" gap={1} alignItems="center">
+                              <Chip
+                                label={getRiskToleranceLabel(customer.riskTolerance)}
+                                size="small"
+                                color={
+                                  customer.riskTolerance === 'conservative' ? 'info' :
+                                  customer.riskTolerance === 'balanced' ? 'primary' : 'warning'
+                                }
+                              />
+                              <Button
+                                size="small"
+                                onClick={() => navigate(`/customers/${customer.id}`)}
+                              >
+                                詳細
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={() => navigate(`/analysis/new/${customer.id}`)}
+                              >
+                                分析
+                              </Button>
+                            </Box>
                           </Box>
-                          <Box display="flex" gap={1} alignItems="center">
-                            <Chip
-                              label={getRiskToleranceLabel(customer.riskTolerance)}
-                              size="small"
-                              color={
-                                customer.riskTolerance === 'conservative' ? 'info' :
-                                customer.riskTolerance === 'balanced' ? 'primary' : 'warning'
-                              }
-                            />
-                            <Button
-                              size="small"
-                              onClick={() => navigate(`/customers/${customer.id}`)}
-                            >
-                              詳細
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="contained"
-                              onClick={() => navigate(`/analysis/new/${customer.id}`)}
-                            >
-                              分析
-                            </Button>
-                          </Box>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
               </Grid>
             )}
           </Paper>

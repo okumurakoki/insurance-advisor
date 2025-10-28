@@ -22,6 +22,10 @@ export interface Customer {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  companyId?: number;
+  companyCode?: string;
+  companyName?: string;
+  displayName?: string;
 }
 
 export interface AnalysisResult {
@@ -80,6 +84,7 @@ export interface CustomerForm {
   riskTolerance: 'conservative' | 'balanced' | 'aggressive';
   investmentGoal?: string;
   notes?: string;
+  companyId?: number;
 }
 
 export interface ApiError {
