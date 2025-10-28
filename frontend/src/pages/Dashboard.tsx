@@ -15,6 +15,12 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
@@ -135,6 +141,32 @@ const Dashboard: React.FC = () => {
       aggressive: '積極的',
     };
     return labels[risk as keyof typeof labels] || risk;
+  };
+
+  const formatNumber = (value: string | null): string => {
+    if (!value) return '-';
+    const num = parseFloat(value);
+    return isNaN(num) ? '-' : num.toFixed(2);
+  };
+
+  const getReturnColor = (value: string | null): string => {
+    if (!value) return 'inherit';
+    const num = parseFloat(value);
+    if (isNaN(num)) return 'inherit';
+    if (num > 0) return '#4caf50';
+    if (num < 0) return '#f44336';
+    return 'inherit';
+  };
+
+  const groupByAccountType = (data: any[]) => {
+    const grouped: { [key: string]: any[] } = {};
+    data.forEach((item) => {
+      if (!grouped[item.account_type]) {
+        grouped[item.account_type] = [];
+      }
+      grouped[item.account_type].push(item);
+    });
+    return grouped;
   };
 
   if (loading) {
@@ -321,7 +353,7 @@ const Dashboard: React.FC = () => {
             <Paper sx={{ p: 3, mb: 2 }}>
               <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
                 <BusinessIcon />
-                契約保険会社の運用実績
+                保険会社・特別勘定パフォーマンス
               </Typography>
 
               {companiesPerformance
@@ -329,93 +361,119 @@ const Dashboard: React.FC = () => {
                 .map((item, companyIndex) => {
                   const filteredPerformance = companiesPerformance.filter((p) => selectedCompanyCode === 'all' || p.company.company_code === selectedCompanyCode);
                   const isLast = companyIndex === filteredPerformance.length - 1;
+                  const groupedData = groupByAccountType(item.performance);
 
                   return (
                     <Box key={companyIndex} sx={{ mb: isLast ? 0 : 4 }}>
-                      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                          {item.company.display_name}
-                        </Typography>
-                        <Chip
-                          label={`${item.performance.length}ファンド`}
-                          color="primary"
-                          variant="outlined"
-                        />
-                        <Chip
-                          label="契約中"
-                          color="success"
-                          size="small"
-                        />
-                      </Box>
-                    <Grid container spacing={2}>
-                      {item.performance.map((perf: any, index: number) => (
-                        <Grid item xs={12} sm={6} md={4} key={index}>
-                          <Card variant="outlined" sx={{ height: '100%' }}>
-                            <CardContent>
-                              <Typography variant="subtitle2" gutterBottom noWrap>
-                                {perf.account_name}
-                              </Typography>
-                              <Typography variant="caption" color="textSecondary" display="block" gutterBottom>
-                                {perf.account_code}
-                              </Typography>
-                              <Box sx={{ mt: 1 }}>
-                                <Typography variant="body2" color="textSecondary">
-                                  基準価額
-                                </Typography>
-                                <Typography variant="h6" color="primary">
-                                  ¥{parseFloat(perf.unit_price).toLocaleString()}
-                                </Typography>
-                              </Box>
-                              <Grid container spacing={1} sx={{ mt: 1 }}>
-                                <Grid item xs={4}>
-                                  <Typography variant="caption" color="textSecondary">1ヶ月</Typography>
-                                  <Typography
-                                    variant="body2"
-                                    color={parseFloat(perf.return_1m) >= 0 ? 'success.main' : 'error.main'}
-                                    fontWeight="bold"
-                                  >
-                                    {parseFloat(perf.return_1m) >= 0 ? '+' : ''}{parseFloat(perf.return_1m).toFixed(2)}%
+                      {/* Company Header */}
+                      <Box sx={{ mb: 2 }}>
+                        <Card>
+                          <CardContent>
+                            <Grid container spacing={3}>
+                              <Grid item xs={12} sm={6} md={3}>
+                                <Box sx={{ textAlign: 'center' }}>
+                                  <Typography variant="h6" color="text.secondary">
+                                    保険会社
                                   </Typography>
-                                </Grid>
-                                <Grid item xs={4}>
-                                  <Typography variant="caption" color="textSecondary">3ヶ月</Typography>
-                                  <Typography
-                                    variant="body2"
-                                    color={parseFloat(perf.return_3m) >= 0 ? 'success.main' : 'error.main'}
-                                    fontWeight="bold"
-                                  >
-                                    {parseFloat(perf.return_3m) >= 0 ? '+' : ''}{parseFloat(perf.return_3m).toFixed(2)}%
+                                  <Typography variant="h5">
+                                    {item.company.display_name}
                                   </Typography>
-                                </Grid>
-                                <Grid item xs={4}>
-                                  <Typography variant="caption" color="textSecondary">1年</Typography>
-                                  <Typography
-                                    variant="body2"
-                                    color={parseFloat(perf.return_1y) >= 0 ? 'success.main' : 'error.main'}
-                                    fontWeight="bold"
-                                  >
-                                    {parseFloat(perf.return_1y) >= 0 ? '+' : ''}{parseFloat(perf.return_1y).toFixed(2)}%
-                                  </Typography>
-                                </Grid>
+                                </Box>
                               </Grid>
-                              <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                                更新日: {new Date(perf.performance_date).toLocaleDateString('ja-JP')}
-                              </Typography>
-                            </CardContent>
-                          </Card>
-                        </Grid>
+                              <Grid item xs={12} sm={6} md={3}>
+                                <Box sx={{ textAlign: 'center' }}>
+                                  <Typography variant="h6" color="text.secondary">
+                                    特別勘定数
+                                  </Typography>
+                                  <Typography variant="h5">
+                                    {item.performance.length} 口座
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                              <Grid item xs={12} sm={6} md={3}>
+                                <Box sx={{ textAlign: 'center' }}>
+                                  <Typography variant="h6" color="text.secondary">
+                                    データ基準日
+                                  </Typography>
+                                  <Typography variant="h5">
+                                    {item.performance.length > 0 ? new Date(item.performance[0].performance_date).toLocaleDateString('ja-JP') : '-'}
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                              <Grid item xs={12} sm={6} md={3}>
+                                <Box sx={{ textAlign: 'center' }}>
+                                  <Typography variant="h6" color="text.secondary">
+                                    ステータス
+                                  </Typography>
+                                  <Chip
+                                    label="契約中"
+                                    color="success"
+                                    sx={{ mt: 1 }}
+                                  />
+                                </Box>
+                              </Grid>
+                            </Grid>
+                          </CardContent>
+                        </Card>
+                      </Box>
+
+                      {/* Performance Tables by Account Type */}
+                      {Object.keys(groupedData).map((accountType) => (
+                        <Paper key={accountType} sx={{ mb: 2, p: 2 }}>
+                          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <AssessmentIcon />
+                            {accountType}
+                          </Typography>
+                          <TableContainer>
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell sx={{ fontWeight: 'bold' }}>特別勘定名</TableCell>
+                                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>ユニット・プライス</TableCell>
+                                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>1ヶ月</TableCell>
+                                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>3ヶ月</TableCell>
+                                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>6ヶ月</TableCell>
+                                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>1年</TableCell>
+                                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>3年</TableCell>
+                                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>設定来</TableCell>
+                                  <TableCell sx={{ fontWeight: 'bold' }}>ベンチマーク</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {groupedData[accountType].map((perf: any) => (
+                                  <TableRow key={perf.id} hover>
+                                    <TableCell>{perf.account_name}</TableCell>
+                                    <TableCell align="right">{formatNumber(perf.unit_price)}</TableCell>
+                                    <TableCell align="right" sx={{ color: getReturnColor(perf.return_1m) }}>
+                                      {formatNumber(perf.return_1m)}%
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ color: getReturnColor(perf.return_3m) }}>
+                                      {formatNumber(perf.return_3m)}%
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ color: getReturnColor(perf.return_6m) }}>
+                                      {formatNumber(perf.return_6m)}%
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ color: getReturnColor(perf.return_1y) }}>
+                                      {formatNumber(perf.return_1y)}%
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ color: getReturnColor(perf.return_3y) }}>
+                                      {formatNumber(perf.return_3y)}%
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ color: getReturnColor(perf.return_since_inception) }}>
+                                      {formatNumber(perf.return_since_inception)}%
+                                    </TableCell>
+                                    <TableCell>
+                                      <Typography variant="caption" sx={{ display: 'block', maxWidth: 300 }}>
+                                        {perf.benchmark || '-'}
+                                      </Typography>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </Paper>
                       ))}
-                    </Grid>
-                      {item.performance.length > 6 && (
-                        <Box sx={{ mt: 2, textAlign: 'center' }}>
-                          <Button
-                            variant="outlined"
-                            onClick={() => navigate('/insurance-companies')}
-                          >
-                            すべて表示 ({item.performance.length}ファンド)
-                          </Button>
-                        </Box>
-                      )}
                     </Box>
                   );
                 })}
