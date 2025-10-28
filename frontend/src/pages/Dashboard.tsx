@@ -44,8 +44,7 @@ const Dashboard: React.FC = () => {
   const [marketData, setMarketData] = useState<any[]>([]);
   const [insuranceCompanies, setInsuranceCompanies] = useState<any[]>([]);
   const [companiesPerformance, setCompaniesPerformance] = useState<any[]>([]);
-  const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('');
-  const [customerCompanyFilter, setCustomerCompanyFilter] = useState<string>('all');
+  const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('all');
 
   useEffect(() => {
     fetchDashboardData();
@@ -86,11 +85,6 @@ const Dashboard: React.FC = () => {
       // Get user's contracted insurance companies
       const companies = await api.getMyInsuranceCompanies();
       setInsuranceCompanies(companies);
-
-      // Auto-select first company if available
-      if (companies.length > 0 && !selectedCompanyCode) {
-        setSelectedCompanyCode(companies[0].company_code);
-      }
 
       // Fetch performance data for each company
       const performancePromises = companies.map(async (company: any) => {
@@ -273,30 +267,50 @@ const Dashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        {/* Action Buttons */}
+        {/* Action Buttons and Company Filter */}
         <Grid item xs={12}>
-          <Box display="flex" gap={2}>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => navigate('/customers/new')}
-              disabled={customers.length >= (user?.customerLimit || 0)}
-            >
-              新規顧客登録
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/customers')}
-            >
-              顧客一覧
-            </Button>
-            {user?.accountType === 'parent' && (
+          <Box display="flex" justifyContent="space-between" alignItems="center" gap={2}>
+            <Box display="flex" gap={2}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => navigate('/customers/new')}
+                disabled={customers.length >= (user?.customerLimit || 0)}
+              >
+                新規顧客登録
+              </Button>
               <Button
                 variant="outlined"
-                onClick={() => navigate('/market-data')}
+                onClick={() => navigate('/customers')}
               >
-                市場データ管理
+                顧客一覧
               </Button>
+              {user?.accountType === 'parent' && (
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/market-data')}
+                >
+                  市場データ管理
+                </Button>
+              )}
+            </Box>
+            {insuranceCompanies.length > 0 && (
+              <FormControl sx={{ minWidth: 250 }}>
+                <InputLabel>表示する保険会社</InputLabel>
+                <Select
+                  value={selectedCompanyCode}
+                  onChange={(e) => setSelectedCompanyCode(e.target.value)}
+                  label="表示する保険会社"
+                  size="small"
+                >
+                  <MenuItem value="all">すべての保険会社</MenuItem>
+                  {insuranceCompanies.map((company: any) => (
+                    <MenuItem key={company.company_code} value={company.company_code}>
+                      {company.display_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             )}
           </Box>
         </Grid>
@@ -305,47 +319,34 @@ const Dashboard: React.FC = () => {
         {companiesPerformance.length > 0 && (
           <Grid item xs={12}>
             <Paper sx={{ p: 3, mb: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <BusinessIcon />
-                  契約保険会社の運用実績
-                </Typography>
-                <FormControl sx={{ minWidth: 250 }}>
-                  <InputLabel>保険会社を選択</InputLabel>
-                  <Select
-                    value={selectedCompanyCode}
-                    onChange={(e) => setSelectedCompanyCode(e.target.value)}
-                    label="保険会社を選択"
-                    size="small"
-                  >
-                    {insuranceCompanies.map((company: any) => (
-                      <MenuItem key={company.company_code} value={company.company_code}>
-                        {company.display_name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <BusinessIcon />
+                契約保険会社の運用実績
+              </Typography>
 
               {companiesPerformance
-                .filter((item) => item.company.company_code === selectedCompanyCode)
-                .map((item, companyIndex) => (
-                  <Box key={companyIndex}>
-                    <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                        {item.company.display_name}
-                      </Typography>
-                      <Chip
-                        label={`${item.performance.length}ファンド`}
-                        color="primary"
-                        variant="outlined"
-                      />
-                      <Chip
-                        label="契約中"
-                        color="success"
-                        size="small"
-                      />
-                    </Box>
+                .filter((item) => selectedCompanyCode === 'all' || item.company.company_code === selectedCompanyCode)
+                .map((item, companyIndex) => {
+                  const filteredPerformance = companiesPerformance.filter((p) => selectedCompanyCode === 'all' || p.company.company_code === selectedCompanyCode);
+                  const isLast = companyIndex === filteredPerformance.length - 1;
+
+                  return (
+                    <Box key={companyIndex} sx={{ mb: isLast ? 0 : 4 }}>
+                      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                          {item.company.display_name}
+                        </Typography>
+                        <Chip
+                          label={`${item.performance.length}ファンド`}
+                          color="primary"
+                          variant="outlined"
+                        />
+                        <Chip
+                          label="契約中"
+                          color="success"
+                          size="small"
+                        />
+                      </Box>
                     <Grid container spacing={2}>
                       {item.performance.map((perf: any, index: number) => (
                         <Grid item xs={12} sm={6} md={4} key={index}>
@@ -405,18 +406,19 @@ const Dashboard: React.FC = () => {
                         </Grid>
                       ))}
                     </Grid>
-                    {item.performance.length > 6 && (
-                      <Box sx={{ mt: 2, textAlign: 'center' }}>
-                        <Button
-                          variant="outlined"
-                          onClick={() => navigate('/insurance-companies')}
-                        >
-                          すべて表示 ({item.performance.length}ファンド)
-                        </Button>
-                      </Box>
-                    )}
-                  </Box>
-                ))}
+                      {item.performance.length > 6 && (
+                        <Box sx={{ mt: 2, textAlign: 'center' }}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => navigate('/insurance-companies')}
+                          >
+                            すべて表示 ({item.performance.length}ファンド)
+                          </Button>
+                        </Box>
+                      )}
+                    </Box>
+                  );
+                })}
             </Paper>
           </Grid>
         )}
@@ -458,26 +460,9 @@ const Dashboard: React.FC = () => {
         {/* Recent Customers */}
         <Grid item xs={12}>
           <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">最近の顧客</Typography>
-              {customers.length > 0 && (
-                <FormControl sx={{ minWidth: 200 }} size="small">
-                  <InputLabel>保険会社で絞り込み</InputLabel>
-                  <Select
-                    value={customerCompanyFilter}
-                    onChange={(e) => setCustomerCompanyFilter(e.target.value)}
-                    label="保険会社で絞り込み"
-                  >
-                    <MenuItem value="all">すべて</MenuItem>
-                    {insuranceCompanies.map((company: any) => (
-                      <MenuItem key={company.company_code} value={company.company_code}>
-                        {company.display_name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            </Box>
+            <Typography variant="h6" gutterBottom>
+              {selectedCompanyCode === 'all' ? '最近の顧客' : `${insuranceCompanies.find(c => c.company_code === selectedCompanyCode)?.display_name || ''}の顧客`}
+            </Typography>
             {customers.length === 0 ? (
               <Typography color="textSecondary">
                 まだ顧客が登録されていません
@@ -486,7 +471,7 @@ const Dashboard: React.FC = () => {
               <Grid container spacing={2}>
                 {customers
                   .filter((customer) =>
-                    customerCompanyFilter === 'all' || customer.companyCode === customerCompanyFilter
+                    selectedCompanyCode === 'all' || customer.companyCode === selectedCompanyCode
                   )
                   .slice(0, 10)
                   .map((customer) => (
