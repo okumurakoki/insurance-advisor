@@ -630,16 +630,13 @@ const Dashboard: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               {selectedCompanyCode === 'all' ? '最近の顧客' : `${insuranceCompanies.find(c => c.company_code === selectedCompanyCode)?.display_name || ''}の顧客`}
             </Typography>
-            {customers.length === 0 ? (
+            {getFilteredCustomers().length === 0 ? (
               <Typography color="textSecondary">
-                まだ顧客が登録されていません
+                {selectedCompanyCode === 'all' ? 'まだ顧客が登録されていません' : 'この保険会社の顧客はいません'}
               </Typography>
             ) : (
               <Grid container spacing={2}>
-                {customers
-                  .filter((customer) =>
-                    selectedCompanyCode === 'all' || customer.companyCode === selectedCompanyCode
-                  )
+                {getFilteredCustomers()
                   .slice(0, 10)
                   .map((customer) => (
                     <Grid item xs={12} key={customer.id}>

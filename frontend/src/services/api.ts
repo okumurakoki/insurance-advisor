@@ -95,15 +95,35 @@ class ApiService {
     return response.data;
   }
 
+  // Helper function to convert snake_case to camelCase for customer data
+  private convertCustomerData(data: any): Customer {
+    return {
+      ...data,
+      userId: data.user_id,
+      contractDate: data.contract_date,
+      contractAmount: parseFloat(data.contract_amount) || 0,
+      monthlyPremium: parseFloat(data.monthly_premium) || 0,
+      riskTolerance: data.risk_tolerance,
+      investmentGoal: data.investment_goal,
+      isActive: data.is_active,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+      companyId: data.company_id,
+      companyCode: data.company_code,
+      companyName: data.company_name,
+      displayName: data.display_name,
+    };
+  }
+
   // Customer endpoints
   async getCustomers(): Promise<Customer[]> {
     const response = await this.api.get('/customers');
-    return response.data;
+    return response.data.map((customer: any) => this.convertCustomerData(customer));
   }
 
   async getCustomer(id: number): Promise<Customer> {
     const response = await this.api.get(`/customers/${id}`);
-    return response.data;
+    return this.convertCustomerData(response.data);
   }
 
   async createCustomer(data: CustomerForm): Promise<{ id: number; message: string }> {
