@@ -169,6 +169,28 @@ const Dashboard: React.FC = () => {
     return grouped;
   };
 
+  // Filter customers by selected company
+  const getFilteredCustomers = () => {
+    if (selectedCompanyCode === 'all') {
+      return customers;
+    }
+    return customers.filter(customer => customer.companyCode === selectedCompanyCode);
+  };
+
+  // Calculate filtered statistics
+  const getFilteredStats = () => {
+    const filteredCustomers = getFilteredCustomers();
+    return {
+      customerCount: filteredCustomers.length,
+      reportCount: stats.reportCount, // TODO: Filter reports by company
+      totalAssets: filteredCustomers.reduce((sum, c) => sum + (c.contractAmount || 0), 0),
+      totalMonthlyPremium: filteredCustomers.reduce((sum, c) => sum + (c.monthlyPremium || 0), 0),
+      averageReturn: stats.averageReturn, // TODO: Calculate from company data
+    };
+  };
+
+  const filteredStats = getFilteredStats();
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="calc(100vh - 200px)">
@@ -215,11 +237,16 @@ const Dashboard: React.FC = () => {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    管理中の顧客数
+                    {selectedCompanyCode === 'all' ? '管理中の顧客数' : '保険会社の顧客数'}
                   </Typography>
                   <Typography variant="h5">
-                    {stats.customerCount}
+                    {filteredStats.customerCount}
                   </Typography>
+                  {selectedCompanyCode !== 'all' && (
+                    <Typography variant="caption" color="textSecondary">
+                      全体: {stats.customerCount}人
+                    </Typography>
+                  )}
                 </Box>
                 <PersonIcon color="primary" sx={{ fontSize: 40 }} />
               </Box>
@@ -236,7 +263,7 @@ const Dashboard: React.FC = () => {
                     レポート数
                   </Typography>
                   <Typography variant="h5">
-                    {stats.reportCount}
+                    {filteredStats.reportCount}
                   </Typography>
                 </Box>
                 <AssessmentIcon color="secondary" sx={{ fontSize: 40 }} />
@@ -251,11 +278,16 @@ const Dashboard: React.FC = () => {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    契約金額合計
+                    {selectedCompanyCode === 'all' ? '契約金額合計' : '保険会社の契約金額'}
                   </Typography>
                   <Typography variant="h5">
-                    ¥{Math.round(stats.totalAssets).toLocaleString()}
+                    ¥{Math.round(filteredStats.totalAssets).toLocaleString()}
                   </Typography>
+                  {selectedCompanyCode !== 'all' && (
+                    <Typography variant="caption" color="textSecondary">
+                      全体: ¥{Math.round(stats.totalAssets).toLocaleString()}
+                    </Typography>
+                  )}
                 </Box>
                 <TrendingUpIcon color="success" sx={{ fontSize: 40 }} />
               </Box>
@@ -269,11 +301,16 @@ const Dashboard: React.FC = () => {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    月額保険料合計
+                    {selectedCompanyCode === 'all' ? '月額保険料合計' : '保険会社の月額保険料'}
                   </Typography>
                   <Typography variant="h5">
-                    ¥{Math.round(stats.totalMonthlyPremium).toLocaleString()}/月
+                    ¥{Math.round(filteredStats.totalMonthlyPremium).toLocaleString()}/月
                   </Typography>
+                  {selectedCompanyCode !== 'all' && (
+                    <Typography variant="caption" color="textSecondary">
+                      全体: ¥{Math.round(stats.totalMonthlyPremium).toLocaleString()}/月
+                    </Typography>
+                  )}
                 </Box>
                 <TrendingUpIcon color="info" sx={{ fontSize: 40 }} />
               </Box>
@@ -510,6 +547,78 @@ const Dashboard: React.FC = () => {
                     </Card>
                   </Grid>
                 ))}
+              </Grid>
+            </Paper>
+          </Grid>
+        )}
+
+        {/* Insurance Companies Cards */}
+        {insuranceCompanies.length > 0 && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3, mb: 2 }}>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <BusinessIcon />
+                契約中の保険会社
+              </Typography>
+              <Grid container spacing={2}>
+                {insuranceCompanies.map((company: any) => (
+                  <Grid item xs={12} sm={6} md={4} key={company.id}>
+                    <Card
+                      variant="outlined"
+                      sx={{
+                        cursor: 'pointer',
+                        border: selectedCompanyCode === company.company_code ? '2px solid' : '1px solid',
+                        borderColor: selectedCompanyCode === company.company_code ? 'primary.main' : 'divider',
+                        bgcolor: selectedCompanyCode === company.company_code ? 'action.selected' : 'background.paper',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          boxShadow: 2
+                        }
+                      }}
+                      onClick={() => setSelectedCompanyCode(company.company_code)}
+                    >
+                      <CardContent>
+                        <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                          <BusinessIcon color="primary" sx={{ fontSize: 40 }} />
+                          {selectedCompanyCode === company.company_code && (
+                            <Chip label="選択中" color="primary" size="small" />
+                          )}
+                        </Box>
+                        <Typography variant="h6" gutterBottom>
+                          {company.display_name}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" gutterBottom>
+                          契約期間: {new Date(company.contract_start_date).toLocaleDateString('ja-JP')} 〜
+                        </Typography>
+                        <Box mt={2}>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            fullWidth
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate('/insurance-companies');
+                            }}
+                          >
+                            詳細を見る
+                          </Button>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+                {selectedCompanyCode !== 'all' && (
+                  <Grid item xs={12}>
+                    <Button
+                      variant="text"
+                      onClick={() => setSelectedCompanyCode('all')}
+                      startIcon={<BusinessIcon />}
+                    >
+                      すべての保険会社を表示
+                    </Button>
+                  </Grid>
+                )}
               </Grid>
             </Paper>
           </Grid>
