@@ -9,6 +9,7 @@ import {
   Menu,
   MenuItem,
   Divider,
+  Chip,
 } from '@mui/material';
 import {
   AccountCircle,
@@ -19,6 +20,8 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+
+const version = require('../../package.json').version;
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -46,13 +49,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="static">
         <Toolbar>
-          <Box sx={{ flexGrow: 1 }}>
+          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="h6" component="div">
               変額保険アドバイザリーシステム
             </Typography>
-            <Typography variant="caption" component="div" sx={{ opacity: 0.8 }}>
-              v1.2.5
-            </Typography>
+            <Chip
+              label={`v${version}`}
+              size="small"
+              color="secondary"
+              sx={{
+                fontWeight: 600,
+                fontSize: '0.75rem',
+              }}
+            />
           </Box>
           
           <Button
