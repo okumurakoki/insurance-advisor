@@ -21,7 +21,8 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-const version = require('../../package.json').version;
+// @ts-ignore
+import { version } from '../../package.json';
 
 interface LayoutProps {
   children: React.ReactNode;
