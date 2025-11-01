@@ -24,6 +24,46 @@ const upload = multer({
     }
 });
 
+/**
+ * Helper function: Get fund performance returns from latest market data
+ * @param {number} companyId - Insurance company ID
+ * @returns {Promise<Object>} { fundType: annualReturn }
+ */
+async function getFundReturnsFromMarketData(companyId) {
+    try {
+        const latestMarketData = await MarketData.getLatest('monthly_report', companyId);
+
+        if (!latestMarketData || !latestMarketData.data_content) {
+            logger.warn(`No market data found for company ${companyId}, returning empty fund returns`);
+            return {};
+        }
+
+        const fundPerformance = latestMarketData.data_content.fundPerformance || {};
+
+        // Convert to object with fund type as key
+        const fundReturns = {};
+        if (Array.isArray(fundPerformance)) {
+            // If it's an array, convert to object
+            fundPerformance.forEach(fund => {
+                if (fund.fundType && fund.performance !== undefined) {
+                    fundReturns[fund.fundType] = fund.performance;
+                }
+            });
+        } else if (typeof fundPerformance === 'object') {
+            // If it's already an object, use it directly
+            Object.keys(fundPerformance).forEach(fundType => {
+                fundReturns[fundType] = fundPerformance[fundType];
+            });
+        }
+
+        logger.info(`Retrieved ${Object.keys(fundReturns).length} fund returns for company ${companyId}`);
+        return fundReturns;
+    } catch (error) {
+        logger.error('Error retrieving fund returns from market data:', error);
+        return {};
+    }
+}
+
 // Get latest market data info
 router.get('/market-data/latest', authenticateToken, async (req, res) => {
     try {
@@ -496,6 +536,15 @@ router.get('/performance/:customerId', authenticateToken, async (req, res) => {
         // Get all analysis results for this customer
         const analysisHistory = await AnalysisResult.getByCustomerId(customerId, 100);
 
+        // Get fund returns from market data based on customer's insurance company
+        const annualFundReturns = await getFundReturnsFromMarketData(customer.insurance_company_id);
+
+        // Convert annual returns to monthly returns
+        const monthlyFundReturns = {};
+        Object.keys(annualFundReturns).forEach(fundType => {
+            monthlyFundReturns[fundType] = annualFundReturns[fundType] / 12;
+        });
+
         // Calculate performance based on contract date and analysis history
         const contractDate = new Date(customer.contract_date);
         const today = new Date();
@@ -520,18 +569,10 @@ router.get('/performance/:customerId', authenticateToken, async (req, res) => {
             if (relevantAnalysis && relevantAnalysis.adjusted_allocation) {
                 // Calculate weighted return based on allocation
                 const allocation = relevantAnalysis.adjusted_allocation;
-                const fundReturns = {
-                    '株式型': 6.8 / 12,
-                    '米国株式型': 12.3 / 12,
-                    '総合型': 5.5 / 12,
-                    '米国債券型': 3.2 / 12,
-                    '債券型': 2.8 / 12,
-                    'REIT型': -1.5 / 12
-                };
 
                 Object.keys(allocation).forEach(fundType => {
                     const weight = allocation[fundType] / 100;
-                    const monthlyFundReturn = fundReturns[fundType] || 0;
+                    const monthlyFundReturn = monthlyFundReturns[fundType] || 0;
                     monthlyReturn += weight * monthlyFundReturn;
                 });
             } else {
@@ -697,14 +738,27 @@ router.get('/optimization-summary', authenticateToken, async (req, res) => {
         }
 
         // Aggregate current and recommended allocations from all customers
-        const fundTypes = ['株式型', '米国株式型', '米国債券型', 'REIT型', '世界株式型'];
-        const fundKeyMap = {
-            '株式型': 'equity',
-            '米国株式型': 'usEquity',
-            '米国債券型': 'usBond',
-            'REIT型': 'reit',
-            '世界株式型': 'global'
-        };
+        // Dynamically extract fund types from analysis results
+        const fundTypesSet = new Set();
+        results.forEach(result => {
+            const current = result.current_allocation || {};
+            const recommended = result.recommended_allocation || {};
+            Object.keys(current).forEach(fundType => fundTypesSet.add(fundType));
+            Object.keys(recommended).forEach(fundType => fundTypesSet.add(fundType));
+        });
+
+        const fundTypes = Array.from(fundTypesSet);
+
+        // Generate key map dynamically
+        const fundKeyMap = {};
+        fundTypes.forEach((fundType, index) => {
+            // Create a safe key name (remove special characters)
+            const safeKey = fundType
+                .replace(/型/g, '')
+                .replace(/\s+/g, '')
+                .toLowerCase();
+            fundKeyMap[fundType] = safeKey || `fund${index}`;
+        });
 
         const aggregatedCurrent = {};
         const aggregatedRecommended = {};
@@ -813,6 +867,9 @@ router.get('/statistics', authenticateToken, async (req, res) => {
         let totalReturn = 0;
         let returnCount = 0;
 
+        // Cache fund returns by company to avoid redundant queries
+        const fundReturnsByCompany = {};
+
         for (const result of results) {
             const customer = customers.find(c => c.id === result.customer_id);
             if (!customer) continue;
@@ -821,15 +878,11 @@ router.get('/statistics', authenticateToken, async (req, res) => {
             const allocation = result.current_allocation || result.adjusted_allocation;
             if (!allocation) continue;
 
-            const fundReturns = {
-                '株式型': 6.8,
-                '米国株式型': 12.3,
-                '総合型': 5.5,
-                '米国債券型': 3.2,
-                '債券型': 2.8,
-                'REIT型': -1.5,
-                '世界株式型': 8.7
-            };
+            // Get fund returns for this customer's insurance company
+            if (!fundReturnsByCompany[customer.insurance_company_id]) {
+                fundReturnsByCompany[customer.insurance_company_id] = await getFundReturnsFromMarketData(customer.insurance_company_id);
+            }
+            const fundReturns = fundReturnsByCompany[customer.insurance_company_id];
 
             let customerReturn = 0;
             Object.keys(allocation).forEach(fundType => {
