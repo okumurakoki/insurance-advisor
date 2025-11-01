@@ -49,28 +49,36 @@ const store = {
             company_code: 'PRUDENTIAL_LIFE',
             company_name: 'プルデンシャル生命保険株式会社',
             display_name: 'プルデンシャル生命',
-            created_at: '2024-01-01T00:00:00.000Z'
+            is_active: true,
+            created_at: '2024-01-01T00:00:00.000Z',
+            updated_at: '2024-01-01T00:00:00.000Z'
         },
         {
             id: 2,
             company_code: 'SONY_LIFE',
             company_name: 'ソニー生命保険株式会社（バリアブル・ライフ）',
             display_name: 'ソニー生命（バリアブル・ライフ）',
-            created_at: '2024-01-01T00:00:00.000Z'
+            is_active: true,
+            created_at: '2024-01-01T00:00:00.000Z',
+            updated_at: '2024-01-01T00:00:00.000Z'
         },
         {
             id: 3,
             company_code: 'SONY_LIFE_SOVANI',
             company_name: 'ソニー生命保険株式会社（SOVANI）',
             display_name: 'ソニー生命（SOVANI）',
-            created_at: '2024-01-01T00:00:00.000Z'
+            is_active: true,
+            created_at: '2024-01-01T00:00:00.000Z',
+            updated_at: '2024-01-01T00:00:00.000Z'
         },
         {
             id: 4,
             company_code: 'AXA_LIFE',
             company_name: 'アクサ生命保険株式会社',
             display_name: 'アクサ生命',
-            created_at: '2024-01-01T00:00:00.000Z'
+            is_active: true,
+            created_at: '2024-01-01T00:00:00.000Z',
+            updated_at: '2024-01-01T00:00:00.000Z'
         }
     ],
     nextId: 4,
@@ -123,7 +131,9 @@ class SimpleDatabase {
             let results = [...store.insurance_companies];
 
             // WHERE handling for insurance_companies
-            if (sqlLower.includes('where id = ')) {
+            if (sqlLower.includes('where is_active = true')) {
+                results = results.filter(company => company.is_active === true);
+            } else if (sqlLower.includes('where id = ')) {
                 const id = parseInt(getParam());
                 results = results.filter(company => company.id === id);
             } else if (sqlLower.includes('where company_code = ')) {
