@@ -35,8 +35,15 @@ class PDFParser {
                 // マネー型
                 'マネー型'
             ],
-            // アクサ生命（今後追加）
-            'AXA_LIFE': []
+            // アクサ生命（13ファンド）
+            'AXA_LIFE': [
+                '安定成長バランス型', '積極運用バランス型',
+                '日本株式型', '日本株式プラス型',
+                '外国株式型', '外国株式プラス型', '世界株式プラス型',
+                '新興国株式型', 'SDGs世界株式型',
+                '外国債券型', '世界債券プラス型', 'オーストラリア債券型',
+                '金融市場型'
+            ]
         };
     }
 
@@ -197,6 +204,73 @@ class PDFParser {
             // デフォルト：全ての会社のファンド名を結合
             allFundNames = Object.values(this.fundNamesByCompany).flat();
             logger.info(`Using all fund names: ${allFundNames.length} funds`);
+        }
+
+        // AXA形式の検出: テーブル形式でファンド名+日付と次の行に数値データが並ぶパターン
+        // AXA例:
+        // Line N: "日本株式型2018/2/1"
+        // Line N+1: "192.874.4315.7015.45" (ユニット・プライス 1ヶ月 6ヶ月 1年)
+        if (companyCode === 'AXA_LIFE') {
+            logger.info('Using AXA_LIFE-specific parser (table format)');
+
+            // Sort fund names by length (longest first) to avoid partial matches
+            const sortedFundNames = [...allFundNames].sort((a, b) => b.length - a.length);
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                // 各ファンド名をチェック
+                for (const fundName of sortedFundNames) {
+                    if (funds[fundName]) continue; // すでに見つかっている場合はスキップ
+
+                    // パターン1: ファンド名+日付が同じ行にある（例：日本株式型2018/2/1）
+                    if (line.includes(fundName) && line.match(/\d{4}\/\d{1,2}\/\d{1,2}/)) {
+                        // 次の行にデータがある
+                        if (i + 1 < lines.length) {
+                            const dataLine = lines[i + 1];
+                            const numberMatches = dataLine.match(/(△?\d+\.\d{2})/g);
+
+                            if (numberMatches && numberMatches.length >= 4) {
+                                // 最後の数値が「1年」のデータ
+                                let oneYearStr = numberMatches[3];
+                                if (oneYearStr.startsWith('△')) {
+                                    oneYearStr = '-' + oneYearStr.substring(1);
+                                }
+                                const performance = parseFloat(oneYearStr);
+                                if (!isNaN(performance)) {
+                                    funds[fundName] = performance;
+                                    logger.info(`Extracted ${fundName}: ${performance}% (1年) from line ${i+1}: ${dataLine}`);
+                                }
+                            }
+                        }
+                    }
+                    // パターン2: ファンド名と日付が別の行にある
+                    // 例：Line N: "外国株式型", Line N+1: "2022/9/1", Line N+2: "171.510.909.9018.61"
+                    else if (line === fundName && i + 2 < lines.length) {
+                        const nextLine = lines[i + 1];
+                        if (nextLine.match(/^\d{4}\/\d{1,2}\/\d{1,2}$/)) {
+                            const dataLine = lines[i + 2];
+                            const numberMatches = dataLine.match(/(△?\d+\.\d{2})/g);
+
+                            if (numberMatches && numberMatches.length >= 4) {
+                                let oneYearStr = numberMatches[3];
+                                if (oneYearStr.startsWith('△')) {
+                                    oneYearStr = '-' + oneYearStr.substring(1);
+                                }
+                                const performance = parseFloat(oneYearStr);
+                                if (!isNaN(performance)) {
+                                    funds[fundName] = performance;
+                                    logger.info(`Extracted ${fundName}: ${performance}% (1年) from line ${i+2}: ${dataLine}`);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (Object.keys(funds).length > 0) {
+                return funds;
+            }
         }
 
         // SOVANI/SONY_LIFE形式の検出: ファンド名と数値が同じ行にあるパターン

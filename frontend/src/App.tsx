@@ -1031,9 +1031,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
                       } else if (riskProfile === 'conservative') {
                         // 保守型: 債券型優遇、株式型控えめ
-                        calculations = fundData.map(fund => {
+                        const rawAllocations = fundData.map(fund => {
                           if (fund.performance < 0) {
-                            return { ...fund, recommended: 0 };
+                            return { ...fund, rawScore: 0 };
                           }
 
                           let base = 0;
@@ -1046,13 +1046,20 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                           const isStock = fund.fundName.includes('株式');
 
                           if (isBond) {
-                            adjusted = Math.min(50, base * 1.3);
+                            adjusted = base * 1.3; // 債券優遇
                           } else if (isStock) {
-                            adjusted = base * 0.7;
+                            adjusted = base * 0.7; // 株式控えめ
                           }
 
-                          const recommended = Math.round(adjusted / 10) * 10;
-                          return { ...fund, recommended };
+                          return { ...fund, rawScore: adjusted };
+                        });
+
+                        // 正規化: 合計を100%にする
+                        const totalScore = rawAllocations.reduce((sum, item) => sum + item.rawScore, 0);
+                        calculations = rawAllocations.map(item => {
+                          const normalized = totalScore > 0 ? (item.rawScore / totalScore) * 100 : 0;
+                          const recommended = Math.round(normalized / 10) * 10; // 10%単位に丸める
+                          return { ...item, recommended };
                         });
 
                       } else {
@@ -1150,7 +1157,23 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                               </Typography>
                             </TableCell>
                             <TableCell align="right">{current}%</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 700 }}>{recommended}%</TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{
+                                fontWeight: 700,
+                                backgroundColor: recommended >= 20 ? 'rgba(59, 130, 246, 0.15)' :
+                                                recommended >= 10 ? 'rgba(16, 185, 129, 0.1)' :
+                                                'transparent',
+                                fontSize: recommended >= 15 ? '1.1rem' : '1rem',
+                                color: recommended >= 20 ? '#2563eb' :
+                                       recommended >= 10 ? '#059669' :
+                                       'inherit'
+                              }}
+                            >
+                              {recommended}%
+                              {recommended >= 20 && ' 🎯'}
+                              {recommended >= 10 && recommended < 20 && ' ✓'}
+                            </TableCell>
                             <TableCell align="right">
                               {change !== 0 && (
                                 <Chip
