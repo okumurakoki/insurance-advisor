@@ -43,7 +43,38 @@ const store = {
             updated_at: '2024-01-01T00:00:00.000Z'
         }
     ],
-    nextId: 4
+    insurance_companies: [
+        {
+            id: 1,
+            company_code: 'PRUDENTIAL_LIFE',
+            company_name: 'プルデンシャル生命保険株式会社',
+            display_name: 'プルデンシャル生命',
+            created_at: '2024-01-01T00:00:00.000Z'
+        },
+        {
+            id: 2,
+            company_code: 'SONY_LIFE',
+            company_name: 'ソニー生命保険株式会社（バリアブル・ライフ）',
+            display_name: 'ソニー生命（バリアブル・ライフ）',
+            created_at: '2024-01-01T00:00:00.000Z'
+        },
+        {
+            id: 3,
+            company_code: 'SONY_LIFE_SOVANI',
+            company_name: 'ソニー生命保険株式会社（SOVANI）',
+            display_name: 'ソニー生命（SOVANI）',
+            created_at: '2024-01-01T00:00:00.000Z'
+        },
+        {
+            id: 4,
+            company_code: 'AXA_LIFE',
+            company_name: 'アクサ生命保険株式会社',
+            display_name: 'アクサ生命',
+            created_at: '2024-01-01T00:00:00.000Z'
+        }
+    ],
+    nextId: 4,
+    nextCompanyId: 5
 };
 
 class SimpleDatabase {
@@ -86,6 +117,27 @@ class SimpleDatabase {
             }
             return null;
         };
+
+        // Handle insurance_companies table
+        if (sqlLower.includes('from insurance_companies')) {
+            let results = [...store.insurance_companies];
+
+            // WHERE handling for insurance_companies
+            if (sqlLower.includes('where id = ')) {
+                const id = parseInt(getParam());
+                results = results.filter(company => company.id === id);
+            } else if (sqlLower.includes('where company_code = ')) {
+                const companyCode = getParam();
+                results = results.filter(company => company.company_code === companyCode);
+            }
+
+            // ORDER BY handling
+            if (sqlLower.includes('order by id')) {
+                results.sort((a, b) => a.id - b.id);
+            }
+
+            return results;
+        }
 
         // Simple table detection
         if (sqlLower.includes('from users')) {
@@ -148,6 +200,21 @@ class SimpleDatabase {
 
     handleInsert(sql, params) {
         const sqlLower = sql.toLowerCase();
+
+        if (sqlLower.includes('insert into insurance_companies')) {
+            const newCompany = {
+                id: store.nextCompanyId++,
+                company_code: params[0],
+                company_name: params[1],
+                display_name: params[2],
+                created_at: new Date().toISOString()
+            };
+
+            store.insurance_companies.push(newCompany);
+
+            // Return format that matches what the code expects
+            return [{ id: newCompany.id }];
+        }
 
         if (sqlLower.includes('insert into users')) {
             // Parse field order from SQL
