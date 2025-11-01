@@ -466,9 +466,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [myInsuranceCompanies, setMyInsuranceCompanies] = useState<any[]>([]);
   const [allInsuranceCompanies, setAllInsuranceCompanies] = useState<any[]>([]);
 
-  // Generate optimization results from fund performance data
+  // Fetch insurance companies on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchCompanies = async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
@@ -509,9 +509,34 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             console.error('Failed to fetch insurance companies:', error);
           }
         }
+      } catch (error) {
+        console.error('Failed to fetch companies:', error);
+      }
+    };
 
-        // Fetch fund performance
-        const perfResponse = await fetch(`${API_BASE_URL}/api/analysis/fund-performance`, {
+    fetchCompanies();
+  }, []);
+
+  // Fetch fund performance and other data when selectedCompanyId changes
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        // Only fetch fund performance if company is selected
+        if (!selectedCompanyId) {
+          console.log('No company selected - clearing fund performance');
+          setFundPerformance([]);
+          setBondYields(null);
+          setLatestMarketData(null);
+          return;
+        }
+
+        console.log('Fetching data for company ID:', selectedCompanyId);
+
+        // Fetch fund performance with company_id
+        const perfResponse = await fetch(`${API_BASE_URL}/api/analysis/fund-performance?company_id=${selectedCompanyId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -531,6 +556,10 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           setBondYields(data.bondYields || null);
         } else {
           console.error('Fund performance API failed:', perfResponse.status);
+          const errorData = await perfResponse.json();
+          console.error('Error details:', errorData);
+          setFundPerformance([]);
+          setBondYields(null);
         }
 
         // Fetch statistics
@@ -557,8 +586,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           // Optimization data is now handled through fundPerformance
         }
 
-        // Fetch latest market data
-        const marketDataResponse = await fetch(`${API_BASE_URL}/api/analysis/market-data/latest`, {
+        // Fetch latest market data for selected company
+        const marketDataResponse = await fetch(`${API_BASE_URL}/api/analysis/market-data/latest?company_id=${selectedCompanyId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -582,7 +611,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
     };
 
     fetchData();
-  }, []);
+  }, [selectedCompanyId]);
 
   // Update optimization results when fund performance changes
   useEffect(() => {
@@ -746,6 +775,42 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             </Typography>
           </Box>
         </Grid>
+
+        {/* Company Selection for Dashboard (管理者・代理店・担当者) */}
+        {(user.accountType === 'admin' || user.accountType === 'parent' || user.accountType === 'child') && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2, mb: 1, bgcolor: '#f9fafb', border: '1px solid #e5e7eb' }}>
+              <FormControl fullWidth>
+                <InputLabel id="dashboard-company-select-label">分析対象の保険会社を選択</InputLabel>
+                <Select
+                  labelId="dashboard-company-select-label"
+                  id="dashboard-company-select"
+                  value={selectedCompanyId || ''}
+                  label="分析対象の保険会社を選択"
+                  onChange={(e) => setSelectedCompanyId(Number(e.target.value))}
+                >
+                  {user.accountType === 'admin'
+                    ? allInsuranceCompanies.map((company) => (
+                        <MenuItem key={company.id} value={company.id}>
+                          {company.display_name}
+                        </MenuItem>
+                      ))
+                    : myInsuranceCompanies.map((company) => (
+                        <MenuItem key={company.id} value={company.id}>
+                          {company.display_name}
+                        </MenuItem>
+                      ))
+                  }
+                </Select>
+              </FormControl>
+              {!selectedCompanyId && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  ※ 保険会社を選択すると、その会社のファンドパフォーマンスデータが表示されます
+                </Typography>
+              )}
+            </Paper>
+          </Grid>
+        )}
 
         {/* Latest Market Data Info (全アカウント) */}
         {latestMarketData && (

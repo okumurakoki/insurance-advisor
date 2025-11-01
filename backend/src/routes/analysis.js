@@ -27,7 +27,10 @@ const upload = multer({
 // Get latest market data info
 router.get('/market-data/latest', authenticateToken, async (req, res) => {
     try {
-        const latest = await MarketData.getLatest();
+        // Get company_id from query parameter (optional for backward compatibility)
+        const companyId = req.query.company_id ? parseInt(req.query.company_id) : null;
+
+        const latest = await MarketData.getLatest('monthly_report', companyId);
 
         if (!latest) {
             return res.json(null);
@@ -39,6 +42,8 @@ router.get('/market-data/latest', authenticateToken, async (req, res) => {
             uploadedAt: latest.created_at,
             uploadedBy: latest.uploaded_by,
             dataDate: latest.data_date,
+            companyCode: latest.company_code,
+            companyName: latest.company_name,
             fundPerformance: latest.data_content?.fundPerformance || {},
             allPerformanceData: latest.data_content?.allPerformanceData || {},
             bondYields: latest.data_content?.bondYields || {},
@@ -557,17 +562,31 @@ router.get('/performance/:customerId', authenticateToken, async (req, res) => {
 // Get fund performance data
 router.get('/fund-performance', authenticateToken, async (req, res) => {
     try {
-        // Get latest market data to extract fund performance from PDF
-        const latestMarketData = await MarketData.getLatest('monthly_report');
+        // Get company_id from query parameter (selected company from frontend)
+        const companyId = req.query.company_id ? parseInt(req.query.company_id) : null;
+
+        if (!companyId) {
+            logger.warn('No company_id provided in fund-performance request');
+            return res.status(400).json({
+                error: '保険会社を選択してください',
+                code: 'MISSING_COMPANY_ID'
+            });
+        }
+
+        // Get latest market data for the selected company
+        const latestMarketData = await MarketData.getLatest('monthly_report', companyId);
 
         // Extract fund performance from latest market data if available
         let actualFundPerformance = {};
         let allPerformanceData = null;
         let bondYields = null;
         let hasActualData = false;
+        let companyCode = null;
 
         logger.info('=== Fund Performance API Debug ===');
+        logger.info('Requested company_id:', companyId);
         logger.info('Latest market data ID:', latestMarketData?.id);
+        logger.info('Latest market data company_code:', latestMarketData?.company_code);
         logger.info('Latest market data source_file:', latestMarketData?.source_file);
         logger.info('Latest market data data_date:', latestMarketData?.data_date);
         logger.info('Data content type:', typeof latestMarketData?.data_content);
@@ -577,6 +596,7 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
             actualFundPerformance = latestMarketData.data_content.fundPerformance || {};
             allPerformanceData = latestMarketData.data_content.allPerformanceData || null;
             bondYields = latestMarketData.data_content.bondYields || null;
+            companyCode = latestMarketData.company_code;
             hasActualData = Object.keys(actualFundPerformance).length > 0;
 
             logger.info('actualFundPerformance keys:', Object.keys(actualFundPerformance));
@@ -590,17 +610,21 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
                 logger.warn('fundPerformance is empty object');
             }
         } else {
-            logger.warn('No latestMarketData or data_content');
+            logger.warn('No latestMarketData or data_content for company_id:', companyId);
         }
 
         // PDFデータがない場合は空配列を返す
         if (!hasActualData) {
             logger.warn('No fund performance data found in market data - PDF not uploaded or parsing failed');
-            return res.json({ funds: [], bondYields: null });
+            return res.json({
+                funds: [],
+                bondYields: null,
+                message: 'この保険会社の市場データがまだアップロードされていません'
+            });
         }
 
-        // Calculate fund performance based on actual market data
-        const fundTypes = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型'];
+        // Get fund types based on company code - use actual fund names from parsed PDF
+        const fundTypes = Object.keys(actualFundPerformance);
 
         const performance = fundTypes
             .map(fundType => {

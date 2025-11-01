@@ -6,7 +6,7 @@ const logger = require('./logger');
  */
 class PDFParser {
     constructor() {
-        // 会社別ファンド名マッピング
+        // 会社別・商品別ファンド名マッピング
         this.fundNamesByCompany = {
             // プルデンシャル生命
             'PRUDENTIAL_LIFE': [
@@ -14,14 +14,26 @@ class PDFParser {
                 '米国債券型', '米国株式型', 'REIT型',
                 '世界株式型', 'マネー型'
             ],
-            // ソニー生命
+            // ソニー生命 - バリアブル・ライフ版（8ファンド）
             'SONY_LIFE': [
-                '日本株式型', '日本株式プラス型',
-                '外国株式型', '外国株式プラス型', '世界株式プラス型',
-                '新興国株式型', 'SDGs世界株式型',
-                '外国債券型', '世界債券プラス型', 'オーストラリア債券型',
-                '金融市場型',
-                '安定成長バランス型', '積極運用バランス型'
+                '株式型', '日本成長株式型',
+                '世界コア株式型', '世界株式型',
+                '債券型', '世界債券型',
+                '総合型',
+                '短期金融市場型'
+            ],
+            // ソニー生命 - SOVANI版（16ファンド）
+            'SONY_LIFE_SOVANI': [
+                // バランス型
+                'バランス型20', 'バランス型40', 'バランス型60', 'バランス型80',
+                // パッシブ型
+                '日本株式型TOP', '海外株式型MSP', '日本債券型NOP', '海外債券型FTP',
+                '日本リート型TSP', '海外リート型SPP',
+                // アクティブ型
+                '日本株式型JV', '日本株式型JG', '世界株式型GQ', '世界株式型GI',
+                '世界債券型GQ',
+                // マネー型
+                'マネー型'
             ],
             // アクサ生命（今後追加）
             'AXA_LIFE': []
@@ -120,16 +132,29 @@ class PDFParser {
 
         logger.info(`Using fund names for ${companyCode || 'default'}: ${fundNames.join(', ')}`);
 
+        // ファンド名を長い順にソート（部分一致を防ぐため）
+        // 例: "世界株式型" を "株式型" より先に処理
+        const sortedFundNames = [...fundNames].sort((a, b) => b.length - a.length);
+
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            for (const fundName of fundNames) {
-                if (line.includes(fundName) && !funds[fundName]) {
+            for (const fundName of sortedFundNames) {
+                if (funds[fundName]) {
+                    // すでに見つかっている場合はスキップ
+                    continue;
+                }
+
+                // ファンド名の前後に区切り文字があることを確認する正確なマッチング
+                // 区切り文字: 行頭、空白、全角空白、タブ、括弧など
+                const escapedFundName = fundName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const exactMatchRegex = new RegExp('(^|[\\s　\\t(（【\\[])' + escapedFundName + '([^\\w\\u3040-\\u309f\\u30a0-\\u30ff\\u4e00-\\u9faf])', 'g');
+
+                if (line.match(exactMatchRegex)) {
                     // ファンド名の直後の数値を探す
                     // 全角マイナス（−）、半角マイナス（-）、プラス（+）に対応
                     // 例: "株式型+3.52%", "債券型−0.27%"
-                    const escapedFundName = fundName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const regex = new RegExp(escapedFundName + '[^\\d]*?([−\\-+]?\\d+\\.?\\d*)%');
-                    const match = line.match(regex);
+                    const valueRegex = new RegExp(escapedFundName + '[^\\d]*?([−\\-+]?\\d+\\.?\\d*)%');
+                    const match = line.match(valueRegex);
 
                     if (match) {
                         // 全角マイナスを半角マイナスに変換
