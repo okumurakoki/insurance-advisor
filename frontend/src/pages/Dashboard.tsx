@@ -108,10 +108,16 @@ const Dashboard: React.FC = () => {
       const companies = user?.accountType === 'admin'
         ? await api.getInsuranceCompanies()
         : await api.getMyInsuranceCompanies();
-      setInsuranceCompanies(companies.filter((c: any) => c.is_active));
+
+      console.log('[Dashboard] Fetched companies:', companies);
+      console.log('[Dashboard] User account type:', user?.accountType);
+
+      const activeCompanies = companies.filter((c: any) => c.is_active);
+      console.log('[Dashboard] Active companies:', activeCompanies);
+      setInsuranceCompanies(activeCompanies);
 
       // Fetch performance data for each company
-      const performancePromises = companies.map(async (company: any) => {
+      const performancePromises = activeCompanies.map(async (company: any) => {
         try {
           const performance = await api.getLatestPerformanceByCompany(company.company_code);
           return {
