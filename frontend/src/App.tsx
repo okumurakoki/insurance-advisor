@@ -1007,22 +1007,27 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                         );
 
                         if (targetFunds.length > 0) {
-                          // パフォーマンスに応じた配分
-                          const totalPerf = targetFunds.reduce((sum, f) => sum + Math.max(0, f.performance), 0);
-
-                          calculations = allFunds.map(fundName => {
+                          // パフォーマンスに応じた配分（正規化して100%にする）
+                          const rawAllocations = allFunds.map(fundName => {
                             const fund = fundData.find(f => f.fundName === fundName)!;
                             const isAggressiveFund = fundName.includes('株式') || fundName.includes('REIT') || fundName.includes('リート');
 
                             if (!isAggressiveFund || fund.performance < 0) {
-                              return { fundName, performance: fund.performance, recommended: 0 };
+                              return { fundName, performance: fund.performance, rawScore: 0 };
                             }
 
-                            const ratio = totalPerf > 0 ? fund.performance / totalPerf : 1 / targetFunds.length;
-                            const raw = ratio * 100;
-                            const recommended = Math.round(raw / 10) * 10;
+                            const totalPerf = targetFunds.reduce((sum, f) => sum + Math.max(0, f.performance), 0);
+                            const rawScore = totalPerf > 0 ? fund.performance : 1;
 
-                            return { fundName, performance: fund.performance, recommended };
+                            return { fundName, performance: fund.performance, rawScore };
+                          });
+
+                          // 正規化: 合計を100%にする
+                          const totalScore = rawAllocations.reduce((sum, item) => sum + item.rawScore, 0);
+                          calculations = rawAllocations.map(item => {
+                            const normalized = totalScore > 0 ? (item.rawScore / totalScore) * 100 : 0;
+                            const recommended = Math.round(normalized / 10) * 10;
+                            return { fundName: item.fundName, performance: item.performance, recommended };
                           });
                         } else {
                           // すべてマイナスの場合は全て0
@@ -1137,13 +1142,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                       return calculations.map(({ fundName, performance, recommended }) => {
                         const change = recommended - current;
                         return (
-                          <TableRow
-                            key={fundName}
-                            sx={{
-                              backgroundColor: recommended > current ? '#e0f2fe' :
-                                             recommended < current ? '#fee2e2' : 'inherit'
-                            }}
-                          >
+                          <TableRow key={fundName}>
                             <TableCell sx={{ fontWeight: 600 }}>{fundName}</TableCell>
                             <TableCell align="right">
                               <Typography
