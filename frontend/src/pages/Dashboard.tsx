@@ -21,6 +21,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  LinearProgress,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
@@ -32,6 +33,8 @@ import {
   Add as AddIcon,
   TrendingUp as TrendingUpIcon,
   Business as BusinessIcon,
+  CloudUpload as CloudUploadIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 
 const Dashboard: React.FC = () => {
@@ -51,6 +54,14 @@ const Dashboard: React.FC = () => {
   const [insuranceCompanies, setInsuranceCompanies] = useState<any[]>([]);
   const [companiesPerformance, setCompaniesPerformance] = useState<any[]>([]);
   const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('all');
+
+  // Market data upload states
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedUploadCompanyId, setSelectedUploadCompanyId] = useState<number | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [uploadError, setUploadError] = useState('');
 
   useEffect(() => {
     fetchDashboardData();
@@ -187,6 +198,86 @@ const Dashboard: React.FC = () => {
       totalMonthlyPremium: filteredCustomers.reduce((sum, c) => sum + (c.monthlyPremium || 0), 0),
       averageReturn: stats.averageReturn, // TODO: Calculate from company data
     };
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        setUploadError('PDFファイルのみアップロード可能です');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setUploadError('ファイルサイズは10MB以下にしてください');
+        return;
+      }
+      setSelectedFile(file);
+      setUploadError('');
+      setUploadMessage('');
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+
+    if (!selectedUploadCompanyId) {
+      setUploadError('保険会社を選択してください');
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+    setUploadError('');
+    setUploadMessage('');
+
+    try {
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      await api.uploadMarketData(selectedFile, selectedUploadCompanyId);
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      setUploadMessage('市場データのアップロードが完了しました');
+      setSelectedFile(null);
+      setSelectedUploadCompanyId(null);
+
+      // Reset file input
+      const fileInput = document.getElementById('dashboard-file-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+
+      // Refresh dashboard data
+      fetchDashboardData();
+      fetchInsuranceCompanies();
+    } catch (err: any) {
+      setUploadError(err.response?.data?.error || 'アップロードに失敗しました');
+    } finally {
+      setUploading(false);
+      setTimeout(() => setUploadProgress(0), 1000);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const event = {
+        target: { files: [file] },
+      } as any;
+      handleFileSelect(event);
+    }
   };
 
   const filteredStats = getFilteredStats();
@@ -383,6 +474,108 @@ const Dashboard: React.FC = () => {
             )}
           </Box>
         </Grid>
+
+        {/* Market Data Upload Section (Admin only) */}
+        {user?.accountType === 'admin' && insuranceCompanies.length > 0 && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3, mb: 2 }}>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <CloudUploadIcon />
+                マーケットデータアップロード
+              </Typography>
+
+              {uploadError && <Alert severity="error" sx={{ mb: 2 }}>{uploadError}</Alert>}
+              {uploadMessage && <Alert severity="success" sx={{ mb: 2 }}>{uploadMessage}</Alert>}
+
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <InputLabel id="upload-company-select-label">保険会社を選択 *</InputLabel>
+                <Select
+                  labelId="upload-company-select-label"
+                  value={selectedUploadCompanyId || ''}
+                  label="保険会社を選択 *"
+                  onChange={(e) => setSelectedUploadCompanyId(Number(e.target.value))}
+                >
+                  {insuranceCompanies.map((company) => (
+                    <MenuItem key={company.id} value={company.id}>
+                      {company.display_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Box
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                sx={{
+                  border: '2px dashed #ccc',
+                  borderRadius: 2,
+                  p: 4,
+                  textAlign: 'center',
+                  backgroundColor: '#fafafa',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    borderColor: '#1976d2',
+                    backgroundColor: '#f5f5f5',
+                  },
+                }}
+              >
+                <CloudUploadIcon sx={{ fontSize: 48, color: '#999', mb: 2 }} />
+                <Typography variant="body1" gutterBottom>
+                  PDFファイルをドラッグ＆ドロップまたは
+                </Typography>
+                <input
+                  accept="application/pdf"
+                  style={{ display: 'none' }}
+                  id="dashboard-file-upload"
+                  type="file"
+                  onChange={handleFileSelect}
+                />
+                <label htmlFor="dashboard-file-upload">
+                  <Button variant="outlined" component="span">
+                    ファイルを選択
+                  </Button>
+                </label>
+
+                {selectedFile && (
+                  <Box mt={2}>
+                    <Chip
+                      icon={<CheckCircleIcon />}
+                      label={`選択: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`}
+                      color="success"
+                      variant="outlined"
+                    />
+                  </Box>
+                )}
+              </Box>
+
+              {uploading && (
+                <Box mt={2}>
+                  <LinearProgress variant="determinate" value={uploadProgress} />
+                  <Typography variant="body2" color="textSecondary" align="center" mt={1}>
+                    アップロード中... {uploadProgress}%
+                  </Typography>
+                </Box>
+              )}
+
+              <Box mt={3} display="flex" justifyContent="center">
+                <Button
+                  variant="contained"
+                  startIcon={<CloudUploadIcon />}
+                  onClick={handleUpload}
+                  disabled={!selectedFile || !selectedUploadCompanyId || uploading}
+                  size="large"
+                >
+                  アップロード
+                </Button>
+              </Box>
+
+              <Typography variant="caption" color="textSecondary" display="block" mt={2}>
+                ※ PDFファイルのみ、最大10MBまでアップロード可能です
+              </Typography>
+            </Paper>
+          </Grid>
+        )}
 
         {/* Insurance Companies Performance */}
         {companiesPerformance.length > 0 && (
