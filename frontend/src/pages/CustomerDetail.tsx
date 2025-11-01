@@ -112,65 +112,38 @@ const CustomerDetail: React.FC = () => {
 
   const generateDefaultAllocation = (customerData: Customer) => {
     // リスクプロファイルに基づいた推奨配分
-    let allocation: any = {};
+    // NOTE: This section shows estimated projection when no analysis history exists
+    // In a production environment, this should fetch actual market data from the API
+    // For now, we show a message to create the first analysis
 
-    if (customerData.riskTolerance === 'conservative') {
-      // 保守的: 債券中心
-      allocation = {
-        '株式型': 10,
-        '米国株式型': 10,
-        '総合型': 20,
-        '米国債券型': 25,
-        '債券型': 25,
-        'REIT型': 10,
-      };
-    } else if (customerData.riskTolerance === 'balanced') {
-      // バランス型
-      allocation = {
-        '株式型': 10,
-        '米国株式型': 30,
-        '総合型': 20,
-        '米国債券型': 10,
-        '債券型': 10,
-        'REIT型': 20,
-      };
-    } else {
-      // 積極的: 株式中心
-      allocation = {
-        '株式型': 20,
-        '米国株式型': 40,
-        '総合型': 15,
-        '米国債券型': 5,
-        '債券型': 5,
-        'REIT型': 15,
+    let allocation: any = {};
+    let expectedReturn = 0;
+
+    if (analysisHistory.length === 0) {
+      // No analysis history - show message instead of hardcoded data
+      return {
+        month: startMonth.toISOString().split('T')[0],
+        value: 100,
+        cumulativeReturn: 0,
+        message: '分析履歴がありません。最初の分析を作成してください。'
       };
     }
 
-    const fundReturns: {[key: string]: number} = {
-      '株式型': 6.8,
-      '米国株式型': 12.3,
-      '総合型': 5.5,
-      '米国債券型': 3.2,
-      '債券型': 2.8,
-      'REIT型': -1.5,
-      '世界株式型': 8.7
-    };
+    // Use the most recent analysis if available
+    const recentAnalysis = analysisHistory[0];
+    allocation = recentAnalysis.adjustedAllocation || recentAnalysis.recommendedAllocation || {};
 
-    let expectedReturn = 0;
-    Object.keys(allocation).forEach(fundType => {
-      const weight = allocation[fundType] / 100;
-      const fundReturn = fundReturns[fundType] || 0;
-      expectedReturn += weight * fundReturn;
-    });
+    // Use expected return from the analysis result if available
+    expectedReturn = recentAnalysis.expectedReturn || 0;
 
     setLatestAnalysis({
-      id: null,
+      id: recentAnalysis.id || null,
       customerId: customerData.id,
-      analysisDate: new Date().toISOString(),
+      analysisDate: recentAnalysis.analysisDate || new Date().toISOString(),
       allocation: allocation,
-      confidenceScore: 0.85,
-      recommendationText: `現在の市場環境と${getRiskToleranceLabel(customerData.riskTolerance)}のリスクプロファイルに基づいた推奨配分です。`,
-      marketAnalysis: '現在の市場環境は、緩やかな成長トレンドを示しています。テクノロジーとヘルスケアセクターが特に好調で、今後も継続的な成長が期待されます。グローバル経済の回復傾向が続く中、分散投資によるリスク管理が重要です。',
+      confidenceScore: recentAnalysis.confidenceScore || 0.85,
+      recommendationText: recentAnalysis.recommendationText || `現在の市場環境と${getRiskToleranceLabel(customerData.riskTolerance)}のリスクプロファイルに基づいた推奨配分です。`,
+      marketAnalysis: recentAnalysis.marketAnalysis || '現在の市場環境は、緩やかな成長トレンドを示しています。テクノロジーとヘルスケアセクターが特に好調で、今後も継続的な成長が期待されます。グローバル経済の回復傾向が続く中、分散投資によるリスク管理が重要です。',
       expectedReturn: expectedReturn,
     });
   };

@@ -273,17 +273,7 @@ ${allocationTemplate}
     parseAnalysisResult(response) {
         const { analysis } = response;
 
-        // 必須のファンド型をすべて含むことを確認
-        const requiredFunds = ['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'];
         const allocation = analysis.recommendations.allocation || {};
-
-        // 欠けているファンド型があれば0%を設定
-        requiredFunds.forEach(fund => {
-            if (!(fund in allocation) || allocation[fund] === null || allocation[fund] === undefined) {
-                logger.warn(`Missing fund type in AI response: ${fund}, setting to 0%`);
-                allocation[fund] = 0;
-            }
-        });
 
         // すべての配分を10%刻みに丸める
         Object.keys(allocation).forEach(fund => {
@@ -298,7 +288,9 @@ ${allocationTemplate}
 
             // 差分を最も配分が大きいファンドに加算/減算（10%刻みを維持）
             const sortedFunds = Object.keys(allocation).sort((a, b) => allocation[b] - allocation[a]);
-            allocation[sortedFunds[0]] += diff;
+            if (sortedFunds.length > 0) {
+                allocation[sortedFunds[0]] += diff;
+            }
         }
 
         logger.info('Final validated allocation:', allocation);
