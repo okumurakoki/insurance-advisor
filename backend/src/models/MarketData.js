@@ -61,7 +61,7 @@ class MarketData {
         return results[0] || null;
     }
 
-    static async getLatest(companyId = null, dataType = 'monthly_report') {
+    static async getLatest(dataType = 'monthly_report', companyId = null) {
         let sql;
         let params;
 
