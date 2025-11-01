@@ -22,6 +22,9 @@ import {
   Menu,
   MenuItem,
   Divider,
+  FormControl,
+  InputLabel,
+  Select,
   Chip,
   Drawer,
   List,
@@ -454,12 +457,14 @@ interface DashboardProps {
 function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [uploadingMarketData, setUploadingMarketData] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
   const [fundPerformance, setFundPerformance] = useState<any[]>([]);
   const [bondYields, setBondYields] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
   const [latestMarketData, setLatestMarketData] = useState<any>(null);
   const [riskProfile, setRiskProfile] = useState<'conservative' | 'balanced' | 'aggressive'>('balanced');
   const [myInsuranceCompanies, setMyInsuranceCompanies] = useState<any[]>([]);
+  const [allInsuranceCompanies, setAllInsuranceCompanies] = useState<any[]>([]);
 
   // Generate optimization results from fund performance data
   useEffect(() => {
@@ -468,8 +473,26 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        // Fetch contracted insurance companies (for parent and child accounts only)
-        if (user.accountType === 'parent' || user.accountType === 'child') {
+        // Fetch insurance companies
+        if (user.accountType === 'admin') {
+          // Admin: Fetch all insurance companies
+          try {
+            const companiesResponse = await fetch(`${API_BASE_URL}/api/insurance/companies`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+
+            if (companiesResponse.ok) {
+              const companies = await companiesResponse.json();
+              console.log('[Admin] All insurance companies:', companies);
+              setAllInsuranceCompanies(companies.filter((c: any) => c.is_active));
+            }
+          } catch (error) {
+            console.error('Failed to fetch all insurance companies:', error);
+          }
+        } else if (user.accountType === 'parent' || user.accountType === 'child') {
+          // Parent/Child: Fetch contracted insurance companies only
           try {
             const companiesResponse = await fetch(`${API_BASE_URL}/api/insurance/my-companies`, {
               headers: {
@@ -582,6 +605,11 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
       return;
     }
 
+    if (!selectedCompanyId) {
+      alert('保険会社を選択してください');
+      return;
+    }
+
     setUploadingMarketData(true);
     try {
       const token = localStorage.getItem('token');
@@ -592,6 +620,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
       const formData = new FormData();
       formData.append('marketData', selectedFile);
+      formData.append('company_id', selectedCompanyId.toString());
 
       const response = await fetch(`${API_BASE_URL}/api/analysis/upload-market-data`, {
         method: 'POST',
@@ -807,32 +836,51 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                 月次マーケットレポート（PDF）をアップロードして、最新のファンドパフォーマンスデータを反映できます。
               </Typography>
 
-              <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                <input
-                  id="market-data-file"
-                  type="file"
-                  accept="application/pdf"
-                  onChange={handleFileSelect}
-                  style={{ display: 'none' }}
-                />
-                <label htmlFor="market-data-file">
-                  <Button variant="outlined" component="span">
-                    PDFを選択
+              <Box sx={{ mt: 2 }}>
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel id="company-select-label">保険会社を選択 *</InputLabel>
+                  <Select
+                    labelId="company-select-label"
+                    id="company-select"
+                    value={selectedCompanyId || ''}
+                    label="保険会社を選択 *"
+                    onChange={(e) => setSelectedCompanyId(Number(e.target.value))}
+                  >
+                    {allInsuranceCompanies.map((company) => (
+                      <MenuItem key={company.id} value={company.id}>
+                        {company.display_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input
+                    id="market-data-file"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="market-data-file">
+                    <Button variant="outlined" component="span">
+                      PDFを選択
+                    </Button>
+                  </label>
+                  {selectedFile && (
+                    <Typography variant="body2">
+                      選択済み: {selectedFile.name}
+                    </Typography>
+                  )}
+                  <Button
+                    variant="contained"
+                    onClick={handleUploadMarketData}
+                    disabled={!selectedFile || !selectedCompanyId || uploadingMarketData}
+                    startIcon={uploadingMarketData ? <CircularProgress size={20} /> : null}
+                  >
+                    {uploadingMarketData ? 'アップロード中...' : 'アップロード'}
                   </Button>
-                </label>
-                {selectedFile && (
-                  <Typography variant="body2">
-                    選択済み: {selectedFile.name}
-                  </Typography>
-                )}
-                <Button
-                  variant="contained"
-                  onClick={handleUploadMarketData}
-                  disabled={!selectedFile || uploadingMarketData}
-                  startIcon={uploadingMarketData ? <CircularProgress size={20} /> : null}
-                >
-                  {uploadingMarketData ? 'アップロード中...' : 'アップロード'}
-                </Button>
+                </Box>
               </Box>
             </Card>
           </Grid>
