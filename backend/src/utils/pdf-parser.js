@@ -199,6 +199,67 @@ class PDFParser {
             logger.info(`Using all fund names: ${allFundNames.length} funds`);
         }
 
+        // SOVANI/SONY_LIFE形式の検出: ファンド名と数値が同じ行にあるパターン
+        // SOVANI例: バランス型20105.87＋0.29％＋2.06％＋1.74％＋2.29％＋5.87％
+        // SONY_LIFE例: 株式型+3.52%日経平均株価+4.01%
+        if (companyCode === 'SONY_LIFE_SOVANI' || companyCode === 'SONY_LIFE') {
+            logger.info(`Using ${companyCode}-specific parser (inline data format)`);
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                // 各ファンド名をチェック
+                for (const fundName of allFundNames) {
+                    // 行の開始位置でファンド名と正確に一致する場合のみ処理
+                    // "株式型" が "世界株式型" にマッチしないように厳密にチェック
+                    if (line.startsWith(fundName) && !funds[fundName]) {
+                        if (companyCode === 'SONY_LIFE_SOVANI') {
+                            // SOVANI: ファンド名の後にすべてのパーセンテージを抽出し、最後から2番目が「1年」のデータ
+                            const percentMatches = line.match(/([-+＋－]?\d+\.\d+)[％%]/g);
+
+                            if (percentMatches && percentMatches.length >= 2) {
+                                const oneYearIndex = percentMatches.length - 2;
+                                const percentStr = percentMatches[oneYearIndex]
+                                    .replace(/[％%]/g, '')
+                                    .replace('＋', '+')
+                                    .replace('－', '-');
+                                const performance = parseFloat(percentStr);
+
+                                if (!isNaN(performance)) {
+                                    funds[fundName] = performance;
+                                    logger.info(`Extracted ${fundName}: ${performance}% from line ${i}`);
+                                }
+                            }
+                        } else {
+                            // SONY_LIFE: ファンド名の直後の最初のパーセンテージが「直近」のデータ
+                            // パターン: ファンド名[−+＋－-]?数字.数字[％%]
+                            // ファンド名の直後にある数値のみを抽出（ベンチマークは除外）
+                            // 注：−(U+2212 MINUS SIGN), -(U+002D HYPHEN-MINUS), －(U+FF0D FULLWIDTH HYPHEN-MINUS)
+                            const afterFundName = line.substring(fundName.length);
+                            const firstPercentMatch = afterFundName.match(/^([-+＋－−]?\d+\.\d+)[％%]/);
+
+                            if (firstPercentMatch) {
+                                const percentStr = firstPercentMatch[1]
+                                    .replace('＋', '+')
+                                    .replace('－', '-')
+                                    .replace('−', '-');  // U+2212 MINUS SIGN -> ASCII hyphen
+                                const performance = parseFloat(percentStr);
+
+                                if (!isNaN(performance)) {
+                                    funds[fundName] = performance;
+                                    logger.info(`Extracted ${fundName}: ${performance}% from line ${i}`);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (Object.keys(funds).length > 0) {
+                return funds;
+            }
+        }
+
+        // プルデンシャル/ソニー（Variable Life）形式のパーサー
         // Find header line with fund types
         let headerLine = null;
         let headerIndex = -1;
