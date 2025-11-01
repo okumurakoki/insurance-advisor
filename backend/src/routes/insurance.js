@@ -372,8 +372,27 @@ router.get('/my-companies', authenticateToken, async (req, res) => {
         let query;
         let params;
 
+        // If admin, get all active insurance companies
+        if (accountType === 'admin') {
+            query = `
+                SELECT
+                    id,
+                    company_code,
+                    company_name,
+                    company_name_en,
+                    display_name,
+                    is_active,
+                    NULL as agency_company_id,
+                    NULL as contract_start_date,
+                    NULL as contract_end_date
+                FROM insurance_companies
+                WHERE is_active = TRUE
+                ORDER BY id
+            `;
+            params = [];
+        }
         // If parent (agency), get their contracted companies
-        if (accountType === 'parent') {
+        else if (accountType === 'parent') {
             query = `
                 SELECT DISTINCT
                     ic.id,
