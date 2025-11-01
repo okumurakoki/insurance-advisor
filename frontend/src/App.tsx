@@ -682,12 +682,10 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
         const fundKeys = Object.keys(extractedFundPerformance);
 
         // アップロードデータから直接fundPerformance配列とbondYieldsを設定
-        const allFundTypes = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型'];
-        if (fundKeys.length > 0 || Object.keys(extractedFundPerformance).length === 0) {
-          const fundsArray = allFundTypes.map(fundType => {
-            const performanceValue = extractedFundPerformance[fundType] !== undefined
-              ? extractedFundPerformance[fundType]
-              : 0;
+        // 動的にファンド名を取得（PDFから解析されたファンド名を使用）
+        if (fundKeys.length > 0) {
+          const fundsArray = fundKeys.map(fundType => {
+            const performanceValue = extractedFundPerformance[fundType];
             return {
               fundType,
               performance: performanceValue,
@@ -1030,7 +1028,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                   </TableHead>
                   <TableBody>
                     {(() => {
-                      const allFunds = ['株式型', '米国株式型', '総合型', '米国債券型', '債券型', 'REIT型'];
+                      // fundPerformanceから動的にファンド名を取得
+                      const allFunds = fundPerformance.map(f => f.fundType);
 
                       // 各ファンドのパフォーマンスデータを取得
                       const fundData = allFunds.map(fundName => {
@@ -1042,10 +1041,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                       let calculations: { fundName: string; performance: number; recommended: number }[] = [];
 
                       if (riskProfile === 'aggressive') {
-                        // 積極型: 米国株式、株式、REITに全投資
-                        const aggressiveFunds = ['株式型', '米国株式型', 'REIT型'];
+                        // 積極型: 株式型とREIT型（ファンド名に「株式」「REIT」「リート」を含む）に全投資
                         const targetFunds = fundData.filter(f =>
-                          aggressiveFunds.includes(f.fundName) && f.performance >= 0
+                          (f.fundName.includes('株式') || f.fundName.includes('REIT') || f.fundName.includes('リート')) && f.performance >= 0
                         );
 
                         if (targetFunds.length > 0) {
@@ -1054,8 +1052,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
                           calculations = allFunds.map(fundName => {
                             const fund = fundData.find(f => f.fundName === fundName)!;
+                            const isAggressiveFund = fundName.includes('株式') || fundName.includes('REIT') || fundName.includes('リート');
 
-                            if (!aggressiveFunds.includes(fundName) || fund.performance < 0) {
+                            if (!isAggressiveFund || fund.performance < 0) {
                               return { fundName, performance: fund.performance, recommended: 0 };
                             }
 
@@ -1083,9 +1082,12 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                           else base = 10;
 
                           let adjusted = base;
-                          if (fund.fundName === '債券型' || fund.fundName === '米国債券型') {
+                          const isBond = fund.fundName.includes('債券');
+                          const isStock = fund.fundName.includes('株式');
+
+                          if (isBond) {
                             adjusted = Math.min(50, base * 1.3);
-                          } else if (fund.fundName === '株式型' || fund.fundName === '米国株式型') {
+                          } else if (isStock) {
                             adjusted = base * 0.7;
                           }
 
@@ -1096,9 +1098,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                       } else {
                         // バランス型: 積極型60% + 保守型40%
                         // まず積極型の配分を計算
-                        const aggressiveFunds = ['株式型', '米国株式型', 'REIT型'];
                         const targetFunds = fundData.filter(f =>
-                          aggressiveFunds.includes(f.fundName) && f.performance >= 0
+                          (f.fundName.includes('株式') || f.fundName.includes('REIT') || f.fundName.includes('リート')) && f.performance >= 0
                         );
 
                         const aggressiveAlloc: { [key: string]: number } = {};
@@ -1106,7 +1107,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                           const totalPerf = targetFunds.reduce((sum, f) => sum + Math.max(0, f.performance), 0);
                           allFunds.forEach(fundName => {
                             const fund = fundData.find(f => f.fundName === fundName)!;
-                            if (!aggressiveFunds.includes(fundName) || fund.performance < 0) {
+                            const isAggressiveFund = fundName.includes('株式') || fundName.includes('REIT') || fundName.includes('リート');
+                            if (!isAggressiveFund || fund.performance < 0) {
                               aggressiveAlloc[fundName] = 0;
                             } else {
                               const ratio = totalPerf > 0 ? fund.performance / totalPerf : 1 / targetFunds.length;
@@ -1128,9 +1130,12 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                           else if (fund.performance >= 10) base = 20;
                           else base = 10;
 
-                          if (fund.fundName === '債券型' || fund.fundName === '米国債券型') {
+                          const isBond = fund.fundName.includes('債券');
+                          const isStock = fund.fundName.includes('株式');
+
+                          if (isBond) {
                             conservativeAlloc[fund.fundName] = Math.min(50, base * 1.3);
-                          } else if (fund.fundName === '株式型' || fund.fundName === '米国株式型') {
+                          } else if (isStock) {
                             conservativeAlloc[fund.fundName] = base * 0.7;
                           } else {
                             conservativeAlloc[fund.fundName] = base;
