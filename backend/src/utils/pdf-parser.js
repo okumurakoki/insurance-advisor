@@ -59,9 +59,10 @@ class PDFParser {
             // デバッグ: ファンド名を含む行を全て出力
             const lines = data.text.split('\n');
             logger.info('=== Lines containing fund names ===');
-            const fundNames = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型'];
+            // 全ての会社のファンド名を結合してチェック
+            const allFundNames = Object.values(this.fundNamesByCompany).flat();
             lines.forEach((line, index) => {
-                if (fundNames.some(name => line.includes(name))) {
+                if (allFundNames.some(name => line.includes(name))) {
                     logger.info(`Line ${index}: ${line}`);
                 }
             });
@@ -93,7 +94,7 @@ class PDFParser {
 
             // 変額保険のPDFは「直近1年」テーブル形式でデータを提供
             // 直接テーブル抽出を使用（正規表現は信託報酬などの他のデータにマッチする可能性があるため）
-            const funds = this.extractPerformanceTable(text);
+            const funds = this.extractPerformanceTable(text, companyCode);
 
             if (Object.keys(funds).length === 0) {
                 logger.warn('No fund performance data found in table, trying fallback extraction');
@@ -180,11 +181,23 @@ class PDFParser {
     /**
      * 「直近1年」のパフォーマンステーブルを抽出
      * @param {string} text
+     * @param {string} companyCode - 保険会社コード
      * @returns {Object}
      */
-    extractPerformanceTable(text) {
+    extractPerformanceTable(text, companyCode = null) {
         const funds = {};
         const lines = text.split('\n');
+
+        // 会社別のファンド名リストを取得
+        let allFundNames = [];
+        if (companyCode && this.fundNamesByCompany[companyCode]) {
+            allFundNames = this.fundNamesByCompany[companyCode];
+            logger.info(`Using fund names for ${companyCode}: ${allFundNames.join(', ')}`);
+        } else {
+            // デフォルト：全ての会社のファンド名を結合
+            allFundNames = Object.values(this.fundNamesByCompany).flat();
+            logger.info(`Using all fund names: ${allFundNames.length} funds`);
+        }
 
         // Find header line with fund types
         let headerLine = null;
@@ -192,18 +205,18 @@ class PDFParser {
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            // ヘッダー行を探す（複数のファンドタイプを含む行）
-            if (line.includes('総合型') && line.includes('債券型') && line.includes('株式型')) {
+            // ヘッダー行を探す（ファンド名を3つ以上含む行）
+            const matchCount = allFundNames.filter(name => line.includes(name)).length;
+            if (matchCount >= 3) {
                 headerLine = line;
                 headerIndex = i;
-                logger.info(`Found header at line ${i}: ${line}`);
+                logger.info(`Found header at line ${i} with ${matchCount} fund names: ${line}`);
                 break;
             }
         }
 
         if (headerLine && headerIndex >= 0) {
             // Extract fund names from header - detect which funds are actually present
-            const allFundNames = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型', '世界株式型', 'マネー型'];
             const detectedFunds = [];
 
             // Detect which fund names appear in the header and in what order
@@ -251,9 +264,10 @@ class PDFParser {
     /**
      * すべての期間のパフォーマンスデータを抽出
      * @param {string} text
+     * @param {string} companyCode - 保険会社コード
      * @returns {Object}
      */
-    extractAllPerformanceData(text) {
+    extractAllPerformanceData(text, companyCode = null) {
         const result = {
             totalReturn: {},      // 累積騰落率
             annualizedReturn: {}, // 年率換算利回り
@@ -263,16 +277,27 @@ class PDFParser {
         const lines = text.split('\n');
         const periods = ['直近1年', '５年', '10年', '20年', '設定来'];
 
+        // 会社別のファンド名リストを取得
+        let allFundNames = [];
+        if (companyCode && this.fundNamesByCompany[companyCode]) {
+            allFundNames = this.fundNamesByCompany[companyCode];
+        } else {
+            // デフォルト：全ての会社のファンド名を結合
+            allFundNames = Object.values(this.fundNamesByCompany).flat();
+        }
+
         // Find header line
         let headerLine = null;
         let headerIndex = -1;
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            if (line.includes('総合型') && line.includes('債券型') && line.includes('株式型')) {
+            // ヘッダー行を探す（ファンド名を3つ以上含む行）
+            const matchCount = allFundNames.filter(name => line.includes(name)).length;
+            if (matchCount >= 3) {
                 headerLine = line;
                 headerIndex = i;
-                logger.info(`Found performance header at line ${i}`);
+                logger.info(`Found performance header at line ${i} with ${matchCount} fund names`);
                 break;
             }
         }
@@ -420,7 +445,7 @@ class PDFParser {
         try {
             const text = await this.extractText(pdfBuffer);
             const fundPerformance = await this.extractFundPerformance(pdfBuffer, companyCode);
-            const allPerformanceData = this.extractAllPerformanceData(text);
+            const allPerformanceData = this.extractAllPerformanceData(text, companyCode);
             const bondYields = this.extractBondYields(text);
 
             // 決算日を抽出
