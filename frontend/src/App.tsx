@@ -1125,15 +1125,47 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                         });
                       }
 
-                      // 合計を100%に調整
+                      // 合計を100%に調整（期待値を考慮した賢い調整）
                       let total = calculations.reduce((sum, calc) => sum + calc.recommended, 0);
                       if (total !== 100 && total > 0) {
                         const diff = 100 - total;
-                        // パフォーマンスが最も良いファンドで調整
-                        const sortedCalcs = [...calculations].sort((a, b) => b.performance - a.performance);
-                        const bestFund = calculations.find(c => c.fundName === sortedCalcs[0].fundName);
-                        if (bestFund && bestFund.recommended > 0) {
-                          bestFund.recommended = Math.max(0, bestFund.recommended + diff);
+
+                        if (diff > 0) {
+                          // 不足分がある場合：パフォーマンスと推奨配分の両方を考慮
+                          // 推奨配分が高く、パフォーマンスも良いファンドに優先的に配分
+                          const sortedCalcs = [...calculations]
+                            .filter(c => c.recommended > 0)
+                            .sort((a, b) => {
+                              // スコア = 推奨配分 × パフォーマンス（重み付き）
+                              const scoreA = a.recommended * (1 + a.performance / 100);
+                              const scoreB = b.recommended * (1 + b.performance / 100);
+                              return scoreB - scoreA;
+                            });
+
+                          // 最も期待値が高いファンドに加算
+                          if (sortedCalcs.length > 0) {
+                            const targetFund = calculations.find(c => c.fundName === sortedCalcs[0].fundName);
+                            if (targetFund) {
+                              targetFund.recommended += diff;
+                            }
+                          }
+                        } else {
+                          // 超過分がある場合：推奨配分が最も低い（0でない）ファンドから減算
+                          const sortedCalcs = [...calculations]
+                            .filter(c => c.recommended > 0)
+                            .sort((a, b) => a.recommended - b.recommended);
+
+                          let remaining = Math.abs(diff);
+                          for (const calc of sortedCalcs) {
+                            if (remaining <= 0) break;
+
+                            const targetFund = calculations.find(c => c.fundName === calc.fundName);
+                            if (targetFund && targetFund.recommended > 0) {
+                              const reduction = Math.min(remaining, targetFund.recommended);
+                              targetFund.recommended -= reduction;
+                              remaining -= reduction;
+                            }
+                          }
                         }
                       }
 
