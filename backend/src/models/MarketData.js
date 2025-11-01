@@ -61,23 +61,38 @@ class MarketData {
         return results[0] || null;
     }
 
-    static async getLatest(companyId, dataType = 'monthly_report') {
-        // Validate that companyId is provided
-        if (!companyId) {
-            throw new Error('company_id is required to retrieve market data');
+    static async getLatest(companyId = null, dataType = 'monthly_report') {
+        let sql;
+        let params;
+
+        if (companyId) {
+            // Get latest market data for specific company
+            sql = `
+                SELECT md.*, ic.company_code, ic.company_name
+                FROM market_data md
+                LEFT JOIN insurance_companies ic ON md.company_id = ic.id
+                WHERE md.data_type = $1
+                AND md.company_id = $2
+                AND md.is_active = TRUE
+                ORDER BY md.data_date DESC
+                LIMIT 1
+            `;
+            params = [dataType, companyId];
+        } else {
+            // Get latest market data across all companies (for backward compatibility)
+            sql = `
+                SELECT md.*, ic.company_code, ic.company_name
+                FROM market_data md
+                LEFT JOIN insurance_companies ic ON md.company_id = ic.id
+                WHERE md.data_type = $1
+                AND md.is_active = TRUE
+                ORDER BY md.data_date DESC
+                LIMIT 1
+            `;
+            params = [dataType];
         }
 
-        const sql = `
-            SELECT md.*, ic.company_code, ic.company_name
-            FROM market_data md
-            LEFT JOIN insurance_companies ic ON md.company_id = ic.id
-            WHERE md.data_type = $1
-            AND md.company_id = $2
-            AND md.is_active = TRUE
-            ORDER BY md.data_date DESC
-            LIMIT 1
-        `;
-        const results = await db.query(sql, [dataType, companyId]);
+        const results = await db.query(sql, params);
 
         if (results[0]) {
             // PostgreSQL JSONB columns are already parsed as objects
