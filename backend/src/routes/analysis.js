@@ -91,6 +91,15 @@ router.post('/upload-market-data',
 
         try {
             const pdfBuffer = req.file.buffer;
+            const companyId = req.body.company_id;
+
+            // Validate that company_id is provided
+            if (!companyId) {
+                return res.status(400).json({
+                    error: '保険会社を選択してください',
+                    code: 'MISSING_COMPANY_ID'
+                });
+            }
 
             // Parse PDF to extract fund performance data
             let fundPerformance = {};
@@ -145,7 +154,8 @@ router.post('/upload-market-data',
                     parsedSuccessfully: Object.keys(fundPerformance).length > 0
                 },
                 pdf_content: pdfBuffer,
-                uploaded_by: req.user.id
+                uploaded_by: req.user.id,
+                company_id: parseInt(companyId)
             });
 
             logger.info(`Market data uploaded by user: ${req.user.userId}, file: ${req.file.originalname}`);
@@ -204,6 +214,14 @@ router.post('/recommend/:customerId',
                 return res.status(403).json({ error: 'Access denied' });
             }
 
+            // Check if customer has insurance company assigned
+            if (!customer.company_id) {
+                return res.status(400).json({
+                    error: 'この顧客には保険会社が設定されていません。顧客情報を更新して保険会社を設定してください。',
+                    code: 'MISSING_INSURANCE_COMPANY'
+                });
+            }
+
             // Frequency check disabled - allow unlimited analysis
             // const canAnalyze = await AnalysisResult.checkAnalysisFrequency(
             //     customerId,
@@ -216,7 +234,8 @@ router.post('/recommend/:customerId',
             //     });
             // }
 
-            const latestMarketData = await MarketData.getLatest();
+            // Get latest market data for customer's insurance company
+            const latestMarketData = await MarketData.getLatest(customer.company_id);
 
             const notebookLM = new NotebookLMService();
             const analysisPrompt = `
@@ -231,9 +250,12 @@ router.post('/recommend/:customerId',
 
             let notebookLMResult;
             if (!latestMarketData) {
-                logger.warn('No market data available. Using default analysis.');
-                // 市場データがない場合はデフォルトの分析を使用
-                notebookLMResult = notebookLM.generateMockAnalysisWithMarketData(analysisPrompt, null);
+                logger.warn(`No market data available for company_id: ${customer.company_id}`);
+                return res.status(400).json({
+                    error: 'この保険会社の市場データ（PDF）が登録されていません。管理者にPDFのアップロードを依頼してください。',
+                    code: 'MISSING_MARKET_DATA',
+                    companyId: customer.company_id
+                });
             } else {
                 notebookLMResult = await notebookLM.analyzePDF(
                     latestMarketData.pdf_content,

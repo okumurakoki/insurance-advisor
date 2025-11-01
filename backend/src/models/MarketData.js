@@ -8,21 +8,28 @@ class MarketData {
             source_file,
             data_content,
             pdf_content,
-            uploaded_by
+            uploaded_by,
+            company_id
         } = marketData;
+
+        // Validate that company_id is provided
+        if (!company_id) {
+            throw new Error('company_id is required when uploading market data');
+        }
 
         const sql = `
             INSERT INTO market_data (
                 data_date, data_type, source_file,
-                data_content, pdf_content, uploaded_by
+                data_content, pdf_content, uploaded_by, company_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (data_date, data_type)
             DO UPDATE SET
                 source_file = EXCLUDED.source_file,
                 data_content = EXCLUDED.data_content,
                 pdf_content = EXCLUDED.pdf_content,
                 uploaded_by = EXCLUDED.uploaded_by,
+                company_id = EXCLUDED.company_id,
                 created_at = CURRENT_TIMESTAMP
             RETURNING id
         `;
@@ -33,7 +40,8 @@ class MarketData {
             source_file,
             JSON.stringify(data_content),
             pdf_content || null,
-            uploaded_by
+            uploaded_by,
+            company_id
         ]);
 
         return result.insertId || result[0]?.id || result.affectedRows;
@@ -53,14 +61,23 @@ class MarketData {
         return results[0] || null;
     }
 
-    static async getLatest(dataType = 'monthly_report') {
+    static async getLatest(companyId, dataType = 'monthly_report') {
+        // Validate that companyId is provided
+        if (!companyId) {
+            throw new Error('company_id is required to retrieve market data');
+        }
+
         const sql = `
-            SELECT * FROM market_data
-            WHERE data_type = $1 AND is_active = TRUE
-            ORDER BY data_date DESC
+            SELECT md.*, ic.company_code, ic.company_name
+            FROM market_data md
+            LEFT JOIN insurance_companies ic ON md.company_id = ic.id
+            WHERE md.data_type = $1
+            AND md.company_id = $2
+            AND md.is_active = TRUE
+            ORDER BY md.data_date DESC
             LIMIT 1
         `;
-        const results = await db.query(sql, [dataType]);
+        const results = await db.query(sql, [dataType, companyId]);
 
         if (results[0]) {
             // PostgreSQL JSONB columns are already parsed as objects

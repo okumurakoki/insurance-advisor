@@ -172,9 +172,10 @@ class ApiService {
     return response.data;
   }
 
-  async uploadMarketData(file: File): Promise<{ message: string }> {
+  async uploadMarketData(file: File, companyId: number): Promise<{ message: string }> {
     const formData = new FormData();
     formData.append('marketData', file);
+    formData.append('company_id', companyId.toString());
 
     const response = await this.api.post('/analysis/upload-market-data', formData, {
       headers: {

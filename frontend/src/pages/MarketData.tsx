@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Paper,
@@ -13,6 +13,10 @@ import {
   ListItemIcon,
   Divider,
   IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   CloudUpload as CloudUploadIcon,
@@ -23,8 +27,17 @@ import {
 } from '@mui/icons-material';
 import api from '../services/api';
 
+interface InsuranceCompany {
+  id: number;
+  company_code: string;
+  company_name: string;
+  display_name: string;
+}
+
 const MarketData: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
+  const [companies, setCompanies] = useState<InsuranceCompany[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [message, setMessage] = useState('');
@@ -43,6 +56,18 @@ const MarketData: React.FC = () => {
       status: 'success',
     },
   ]);
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const data = await api.getInsuranceCompanies();
+        setCompanies(data.filter((c: any) => c.is_active));
+      } catch (err) {
+        console.error('Failed to fetch insurance companies:', err);
+      }
+    };
+    fetchCompanies();
+  }, []);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -64,6 +89,11 @@ const MarketData: React.FC = () => {
   const handleUpload = async () => {
     if (!selectedFile) return;
 
+    if (!selectedCompanyId) {
+      setError('保険会社を選択してください');
+      return;
+    }
+
     setUploading(true);
     setUploadProgress(0);
     setError('');
@@ -81,13 +111,14 @@ const MarketData: React.FC = () => {
         });
       }, 200);
 
-      await api.uploadMarketData(selectedFile);
-      
+      await api.uploadMarketData(selectedFile, selectedCompanyId);
+
       clearInterval(progressInterval);
       setUploadProgress(100);
       setMessage('市場データのアップロードが完了しました');
       setSelectedFile(null);
-      
+      setSelectedCompanyId(null);
+
       // Reset file input
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
@@ -124,10 +155,27 @@ const MarketData: React.FC = () => {
         <Typography variant="h6" gutterBottom>
           新規データアップロード
         </Typography>
-        
+
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
-        
+
+        <FormControl fullWidth sx={{ mb: 3 }}>
+          <InputLabel id="company-select-label">保険会社を選択 *</InputLabel>
+          <Select
+            labelId="company-select-label"
+            id="company-select"
+            value={selectedCompanyId || ''}
+            label="保険会社を選択 *"
+            onChange={(e) => setSelectedCompanyId(Number(e.target.value))}
+          >
+            {companies.map((company) => (
+              <MenuItem key={company.id} value={company.id}>
+                {company.display_name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
         <Box
           onDragOver={handleDragOver}
           onDrop={handleDrop}
@@ -188,7 +236,7 @@ const MarketData: React.FC = () => {
             variant="contained"
             startIcon={<CloudUploadIcon />}
             onClick={handleUpload}
-            disabled={!selectedFile || uploading}
+            disabled={!selectedFile || !selectedCompanyId || uploading}
             size="large"
           >
             アップロード
