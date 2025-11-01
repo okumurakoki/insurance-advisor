@@ -190,49 +190,9 @@ function AppContent({ onThemeChange }: AppContentProps) {
   };
 
   const fetchMarketData = async () => {
-    try {
-      // Mock market data for production demo
-      const mockMarketData = [
-        {
-          symbol: 'SPY',
-          price: 445.20,
-          change: 2.15,
-          changePercent: '+0.48%',
-          lastUpdate: new Date().toLocaleDateString()
-        },
-        {
-          symbol: 'QQQ',
-          price: 378.45,
-          change: -1.23,
-          changePercent: '-0.32%',
-          lastUpdate: new Date().toLocaleDateString()
-        },
-        {
-          symbol: 'VTI',
-          price: 234.67,
-          change: 0.89,
-          changePercent: '+0.38%',
-          lastUpdate: new Date().toLocaleDateString()
-        },
-        {
-          symbol: 'AGG',
-          price: 102.34,
-          change: -0.12,
-          changePercent: '-0.12%',
-          lastUpdate: new Date().toLocaleDateString()
-        },
-        {
-          symbol: 'VXUS',
-          price: 58.91,
-          change: 0.45,
-          changePercent: '+0.77%',
-          lastUpdate: new Date().toLocaleDateString()
-        }
-      ];
-      setMarketData(mockMarketData);
-    } catch (error) {
-      console.log('Market data not available:', error);
-    }
+    // Market data is now fetched dynamically in Dashboard component via API
+    // This function is kept for backward compatibility but does nothing
+    setMarketData([]);
   };
 
   const handleLogout = () => {

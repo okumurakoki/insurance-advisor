@@ -303,41 +303,6 @@ ${allocationTemplate}
         };
     }
 
-    async uploadDocument(documentBuffer, documentType = 'pdf') {
-        // Mock document upload
-        return {
-            documentId: `doc_${Date.now()}`,
-            status: 'uploaded'
-        };
-    }
-
-    async performAnalysis(documentId, prompt) {
-        // Mock analysis execution
-        return this.generateMockAnalysis(prompt);
-    }
-
-    extractMarketAnalysis(response) {
-        return response.marketAnalysis || "市場分析データが利用できません";
-    }
-
-    extractAllocation(response) {
-        return response.recommendedAllocation || {
-            "株式型": 20,
-            "米国株式型": 25,
-            "総合型": 15,
-            "米国債券型": 15,
-            "債券型": 15,
-            "REIT型": 10
-        };
-    }
-
-    extractAdjustmentFactors(response) {
-        return response.adjustmentFactors || {
-            timeHorizon: { short: 0.8, medium: 1.0, long: 1.2 },
-            riskProfile: { conservative: 0.7, balanced: 1.0, aggressive: 1.3 },
-            amountTier: { small: 0.9, medium: 1.0, large: 1.1 }
-        };
-    }
 }
 
 module.exports = NotebookLMService;
