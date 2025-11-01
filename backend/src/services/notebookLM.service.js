@@ -32,9 +32,31 @@ class NotebookLMService {
         let enrichedPrompt = analysisPrompt;
 
         if (marketDataContent && marketDataContent.fundPerformance) {
-            const fundData = Object.entries(marketDataContent.fundPerformance)
-                .map(([fund, perf]) => `- ${fund}: ${JSON.stringify(perf)}`)
-                .join('\n');
+            // Extract fund types and their performance dynamically
+            const fundPerformance = marketDataContent.fundPerformance;
+            let fundTypes = [];
+            let fundData = '';
+
+            // Handle both array and object formats
+            if (Array.isArray(fundPerformance)) {
+                fundTypes = fundPerformance.map(f => f.fundType);
+                fundData = fundPerformance
+                    .map(f => `- ${f.fundType}: ${f.performance}%`)
+                    .join('\n');
+            } else if (typeof fundPerformance === 'object') {
+                fundTypes = Object.keys(fundPerformance);
+                fundData = Object.entries(fundPerformance)
+                    .map(([fund, perf]) => `- ${fund}: ${perf}%`)
+                    .join('\n');
+            }
+
+            // Build the allocation JSON template dynamically
+            const allocationTemplate = fundTypes
+                .map(fundType => `        "${fundType}": 数値（0-100）`)
+                .join(',\n');
+
+            // Build the fund list for constraints dynamically
+            const fundList = fundTypes.map(ft => `   - ${ft}`).join('\n');
 
             enrichedPrompt = `${analysisPrompt}
 
@@ -47,13 +69,8 @@ ${marketDataContent.extractedText ? `\nPDFから抽出されたテキスト（�
 パフォーマンスが良いファンドの配分を増やし、悪いファンドの配分を減らすように調整してください。
 
 **重要な制約条件**:
-1. 以下の6つのファンド型すべてを必ず含めてください：
-   - 株式型
-   - 米国株式型
-   - 総合型
-   - 米国債券型
-   - 債券型
-   - REIT型
+1. 以下の${fundTypes.length}つのファンド型すべてを必ず含めてください：
+${fundList}
 
 2. **各ファンド型の配分は10%刻みにしてください**
    - 配分は必ず0%, 10%, 20%, 30%, 40%, 50%のいずれかにしてください
@@ -71,12 +88,7 @@ ${marketDataContent.extractedText ? `\nPDFから抽出されたテキスト（�
     "marketConditions": "市場の現在の状況についての詳細な分析（200文字程度）",
     "recommendations": {
       "allocation": {
-        "株式型": 数値（0-100）,
-        "米国株式型": 数値（0-100）,
-        "総合型": 数値（0-100）,
-        "米国債券型": 数値（0-100）,
-        "債券型": 数値（0-100）,
-        "REIT型": 数値（0-100）
+${allocationTemplate}
       },
       "adjustmentFactors": {
         "timeHorizon": { "short": 0.8, "medium": 1.0, "long": 1.2 },
@@ -150,28 +162,30 @@ ${marketDataContent.extractedText ? `\nPDFから抽出されたテキスト（�
 
     generateMockAnalysisWithMarketData(prompt, marketDataContent = null) {
         // 市場データがあればそれに基づいて配分を調整
-        let allocation = {
-            "株式型": 20,
-            "米国株式型": 25,
-            "総合型": 15,
-            "米国債券型": 15,
-            "債券型": 15,
-            "REIT型": 10
-        };
+        let allocation = {};
 
         if (marketDataContent && marketDataContent.fundPerformance) {
-            const perf = marketDataContent.fundPerformance;
-            logger.info('Generating mock analysis with market data:', perf);
+            const fundPerformance = marketDataContent.fundPerformance;
+            logger.info('Generating mock analysis with market data:', fundPerformance);
 
-            // パフォーマンスに基づいて配分を調整
-            allocation = {
-                "株式型": this.calculateAllocation(perf['株式型']),
-                "米国株式型": this.calculateAllocation(perf['米国株式型']),
-                "総合型": this.calculateAllocation(perf['総合型']),
-                "米国債券型": this.calculateAllocation(perf['米国債券型']),
-                "債券型": this.calculateAllocation(perf['債券型']),
-                "REIT型": this.calculateAllocation(perf['REIT型'])
-            };
+            // Extract fund types dynamically
+            let fundTypes = [];
+            let perfData = {};
+
+            if (Array.isArray(fundPerformance)) {
+                fundTypes = fundPerformance.map(f => f.fundType);
+                fundPerformance.forEach(f => {
+                    perfData[f.fundType] = f.performance;
+                });
+            } else if (typeof fundPerformance === 'object') {
+                fundTypes = Object.keys(fundPerformance);
+                perfData = fundPerformance;
+            }
+
+            // パフォーマンスに基づいて配分を動的に計算
+            fundTypes.forEach(fundType => {
+                allocation[fundType] = this.calculateAllocation(perfData[fundType]);
+            });
 
             // 合計が100になるように調整
             const total = Object.values(allocation).reduce((sum, val) => sum + val, 0);
@@ -180,6 +194,11 @@ ${marketDataContent.extractedText ? `\nPDFから抽出されたテキスト（�
                 const sortedFunds = Object.keys(allocation).sort((a, b) => allocation[b] - allocation[a]);
                 allocation[sortedFunds[0]] += diff;
             }
+        } else {
+            // Fallback: デフォルト配分（市場データがない場合）
+            allocation = {
+                "default_fund": 100
+            };
         }
 
         return {
@@ -220,17 +239,13 @@ ${marketDataContent.extractedText ? `\nPDFから抽出されたテキスト（�
 
     generateMockAnalysis(prompt) {
         // This simulates NotebookLM's analysis based on the prompt
+        // This is a fallback when no market data is available
         return {
             analysis: {
-                marketConditions: "現在の市場は適度なボラティリティを示しており、テクノロジーおよびヘルスケアセクターでプラスの成長トレンドが見られます。グローバル経済の回復基調が続く中、分散投資によるリスク管理が重要です。",
+                marketConditions: "市場データが利用できないため、デフォルトの分析を返します。最新の市場レポートをアップロードしてください。",
                 recommendations: {
                     allocation: {
-                        "株式型": 20,
-                        "米国株式型": 25,
-                        "総合型": 15,
-                        "米国債券型": 15,
-                        "債券型": 15,
-                        "REIT型": 10
+                        "default_fund": 100
                     },
                     adjustmentFactors: {
                         timeHorizon: {

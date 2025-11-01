@@ -75,17 +75,19 @@ class AllocationCalculator {
     
     normalizeAllocation(allocation) {
         const total = Object.values(allocation).reduce((sum, value) => sum + value, 0);
-        
+
         if (total === 0) {
-            // デフォルト配分を返す
-            return {
-                "株式型": 20,
-                "米国株式型": 25,
-                "総合型": 15,
-                "米国債券型": 15,
-                "債券型": 15,
-                "REIT型": 10
-            };
+            // デフォルト配分を返す（均等配分）
+            const fundTypes = Object.keys(this.baseAllocation);
+            const equalShare = Math.floor(100 / fundTypes.length);
+            const defaultAllocation = {};
+            fundTypes.forEach((fundType, index) => {
+                // 最後のファンドに端数を割り当てる
+                defaultAllocation[fundType] = index === fundTypes.length - 1
+                    ? 100 - (equalShare * (fundTypes.length - 1))
+                    : equalShare;
+            });
+            return defaultAllocation;
         }
         
         const normalized = {};
@@ -107,18 +109,34 @@ class AllocationCalculator {
     }
     
     applyLimits(allocation) {
-        const limits = {
-            "株式型": { min: 10, max: 40 },
-            "米国株式型": { min: 10, max: 50 },
-            "総合型": { min: 5, max: 30 },
-            "米国債券型": { min: 5, max: 30 },
-            "債券型": { min: 5, max: 30 },
-            "REIT型": { min: 0, max: 20 }
-        };
-        
+        // Dynamic limits based on fund types
+        // Default: min 0%, max 100% for all funds
+        // Can be customized per company/product in the future
+        const limits = {};
+        Object.keys(allocation).forEach(fundType => {
+            // Apply intelligent defaults based on fund name patterns
+            const isStock = fundType.includes('株式') || fundType.toLowerCase().includes('equity');
+            const isBond = fundType.includes('債券') || fundType.toLowerCase().includes('bond');
+            const isBalanced = fundType.includes('バランス') || fundType.includes('総合') || fundType.toLowerCase().includes('balanced');
+            const isREIT = fundType.includes('REIT') || fundType.includes('リート');
+
+            if (isStock) {
+                limits[fundType] = { min: 10, max: 50 };
+            } else if (isBond) {
+                limits[fundType] = { min: 5, max: 40 };
+            } else if (isBalanced) {
+                limits[fundType] = { min: 5, max: 30 };
+            } else if (isREIT) {
+                limits[fundType] = { min: 0, max: 20 };
+            } else {
+                // Default for unknown fund types
+                limits[fundType] = { min: 0, max: 50 };
+            }
+        });
+
         const limited = {};
         let adjustmentNeeded = false;
-        
+
         // 制限を適用
         Object.keys(allocation).forEach(asset => {
             const limit = limits[asset] || { min: 0, max: 100 };
