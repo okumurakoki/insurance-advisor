@@ -65,8 +65,13 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    fetchInsuranceCompanies();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchInsuranceCompanies();
+    }
+  }, [user]);
 
   const fetchDashboardData = async () => {
     try {
@@ -99,9 +104,11 @@ const Dashboard: React.FC = () => {
 
   const fetchInsuranceCompanies = async () => {
     try {
-      // Get user's contracted insurance companies
-      const companies = await api.getMyInsuranceCompanies();
-      setInsuranceCompanies(companies);
+      // Get insurance companies (all for admin, contracted for others)
+      const companies = user?.accountType === 'admin'
+        ? await api.getInsuranceCompanies()
+        : await api.getMyInsuranceCompanies();
+      setInsuranceCompanies(companies.filter((c: any) => c.is_active));
 
       // Fetch performance data for each company
       const performancePromises = companies.map(async (company: any) => {
