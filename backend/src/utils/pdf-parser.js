@@ -5,6 +5,29 @@ const logger = require('./logger');
  * 変額保険のPDFから運用実績データを抽出
  */
 class PDFParser {
+    constructor() {
+        // 会社別ファンド名マッピング
+        this.fundNamesByCompany = {
+            // プルデンシャル生命
+            'PRUDENTIAL_LIFE': [
+                '総合型', '債券型', '株式型',
+                '米国債券型', '米国株式型', 'REIT型',
+                '世界株式型', 'マネー型'
+            ],
+            // ソニー生命
+            'SONY_LIFE': [
+                '日本株式型', '日本株式プラス型',
+                '外国株式型', '外国株式プラス型', '世界株式プラス型',
+                '新興国株式型', 'SDGs世界株式型',
+                '外国債券型', '世界債券プラス型', 'オーストラリア債券型',
+                '金融市場型',
+                '安定成長バランス型', '積極運用バランス型'
+            ],
+            // アクサ生命（今後追加）
+            'AXA_LIFE': []
+        };
+    }
+
     /**
      * PDFバッファからテキストを抽出
      * @param {Buffer} pdfBuffer
@@ -49,9 +72,10 @@ class PDFParser {
     /**
      * 変額保険PDFから特別勘定の運用実績を抽出
      * @param {Buffer} pdfBuffer
+     * @param {string} companyCode - 保険会社コード (e.g., 'PRUDENTIAL_LIFE', 'SONY_LIFE')
      * @returns {Promise<Object>} { fundName: performance }
      */
-    async extractFundPerformance(pdfBuffer) {
+    async extractFundPerformance(pdfBuffer, companyCode = null) {
         try {
             const text = await this.extractText(pdfBuffer);
 
@@ -62,7 +86,7 @@ class PDFParser {
             if (Object.keys(funds).length === 0) {
                 logger.warn('No fund performance data found in table, trying fallback extraction');
                 // Fallback: 汎用的なテーブル抽出を試みる
-                return this.extractFromTable(text);
+                return this.extractFromTable(text, companyCode);
             }
 
             return funds;
@@ -75,29 +99,49 @@ class PDFParser {
     /**
      * テーブル形式のデータから運用実績を抽出（fallback method）
      * @param {string} text
+     * @param {string} companyCode - 保険会社コード
      * @returns {Object}
      */
-    extractFromTable(text) {
+    extractFromTable(text, companyCode = null) {
         const funds = {};
         const lines = text.split('\n');
 
-        // テーブル形式を探す
-        // 例: "株式型   6.8%"
-        const fundNames = ['総合型', '債券型', '株式型', '米国債券型', '米国株式型', 'REIT型', '世界株式型'];
+        // 会社別のファンド名リストを取得
+        let fundNames = [];
+        if (companyCode && this.fundNamesByCompany[companyCode]) {
+            fundNames = this.fundNamesByCompany[companyCode];
+        } else {
+            // デフォルト：全てのファンド名を結合
+            fundNames = [
+                ...this.fundNamesByCompany['PRUDENTIAL_LIFE'],
+                ...this.fundNamesByCompany['SONY_LIFE']
+            ];
+        }
+
+        logger.info(`Using fund names for ${companyCode || 'default'}: ${fundNames.join(', ')}`);
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             for (const fundName of fundNames) {
                 if (line.includes(fundName) && !funds[fundName]) {
-                    // 同じ行または次の行で数値を探す
-                    const currentLineMatch = line.match(/([-+]?\d+\.?\d*)%/);
-                    if (currentLineMatch) {
-                        funds[fundName] = parseFloat(currentLineMatch[1]);
+                    // ファンド名の直後の数値を探す
+                    // 全角マイナス（−）、半角マイナス（-）、プラス（+）に対応
+                    // 例: "株式型+3.52%", "債券型−0.27%"
+                    const escapedFundName = fundName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = new RegExp(escapedFundName + '[^\\d]*?([−\\-+]?\\d+\\.?\\d*)%');
+                    const match = line.match(regex);
+
+                    if (match) {
+                        // 全角マイナスを半角マイナスに変換
+                        let numStr = match[1].replace('−', '-');
+                        funds[fundName] = parseFloat(numStr);
                         logger.info(`Found ${fundName} in table: ${funds[fundName]}%`);
                     } else if (i + 1 < lines.length) {
-                        const nextLineMatch = lines[i + 1].match(/([-+]?\d+\.?\d*)%/);
+                        // 次の行で数値を探す
+                        const nextLineMatch = lines[i + 1].match(/([−\-+]?\d+\.?\d*)%/);
                         if (nextLineMatch) {
-                            funds[fundName] = parseFloat(nextLineMatch[1]);
+                            let numStr = nextLineMatch[1].replace('−', '-');
+                            funds[fundName] = parseFloat(numStr);
                             logger.info(`Found ${fundName} in next line: ${funds[fundName]}%`);
                         }
                     }
@@ -344,12 +388,13 @@ class PDFParser {
     /**
      * PDFから全てのメタデータとデータを抽出
      * @param {Buffer} pdfBuffer
+     * @param {string} companyCode - 保険会社コード
      * @returns {Promise<Object>}
      */
-    async extractAllData(pdfBuffer) {
+    async extractAllData(pdfBuffer, companyCode = null) {
         try {
             const text = await this.extractText(pdfBuffer);
-            const fundPerformance = await this.extractFundPerformance(pdfBuffer);
+            const fundPerformance = await this.extractFundPerformance(pdfBuffer, companyCode);
             const allPerformanceData = this.extractAllPerformanceData(text);
             const bondYields = this.extractBondYields(text);
 

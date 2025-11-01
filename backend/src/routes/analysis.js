@@ -101,6 +101,16 @@ router.post('/upload-market-data',
                 });
             }
 
+            // Get company code from company_id
+            const db = require('../utils/database-factory');
+            const companyResult = await db.query(
+                'SELECT company_code FROM insurance_companies WHERE id = $1',
+                [parseInt(companyId)]
+            );
+            const companyCode = companyResult[0] ? companyResult[0].company_code : null;
+
+            logger.info(`Uploading PDF for company: ${companyCode} (ID: ${companyId})`);
+
             // Parse PDF to extract fund performance data
             let fundPerformance = {};
             let allPerformanceData = {};
@@ -111,7 +121,7 @@ router.post('/upload-market-data',
 
             try {
                 const parser = require('../utils/pdf-parser');
-                const extractedData = await parser.extractAllData(pdfBuffer);
+                const extractedData = await parser.extractAllData(pdfBuffer, companyCode);
 
                 fundPerformance = extractedData.fundPerformance || {};
                 allPerformanceData = extractedData.allPerformanceData || {};
