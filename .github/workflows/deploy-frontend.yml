@@ -63,5 +63,5 @@ jobs:
         working-directory: ./frontend
 
       - name: Deploy to Vercel
-        run: vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel --prod --yes --force --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: ./frontend
