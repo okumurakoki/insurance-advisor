@@ -5,6 +5,9 @@
  * Supports both simple in-memory DB and PostgreSQL
  */
 
+// Load environment variables
+require('dotenv').config();
+
 const db = require('./src/utils/database-factory');
 
 const INSURANCE_COMPANIES = [
