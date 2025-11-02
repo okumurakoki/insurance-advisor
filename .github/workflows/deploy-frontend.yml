@@ -28,14 +28,40 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Verify Secrets
+        run: |
+          if [ -z "${{ secrets.VERCEL_PROJECT_ID_FRONTEND }}" ] || [ -z "${{ secrets.VERCEL_ORG_ID }}" ]; then
+            echo "❌ Error: VERCEL_PROJECT_ID_FRONTEND or VERCEL_ORG_ID is not set in GitHub Secrets"
+            echo "Please configure the following secrets:"
+            echo "  VERCEL_PROJECT_ID_FRONTEND: prj_WnxFa1M5wya7grRRBTAT04Z8x3Pb"
+            echo "  VERCEL_ORG_ID: team_KiKcsNJDyqr8Ah4GFD9n0yun"
+            exit 1
+          fi
+          echo "✅ Secrets verified"
+
+      - name: Create Vercel Project Config
+        run: |
+          mkdir -p .vercel
+          # Use hardcoded values as fallback to prevent accidental project creation
+          PROJECT_ID="${{ secrets.VERCEL_PROJECT_ID_FRONTEND }}"
+          ORG_ID="${{ secrets.VERCEL_ORG_ID }}"
+
+          # Fallback to hardcoded values if secrets are empty
+          if [ -z "$PROJECT_ID" ]; then
+            PROJECT_ID="prj_WnxFa1M5wya7grRRBTAT04Z8x3Pb"
+            echo "⚠️  Warning: Using hardcoded VERCEL_PROJECT_ID_FRONTEND"
+          fi
+
+          if [ -z "$ORG_ID" ]; then
+            ORG_ID="team_KiKcsNJDyqr8Ah4GFD9n0yun"
+            echo "⚠️  Warning: Using hardcoded VERCEL_ORG_ID"
+          fi
+
+          echo "{\"projectId\":\"$PROJECT_ID\",\"orgId\":\"$ORG_ID\"}" > .vercel/project.json
+          cat .vercel/project.json
+          echo "✅ Created .vercel/project.json"
         working-directory: ./frontend
 
-      - name: Build Project Artifacts
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-        working-directory: ./frontend
-
-      - name: Deploy Project Artifacts to Vercel
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy to Vercel
+        run: vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: ./frontend

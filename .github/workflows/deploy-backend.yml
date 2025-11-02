@@ -28,10 +28,38 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      - name: Verify Secrets
+        run: |
+          if [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ] || [ -z "${{ secrets.VERCEL_ORG_ID }}" ]; then
+            echo "❌ Error: VERCEL_PROJECT_ID or VERCEL_ORG_ID is not set in GitHub Secrets"
+            echo "Please configure the following secrets:"
+            echo "  VERCEL_PROJECT_ID: prj_qLSTYFjRO9WqbuZnEKt0XzRaPzwR"
+            echo "  VERCEL_ORG_ID: team_KiKcsNJDyqr8Ah4GFD9n0yun"
+            exit 1
+          fi
+          echo "✅ Secrets verified"
+
       - name: Create Vercel Project Config
         run: |
           mkdir -p .vercel
-          echo '{"projectId":"${{ secrets.VERCEL_PROJECT_ID }}","orgId":"${{ secrets.VERCEL_ORG_ID }}"}' > .vercel/project.json
+          # Use hardcoded values as fallback to prevent accidental project creation
+          PROJECT_ID="${{ secrets.VERCEL_PROJECT_ID }}"
+          ORG_ID="${{ secrets.VERCEL_ORG_ID }}"
+
+          # Fallback to hardcoded values if secrets are empty
+          if [ -z "$PROJECT_ID" ]; then
+            PROJECT_ID="prj_qLSTYFjRO9WqbuZnEKt0XzRaPzwR"
+            echo "⚠️  Warning: Using hardcoded VERCEL_PROJECT_ID"
+          fi
+
+          if [ -z "$ORG_ID" ]; then
+            ORG_ID="team_KiKcsNJDyqr8Ah4GFD9n0yun"
+            echo "⚠️  Warning: Using hardcoded VERCEL_ORG_ID"
+          fi
+
+          echo "{\"projectId\":\"$PROJECT_ID\",\"orgId\":\"$ORG_ID\"}" > .vercel/project.json
+          cat .vercel/project.json
+          echo "✅ Created .vercel/project.json"
         working-directory: ./backend
 
       - name: Deploy to Vercel
