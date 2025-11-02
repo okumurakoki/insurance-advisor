@@ -28,6 +28,10 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      - name: Clean Previous Build Artifacts
+        run: rm -rf .vercel/output
+        working-directory: ./backend
+
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: ./backend
