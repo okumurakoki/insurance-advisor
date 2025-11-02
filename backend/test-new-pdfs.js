@@ -1,0 +1,86 @@
+const fs = require('fs').promises;
+const { parsePDF, detectCompany } = require('./src/utils/pdfParser');
+const pdf = require('pdf-parse');
+
+async function testNewPdfs() {
+    const pdfs = [
+        {
+            name: 'Sony Life Variable Life (full202507.pdf)',
+            path: '/Users/kohki_okumura/Documents/full202507.pdf'
+        },
+        {
+            name: 'AXA Life (y1.pdf)',
+            path: '/Users/kohki_okumura/Documents/y1.pdf'
+        },
+        {
+            name: 'Sony Life 個人年金 (sovanifull202507.pdf)',
+            path: '/Users/kohki_okumura/Documents/sovanifull202507.pdf'
+        },
+        {
+            name: 'Prudential Life (プルデンシャルデータ版_7月.pdf)',
+            path: '/Users/kohki_okumura/Documents/プルデンシャルデータ版_7月.pdf'
+        }
+    ];
+
+    for (const pdfInfo of pdfs) {
+        try {
+            console.log('\n' + '='.repeat(80));
+            console.log(`Testing: ${pdfInfo.name}`);
+            console.log('='.repeat(80));
+
+            const pdfBuffer = await fs.readFile(pdfInfo.path);
+
+            // Test company detection first
+            const data = await pdf(pdfBuffer);
+            const detectedCompany = detectCompany(data.text);
+            console.log(`✅ Detected Company: ${detectedCompany}`);
+
+            // Parse the PDF
+            const parsedData = await parsePDF(pdfBuffer);
+
+            console.log(`\n📅 Data Date: ${parsedData.dataDate}`);
+            console.log(`🏢 Company Code: ${parsedData.companyCode}`);
+            console.log(`📊 Accounts Found: ${parsedData.accounts.length}`);
+
+            console.log('\nAccount Details:');
+            parsedData.accounts.forEach((account, index) => {
+                console.log(`\n  ${index + 1}. ${account.accountName}`);
+                console.log(`     Code: ${account.accountCode}`);
+                console.log(`     Type: ${account.accountType}`);
+                if (account.unitPrice !== null && account.unitPrice !== undefined) {
+                    console.log(`     Unit Price: ${account.unitPrice}`);
+                }
+                if (account.return1m !== undefined && account.return1m !== null) {
+                    console.log(`     1M Return: ${account.return1m}%`);
+                }
+                if (account.return3m !== undefined && account.return3m !== null) {
+                    console.log(`     3M Return: ${account.return3m}%`);
+                }
+                if (account.return6m !== undefined && account.return6m !== null) {
+                    console.log(`     6M Return: ${account.return6m}%`);
+                }
+                if (account.return1y !== undefined && account.return1y !== null) {
+                    console.log(`     1Y Return: ${account.return1y}%`);
+                }
+            });
+
+            console.log(`\n✅ Successfully parsed ${pdfInfo.name}!`);
+
+        } catch (error) {
+            console.error(`\n❌ Error parsing ${pdfInfo.name}:`);
+            console.error('Message:', error.message);
+            if (process.env.DEBUG) {
+                console.error('Stack:', error.stack);
+            }
+        }
+    }
+}
+
+testNewPdfs().then(() => {
+    console.log('\n\n' + '='.repeat(80));
+    console.log('Testing complete!');
+    console.log('='.repeat(80));
+}).catch(error => {
+    console.error('\nFatal error:', error);
+    process.exit(1);
+});
