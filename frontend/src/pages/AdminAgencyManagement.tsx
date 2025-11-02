@@ -217,7 +217,10 @@ const AdminAgencyManagement: React.FC = () => {
         const errorMsg = err.response?.data?.error || err.response?.data?.message || 'この保険会社は既に追加されています';
         setError(errorMsg);
       } else if (err.response?.status === 500) {
-        setError('サーバーエラーが発生しました。しばらく待ってから再度お試しください。');
+        const errorMsg = err.response?.data?.message || 'サーバーエラーが発生しました';
+        const fullError = `サーバーエラー: ${errorMsg}`;
+        console.error('Server error details:', err.response?.data);
+        setError(fullError);
       } else {
         setError(err.message || '保険会社の追加に失敗しました');
       }

@@ -704,7 +704,11 @@ router.post('/user-contracts/:userId', authenticateToken, async (req, res) => {
         });
     } catch (error) {
         logger.error('Add user contract error:', error);
-        res.status(500).json({ error: 'Failed to add contract' });
+        res.status(500).json({
+            error: 'Failed to add contract',
+            message: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
