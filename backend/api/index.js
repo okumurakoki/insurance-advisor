@@ -55,9 +55,9 @@ app.get('/', (req, res) => {
         message: 'Variable Insurance Advisory System API',
         status: 'OK',
         timestamp: new Date().toISOString(),
-        version: '1.3.0',
+        version: '1.3.1',
         deployment: 'auto',
-        testMarker: 'DEPLOYMENT_TEST_2025_10_27_v2'
+        testMarker: 'DEPLOYMENT_TEST_2025_11_03_UNIFIED'
     });
 });
 
