@@ -1,32 +1,14 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
 const { parsePDF, parseSovaniPDF, validateParsedData } = require('../utils/pdfParser');
 const db = require('../utils/database-factory');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Configure multer for PDF uploads
-const storage = multer.diskStorage({
-    destination: async (req, file, cb) => {
-        const uploadDir = path.join(__dirname, '../../uploads/pdfs');
-        try {
-            await fs.mkdir(uploadDir, { recursive: true });
-            cb(null, uploadDir);
-        } catch (error) {
-            cb(error);
-        }
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, `sovani-${uniqueSuffix}.pdf`);
-    }
-});
-
+// Configure multer for PDF uploads - use memoryStorage for Vercel compatibility
 const upload = multer({
-    storage: storage,
+    storage: multer.memoryStorage(),
     fileFilter: (req, file, cb) => {
         if (file.mimetype === 'application/pdf') {
             cb(null, true);
@@ -44,18 +26,15 @@ const upload = multer({
  * Upload and parse SOVANI PDF
  */
 router.post('/sovani', authenticateToken, upload.single('pdf'), async (req, res) => {
-    let filePath = null;
-
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No PDF file uploaded' });
         }
 
-        filePath = req.file.path;
         console.log(`Processing PDF: ${req.file.originalname}`);
 
-        // Read PDF file
-        const pdfBuffer = await fs.readFile(filePath);
+        // Get PDF buffer from memory
+        const pdfBuffer = req.file.buffer;
 
         // Parse PDF
         const parsedData = await parseSovaniPDF(pdfBuffer);
@@ -162,8 +141,6 @@ router.post('/sovani', authenticateToken, upload.single('pdf'), async (req, res)
             // Commit transaction
             await db.query('COMMIT');
 
-            // Clean up uploaded file
-            await fs.unlink(filePath);
 
             res.json({
                 success: true,
@@ -187,14 +164,6 @@ router.post('/sovani', authenticateToken, upload.single('pdf'), async (req, res)
     } catch (error) {
         console.error('Error processing PDF:', error);
 
-        // Clean up uploaded file on error
-        if (filePath) {
-            try {
-                await fs.unlink(filePath);
-            } catch (unlinkError) {
-                console.error('Error deleting file:', unlinkError);
-            }
-        }
 
         res.status(500).json({
             error: 'Failed to process PDF',
@@ -209,18 +178,18 @@ router.post('/sovani', authenticateToken, upload.single('pdf'), async (req, res)
  * Upload and parse PDF with auto-detection of company
  */
 router.post('/auto', authenticateToken, upload.single('pdf'), async (req, res) => {
-    let filePath = null;
+    
 
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No PDF file uploaded' });
         }
 
-        filePath = req.file.path;
+        // File is in memory (req.file.buffer)
         console.log(`Processing PDF: ${req.file.originalname}`);
 
         // Read PDF file
-        const pdfBuffer = await fs.readFile(filePath);
+        const pdfBuffer = req.file.buffer;
 
         // Parse PDF with auto-detection
         const parsedData = await parsePDF(pdfBuffer);
@@ -327,8 +296,6 @@ router.post('/auto', authenticateToken, upload.single('pdf'), async (req, res) =
             // Commit transaction
             await db.query('COMMIT');
 
-            // Clean up uploaded file
-            await fs.unlink(filePath);
 
             res.json({
                 success: true,
@@ -352,14 +319,6 @@ router.post('/auto', authenticateToken, upload.single('pdf'), async (req, res) =
     } catch (error) {
         console.error('Error processing PDF:', error);
 
-        // Clean up uploaded file on error
-        if (filePath) {
-            try {
-                await fs.unlink(filePath);
-            } catch (unlinkError) {
-                console.error('Error deleting file:', unlinkError);
-            }
-        }
 
         res.status(500).json({
             error: 'Failed to process PDF',
