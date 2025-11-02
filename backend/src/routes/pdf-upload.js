@@ -378,7 +378,7 @@ router.get('/history', authenticateToken, async (req, res) => {
         const history = await db.query(`
             SELECT
                 ic.company_code,
-                ic.company_name,
+                ic.display_name as company_name,
                 sap.performance_date,
                 COUNT(DISTINCT sap.special_account_id) as accounts_count,
                 COUNT(*) as records_count,
@@ -386,8 +386,7 @@ router.get('/history', authenticateToken, async (req, res) => {
             FROM special_account_performance sap
             JOIN special_accounts sa ON sa.id = sap.special_account_id
             JOIN insurance_companies ic ON ic.id = sa.company_id
-            WHERE ic.company_code = 'SONY_LIFE_SOVANI'
-            GROUP BY ic.company_code, ic.company_name, sap.performance_date
+            GROUP BY ic.company_code, ic.display_name, sap.performance_date
             ORDER BY sap.performance_date DESC
             LIMIT 50
         `);

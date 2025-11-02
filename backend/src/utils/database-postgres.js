@@ -320,14 +320,21 @@ class DatabasePostgreSQL {
 
                 console.log('Query result:', result.rowCount, 'rows affected/returned');
 
+                // For SELECT queries, return rows array
                 if (sql.trim().toUpperCase().startsWith('SELECT')) {
                     return result.rows;
-                } else {
-                    return {
-                        insertId: result.rows[0]?.id || null,
-                        affectedRows: result.rowCount
-                    };
                 }
+
+                // For INSERT/UPDATE/DELETE with RETURNING clause, return rows array
+                if (sql.trim().toUpperCase().includes('RETURNING')) {
+                    return result.rows;
+                }
+
+                // For other non-SELECT queries, return metadata
+                return {
+                    insertId: result.rows[0]?.id || null,
+                    affectedRows: result.rowCount
+                };
             } finally {
                 client.release();
             }
