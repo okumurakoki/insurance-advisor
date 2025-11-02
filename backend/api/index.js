@@ -143,6 +143,14 @@ try {
     console.error('❌ Failed to load insurance routes:', error.message);
 }
 
+try {
+    const pdfUploadRoutes = require('../src/routes/pdf-upload');
+    app.use('/api/pdf-upload', pdfUploadRoutes);
+    console.log('✅ PDF Upload routes loaded');
+} catch (error) {
+    console.error('❌ Failed to load PDF Upload routes:', error.message);
+}
+
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
