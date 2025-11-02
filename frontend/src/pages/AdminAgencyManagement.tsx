@@ -211,7 +211,16 @@ const AdminAgencyManagement: React.FC = () => {
       await loadAgencyStats(selectedAgencyId);
     } catch (err: any) {
       console.error('Failed to add company:', err);
-      setError(err.message || 'Failed to add company');
+
+      // More detailed error handling
+      if (err.response?.status === 400) {
+        const errorMsg = err.response?.data?.error || err.response?.data?.message || 'この保険会社は既に追加されています';
+        setError(errorMsg);
+      } else if (err.response?.status === 500) {
+        setError('サーバーエラーが発生しました。しばらく待ってから再度お試しください。');
+      } else {
+        setError(err.message || '保険会社の追加に失敗しました');
+      }
     } finally {
       setLoading(false);
     }
