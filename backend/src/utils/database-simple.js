@@ -87,7 +87,7 @@ const store = {
             updated_at: '2024-01-01T00:00:00.000Z'
         }
     ],
-    user_insurance_contracts: [
+    agency_insurance_companies: [
         // デモデータ: demo001ユーザーはアクサ生命のみ契約
         {
             id: 1,
@@ -206,9 +206,9 @@ class SimpleDatabase {
             return null;
         };
 
-        // Handle user_insurance_contracts table with JOIN
-        if (sqlLower.includes('from user_insurance_contracts')) {
-            let results = [...store.user_insurance_contracts];
+        // Handle agency_insurance_companies table with JOIN
+        if (sqlLower.includes('from agency_insurance_companies')) {
+            let results = [...store.agency_insurance_companies];
 
             // Handle JOIN with insurance_companies
             if (sqlLower.includes('join insurance_companies')) {
@@ -223,7 +223,7 @@ class SimpleDatabase {
                 });
             }
 
-            // WHERE handling for user_insurance_contracts
+            // WHERE handling for agency_insurance_companies
             if (sqlLower.includes('where user_id = ')) {
                 const userId = parseInt(getParam());
                 results = results.filter(contract => contract.user_id === userId);
@@ -384,7 +384,7 @@ class SimpleDatabase {
     handleInsert(sql, params) {
         const sqlLower = sql.toLowerCase();
 
-        if (sqlLower.includes('insert into user_insurance_contracts')) {
+        if (sqlLower.includes('insert into agency_insurance_companies')) {
             const newContract = {
                 id: store.nextContractId++,
                 user_id: params[0],
@@ -394,7 +394,7 @@ class SimpleDatabase {
                 updated_at: new Date().toISOString()
             };
 
-            store.user_insurance_contracts.push(newContract);
+            store.agency_insurance_companies.push(newContract);
 
             // Return format that matches what the code expects
             return [{ id: newContract.id }];
@@ -459,12 +459,12 @@ class SimpleDatabase {
     handleUpdate(sql, params) {
         const sqlLower = sql.toLowerCase();
 
-        // Handle user_insurance_contracts updates
-        if (sqlLower.includes('update user_insurance_contracts')) {
+        // Handle agency_insurance_companies updates
+        if (sqlLower.includes('update agency_insurance_companies')) {
             // Soft delete: SET is_active = false WHERE id = ?
             if (sqlLower.includes('set is_active')) {
                 const id = parseInt(params[params.length - 1]);
-                const contract = store.user_insurance_contracts.find(c => c.id === id);
+                const contract = store.agency_insurance_companies.find(c => c.id === id);
 
                 if (contract) {
                     contract.is_active = params[0] === false ? false : true;
