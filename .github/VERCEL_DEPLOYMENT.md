@@ -20,13 +20,15 @@ The following secrets must be configured in GitHub repository settings:
 
 ### Backend (`deploy-backend.yml`)
 - Triggers on push to `main` branch when files in `backend/**` change
-- Deploys to: https://api.insurance-optimizer.com
+- Deploys to: **https://api.insurance-optimizer.com**
 - Project: `prudential-insurance-optimizer-api`
+- Project ID: `prj_qLSTYFjRO9WqbuZnEKt0XzRaPzwR`
 
 ### Frontend (`deploy-frontend.yml`)
 - Triggers on push to `main` branch when files in `frontend/**` change
-- Deploys to: https://prudential-insurance-optimizer-frontend-kokiokumuras-projects.vercel.app
+- Deploys to: **https://app.insurance-optimizer.com**
 - Project: `prudential-insurance-optimizer-frontend`
+- Project ID: `prj_WnxFa1M5wya7grRRBTAT04Z8x3Pb`
 
 ## Safeguards Against Duplicate Projects
 
@@ -55,8 +57,16 @@ If a duplicate project is accidentally created:
 3. Verify the GitHub Secrets are correctly configured
 4. Ensure the workflow files have the correct project IDs
 
+## Production URLs
+
+**IMPORTANT: Always use these URLs**
+- Frontend: https://app.insurance-optimizer.com
+- Backend API: https://api.insurance-optimizer.com
+
 ## Version Information
 
 - Backend API Version: 1.3.1
-- Deployment Method: Direct (`vercel --prod --yes`)
+- Frontend Version: 1.8.3
+- Deployment Method: Direct (`vercel --prod --yes --force`)
 - Node Version: 20.x
+- Force Flag: Required (bypasses Git author check for team projects)
