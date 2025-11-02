@@ -105,7 +105,7 @@ app.get('/', (req, res) => {
         timestamp: new Date().toISOString(),
         version: '1.3.1',
         deployment: 'auto',
-        testMarker: 'DEPLOYMENT_FINAL_2025_11_03_SECURE'
+        testMarker: 'PRODUCTION_2025_11_03_STABLE'
     });
 });
 
