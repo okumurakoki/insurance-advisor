@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "echo 'Building backend...'",
   "functions": {
     "api/index.js": {
       "maxDuration": 30,
