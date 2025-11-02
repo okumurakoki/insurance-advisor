@@ -216,6 +216,7 @@ class Plan {
         const planSql = `
             SELECT u.plan_type::text as plan_type,
                    u.staff_limit, u.customer_limit, u.customer_limit_per_staff,
+                   u.custom_monthly_price,
                    pd.plan_name, pd.monthly_price,
                    pd.staff_limit as plan_staff_limit,
                    pd.customer_limit as plan_customer_limit,
@@ -248,7 +249,7 @@ class Plan {
             const staffLimit = plan.staff_limit || 1;
             const customerLimit = plan.customer_limit || 5;
             const customerLimitPerStaff = plan.customer_limit_per_staff || null;
-            const basePlanPrice = plan.monthly_price || 980;
+            const basePlanPrice = plan.custom_monthly_price || plan.monthly_price || 980;
 
             // 料金計算: 基本料金 × 契約保険会社数（最低1社として計算）
             const effectiveContractCount = Math.max(contractCount, 1);
@@ -273,7 +274,9 @@ class Plan {
         const staffLimit = isExceed && plan.staff_limit ? plan.staff_limit : (plan.plan_staff_limit || 0);
         const customerLimit = isExceed && plan.customer_limit ? plan.customer_limit : plan.plan_customer_limit;
         const customerLimitPerStaff = isExceed && plan.customer_limit_per_staff ? plan.customer_limit_per_staff : plan.plan_customer_limit_per_staff;
-        const basePlanPrice = plan.monthly_price || 0;
+
+        // 料金計算: カスタム月額料金がある場合はそれを使用、なければプラン定義から
+        const basePlanPrice = (isExceed && plan.custom_monthly_price) ? plan.custom_monthly_price : (plan.monthly_price || 0);
 
         // 料金計算: 基本料金 × 契約保険会社数（最低1社として計算）
         const effectiveContractCount = Math.max(contractCount, 1);

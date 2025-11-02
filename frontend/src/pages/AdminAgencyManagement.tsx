@@ -116,6 +116,9 @@ const AdminAgencyManagement: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [openAddDialog, setOpenAddDialog] = useState<boolean>(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number>(0);
+  const [customMonthlyPrice, setCustomMonthlyPrice] = useState<string>('');
+  const [customStaffLimit, setCustomStaffLimit] = useState<string>('');
+  const [customCustomerLimitPerStaff, setCustomCustomerLimitPerStaff] = useState<string>('');
 
   useEffect(() => {
     loadAgencies();
@@ -240,14 +243,51 @@ const AdminAgencyManagement: React.FC = () => {
       return;
     }
 
+    // Validate custom limits for exceed plan
+    if (selectedPlanType === 'exceed') {
+      if (!customMonthlyPrice || !customStaffLimit || !customCustomerLimitPerStaff) {
+        setError('エクシードプランでは全てのカスタム設定が必要です');
+        return;
+      }
+      const price = parseInt(customMonthlyPrice);
+      const staffLimit = parseInt(customStaffLimit);
+      const customerLimit = parseInt(customCustomerLimitPerStaff);
+
+      if (isNaN(price) || price <= 0) {
+        setError('月額料金は正の数値を入力してください');
+        return;
+      }
+      if (isNaN(staffLimit) || staffLimit <= 0) {
+        setError('担当者上限は正の数値を入力してください');
+        return;
+      }
+      if (isNaN(customerLimit) || customerLimit <= 0) {
+        setError('顧客上限（担当者ごと）は正の数値を入力してください');
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       setError(null);
-      await api.updateAgencyPlan(selectedAgencyId, { planType: selectedPlanType });
+
+      const payload: any = { planType: selectedPlanType };
+
+      // Add custom limits for exceed plan
+      if (selectedPlanType === 'exceed') {
+        payload.customMonthlyPrice = parseInt(customMonthlyPrice);
+        payload.customStaffLimit = parseInt(customStaffLimit);
+        payload.customCustomerLimitPerStaff = parseInt(customCustomerLimitPerStaff);
+      }
+
+      await api.updateAgencyPlan(selectedAgencyId, payload);
       setSuccess('プランを更新しました');
       await loadAgencies();
       await loadAgencyStats(selectedAgencyId);
       setSelectedPlanType('');
+      setCustomMonthlyPrice('');
+      setCustomStaffLimit('');
+      setCustomCustomerLimitPerStaff('');
     } catch (err: any) {
       console.error('Failed to update plan:', err);
       setError(err.message || 'Failed to update plan');
@@ -505,7 +545,57 @@ const AdminAgencyManagement: React.FC = () => {
                     </Select>
                   </FormControl>
 
-                  {selectedPlanType && (
+                  {selectedPlanType === 'exceed' && (
+                    <Box sx={{ mb: 3, p: 2, backgroundColor: '#fff3e0', borderRadius: 1, border: '1px solid #ff9800' }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: '#e65100' }}>
+                        エクシードプラン - カスタム設定
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        このプランでは料金と上限を自由に設定できます
+                      </Typography>
+
+                      <TextField
+                        fullWidth
+                        label="月額料金（1社あたり）"
+                        type="number"
+                        value={customMonthlyPrice}
+                        onChange={(e) => setCustomMonthlyPrice(e.target.value)}
+                        placeholder="例: 8980"
+                        sx={{ mb: 2 }}
+                        InputProps={{
+                          startAdornment: <Typography sx={{ mr: 1 }}>¥</Typography>,
+                          endAdornment: <Typography sx={{ ml: 1 }}>/社/月</Typography>,
+                        }}
+                      />
+
+                      <TextField
+                        fullWidth
+                        label="担当者上限"
+                        type="number"
+                        value={customStaffLimit}
+                        onChange={(e) => setCustomStaffLimit(e.target.value)}
+                        placeholder="例: 10"
+                        sx={{ mb: 2 }}
+                        InputProps={{
+                          endAdornment: <Typography sx={{ ml: 1 }}>名</Typography>,
+                        }}
+                      />
+
+                      <TextField
+                        fullWidth
+                        label="顧客上限（担当者ごと）"
+                        type="number"
+                        value={customCustomerLimitPerStaff}
+                        onChange={(e) => setCustomCustomerLimitPerStaff(e.target.value)}
+                        placeholder="例: 100"
+                        InputProps={{
+                          endAdornment: <Typography sx={{ ml: 1 }}>名/スタッフ</Typography>,
+                        }}
+                      />
+                    </Box>
+                  )}
+
+                  {selectedPlanType && selectedPlanType !== 'exceed' && (
                     <Box sx={{ mb: 3, p: 2, backgroundColor: '#f0f7ff', borderRadius: 1 }}>
                       <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
                         選択中のプラン情報

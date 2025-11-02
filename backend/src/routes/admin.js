@@ -77,7 +77,7 @@ router.get('/agencies', authenticateToken, requireAdmin, async (req, res) => {
 // 代理店を作成（管理者が手動で作成）
 router.post('/agencies', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const { userId, password, planType, customStaffLimit, customCustomerLimitPerStaff } = req.body;
+        const { userId, password, planType, customStaffLimit, customCustomerLimitPerStaff, customMonthlyPrice } = req.body;
 
         if (!userId || !password || !planType) {
             return res.status(400).json({ error: 'userId, password, planType are required' });
@@ -98,6 +98,7 @@ router.post('/agencies', authenticateToken, requireAdmin, async (req, res) => {
         // エクシードプランの場合、カスタム制限を使用
         let staffLimit = planDef.staff_limit;
         let customerLimitPerStaff = planDef.customer_limit_per_staff;
+        let monthlyPrice = null;
 
         if (planType === 'exceed') {
             if (customStaffLimit !== undefined && customStaffLimit > 0) {
@@ -105,6 +106,9 @@ router.post('/agencies', authenticateToken, requireAdmin, async (req, res) => {
             }
             if (customCustomerLimitPerStaff !== undefined && customCustomerLimitPerStaff > 0) {
                 customerLimitPerStaff = customCustomerLimitPerStaff;
+            }
+            if (customMonthlyPrice !== undefined && customMonthlyPrice > 0) {
+                monthlyPrice = customMonthlyPrice;
             }
         }
 
@@ -118,19 +122,20 @@ router.post('/agencies', authenticateToken, requireAdmin, async (req, res) => {
             parentId: null
         });
 
-        // プラン情報を更新（staff_limit, customer_limit_per_staffを設定）
+        // プラン情報を更新（staff_limit, customer_limit_per_staff, custom_monthly_priceを設定）
         const db = require('../utils/database-factory');
         const sql = `
             UPDATE users
             SET staff_limit = $1,
                 customer_limit = $2,
                 customer_limit_per_staff = $3,
+                custom_monthly_price = $4,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = $4
+            WHERE id = $5
         `;
-        await db.query(sql, [staffLimit, planDef.customer_limit, customerLimitPerStaff, newUserId]);
+        await db.query(sql, [staffLimit, planDef.customer_limit, customerLimitPerStaff, monthlyPrice, newUserId]);
 
-        logger.info(`Agency created by admin: ${userId}, plan: ${planType}, staffLimit: ${staffLimit}, customerLimitPerStaff: ${customerLimitPerStaff}`);
+        logger.info(`Agency created by admin: ${userId}, plan: ${planType}, staffLimit: ${staffLimit}, customerLimitPerStaff: ${customerLimitPerStaff}, monthlyPrice: ${monthlyPrice}`);
 
         res.status(201).json({
             message: 'Agency created successfully',
@@ -150,7 +155,7 @@ router.post('/agencies', authenticateToken, requireAdmin, async (req, res) => {
 router.put('/agencies/:id/plan', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { planType, customStaffLimit, customCustomerLimitPerStaff } = req.body;
+        const { planType, customStaffLimit, customCustomerLimitPerStaff, customMonthlyPrice } = req.body;
 
         if (!planType) {
             return res.status(400).json({ error: 'planType is required' });
@@ -164,6 +169,7 @@ router.put('/agencies/:id/plan', authenticateToken, requireAdmin, async (req, re
         // エクシードプランの場合、カスタム制限を使用
         let staffLimit = planDef.staff_limit;
         let customerLimitPerStaff = planDef.customer_limit_per_staff;
+        let monthlyPrice = null;
 
         if (planType === 'exceed') {
             if (customStaffLimit !== undefined && customStaffLimit > 0) {
@@ -171,6 +177,9 @@ router.put('/agencies/:id/plan', authenticateToken, requireAdmin, async (req, re
             }
             if (customCustomerLimitPerStaff !== undefined && customCustomerLimitPerStaff > 0) {
                 customerLimitPerStaff = customCustomerLimitPerStaff;
+            }
+            if (customMonthlyPrice !== undefined && customMonthlyPrice > 0) {
+                monthlyPrice = customMonthlyPrice;
             }
         }
 
@@ -182,8 +191,9 @@ router.put('/agencies/:id/plan', authenticateToken, requireAdmin, async (req, re
                 staff_limit = $2,
                 customer_limit = $3,
                 customer_limit_per_staff = $4,
+                custom_monthly_price = $5,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = $5 AND account_type = 'parent'
+            WHERE id = $6 AND account_type = 'parent'
         `;
 
         await db.query(sql, [
@@ -191,10 +201,11 @@ router.put('/agencies/:id/plan', authenticateToken, requireAdmin, async (req, re
             staffLimit,
             planDef.customer_limit,
             customerLimitPerStaff,
+            monthlyPrice,
             parseInt(id)
         ]);
 
-        logger.info(`Agency plan updated by admin: ID ${id}, new plan: ${planType}, staffLimit: ${staffLimit}, customerLimitPerStaff: ${customerLimitPerStaff}`);
+        logger.info(`Agency plan updated by admin: ID ${id}, new plan: ${planType}, staffLimit: ${staffLimit}, customerLimitPerStaff: ${customerLimitPerStaff}, monthlyPrice: ${monthlyPrice}`);
 
         res.json({
             message: 'Agency plan updated successfully',
