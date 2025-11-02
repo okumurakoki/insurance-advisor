@@ -81,8 +81,20 @@ const store = {
             updated_at: '2024-01-01T00:00:00.000Z'
         }
     ],
+    user_insurance_contracts: [
+        // デモデータ: demo001ユーザーはアクサ生命のみ契約
+        {
+            id: 1,
+            user_id: 2,
+            company_id: 4, // AXA_LIFE
+            is_active: true,
+            created_at: '2024-01-01T00:00:00.000Z',
+            updated_at: '2024-01-01T00:00:00.000Z'
+        }
+    ],
     nextId: 4,
-    nextCompanyId: 5
+    nextCompanyId: 5,
+    nextContractId: 2
 };
 
 class SimpleDatabase {
@@ -125,6 +137,50 @@ class SimpleDatabase {
             }
             return null;
         };
+
+        // Handle user_insurance_contracts table with JOIN
+        if (sqlLower.includes('from user_insurance_contracts')) {
+            let results = [...store.user_insurance_contracts];
+
+            // Handle JOIN with insurance_companies
+            if (sqlLower.includes('join insurance_companies')) {
+                results = results.map(contract => {
+                    const company = store.insurance_companies.find(c => c.id === contract.company_id);
+                    return {
+                        ...contract,
+                        company_code: company?.company_code || null,
+                        company_name: company?.company_name || null,
+                        display_name: company?.display_name || null
+                    };
+                });
+            }
+
+            // WHERE handling for user_insurance_contracts
+            if (sqlLower.includes('where user_id = ')) {
+                const userId = parseInt(getParam());
+                results = results.filter(contract => contract.user_id === userId);
+
+                if (sqlLower.includes('and is_active = true')) {
+                    results = results.filter(contract => contract.is_active === true);
+                }
+            }
+
+            // Support for WHERE user_id = $1 AND company_id = $2
+            if (sqlLower.includes('where user_id = $1 and company_id = $2')) {
+                const userId = parseInt(params[0]);
+                const companyId = parseInt(params[1]);
+                results = results.filter(contract =>
+                    contract.user_id === userId && contract.company_id === companyId
+                );
+            }
+
+            // ORDER BY handling
+            if (sqlLower.includes('order by created_at') || sqlLower.includes('order by uic.created_at')) {
+                results.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            }
+
+            return results;
+        }
 
         // Handle insurance_companies table
         if (sqlLower.includes('from insurance_companies')) {
@@ -211,6 +267,22 @@ class SimpleDatabase {
     handleInsert(sql, params) {
         const sqlLower = sql.toLowerCase();
 
+        if (sqlLower.includes('insert into user_insurance_contracts')) {
+            const newContract = {
+                id: store.nextContractId++,
+                user_id: params[0],
+                company_id: params[1],
+                is_active: params[2] !== undefined ? params[2] : true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            store.user_insurance_contracts.push(newContract);
+
+            // Return format that matches what the code expects
+            return [{ id: newContract.id }];
+        }
+
         if (sqlLower.includes('insert into insurance_companies')) {
             const newCompany = {
                 id: store.nextCompanyId++,
@@ -269,6 +341,22 @@ class SimpleDatabase {
 
     handleUpdate(sql, params) {
         const sqlLower = sql.toLowerCase();
+
+        // Handle user_insurance_contracts updates
+        if (sqlLower.includes('update user_insurance_contracts')) {
+            // Soft delete: SET is_active = false WHERE id = ?
+            if (sqlLower.includes('set is_active')) {
+                const id = parseInt(params[params.length - 1]);
+                const contract = store.user_insurance_contracts.find(c => c.id === id);
+
+                if (contract) {
+                    contract.is_active = params[0] === false ? false : true;
+                    contract.updated_at = params[1] || new Date().toISOString();
+                    return { affectedRows: 1 };
+                }
+            }
+            return { affectedRows: 0 };
+        }
 
         if (sqlLower.includes('update users')) {
             // Find the ID parameter (usually last one)

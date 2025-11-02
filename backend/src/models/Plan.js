@@ -203,6 +203,15 @@ class Plan {
         const customerCountResults = await db.query(customerCountSql, [userId]);
         const customerCount = parseInt(customerCountResults[0].count);
 
+        // 契約保険会社数（アクティブな契約のみ）
+        const contractCountSql = `
+            SELECT COUNT(*) as count
+            FROM user_insurance_contracts
+            WHERE user_id = $1 AND is_active = true
+        `;
+        const contractCountResults = await db.query(contractCountSql, [userId]);
+        const contractCount = parseInt(contractCountResults[0].count);
+
         // プラン情報（ENUM型をtextにキャスト）
         const planSql = `
             SELECT u.plan_type::text as plan_type,
@@ -239,6 +248,11 @@ class Plan {
             const staffLimit = plan.staff_limit || 1;
             const customerLimit = plan.customer_limit || 5;
             const customerLimitPerStaff = plan.customer_limit_per_staff || null;
+            const basePlanPrice = plan.monthly_price || 980;
+
+            // 料金計算: 基本料金 × 契約保険会社数（最低1社として計算）
+            const effectiveContractCount = Math.max(contractCount, 1);
+            const totalMonthlyPrice = basePlanPrice * effectiveContractCount;
 
             return {
                 staffCount,
@@ -247,7 +261,10 @@ class Plan {
                 customerLimit: customerLimit || (customerLimitPerStaff ? customerLimitPerStaff * staffCount : 0),
                 planType: plan.plan_type || 'bronze',
                 planName: plan.plan_name || 'ブロンズ',
-                monthlyPrice: plan.monthly_price || 980
+                monthlyPrice: totalMonthlyPrice,
+                basePlanPrice: basePlanPrice,
+                contractCount: contractCount,
+                effectiveContractCount: effectiveContractCount
             };
         }
 
@@ -256,6 +273,11 @@ class Plan {
         const staffLimit = isExceed && plan.staff_limit ? plan.staff_limit : (plan.plan_staff_limit || 0);
         const customerLimit = isExceed && plan.customer_limit ? plan.customer_limit : plan.plan_customer_limit;
         const customerLimitPerStaff = isExceed && plan.customer_limit_per_staff ? plan.customer_limit_per_staff : plan.plan_customer_limit_per_staff;
+        const basePlanPrice = plan.monthly_price || 0;
+
+        // 料金計算: 基本料金 × 契約保険会社数（最低1社として計算）
+        const effectiveContractCount = Math.max(contractCount, 1);
+        const totalMonthlyPrice = basePlanPrice * effectiveContractCount;
 
         return {
             staffCount,
@@ -264,7 +286,10 @@ class Plan {
             customerLimit: customerLimit || (customerLimitPerStaff ? customerLimitPerStaff * staffCount : 0),
             planType: plan.plan_type || 'unknown',
             planName: plan.plan_name || plan.plan_type || 'Unknown',
-            monthlyPrice: plan.monthly_price || 0
+            monthlyPrice: totalMonthlyPrice,
+            basePlanPrice: basePlanPrice,
+            contractCount: contractCount,
+            effectiveContractCount: effectiveContractCount
         };
     }
 }

@@ -196,7 +196,7 @@ router.delete('/deactivate/:userId', authenticateToken, authorizeAccountType('pa
 router.get('/plan-features', authenticateToken, async (req, res) => {
     try {
         const features = await User.getPlanFeatures(req.user.planType);
-        
+
         res.json({
             planType: req.user.planType,
             features: features.reduce((acc, feature) => {
@@ -210,6 +210,18 @@ router.get('/plan-features', authenticateToken, async (req, res) => {
     } catch (error) {
         logger.error('Plan features fetch error:', error);
         res.status(500).json({ error: 'Failed to fetch plan features' });
+    }
+});
+
+// Get current user's agency stats (parent only)
+router.get('/my-stats', authenticateToken, authorizeAccountType('parent'), async (req, res) => {
+    try {
+        const Plan = require('../models/Plan');
+        const stats = await Plan.getAgencyStats(req.user.id);
+        res.json(stats);
+    } catch (error) {
+        logger.error('Agency stats fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch agency stats' });
     }
 });
 

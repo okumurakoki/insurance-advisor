@@ -611,4 +611,132 @@ router.delete('/agency-companies/:id', authenticateToken, async (req, res) => {
     }
 });
 
+/**
+ * GET /api/insurance/user-contracts/:userId
+ * Get all active insurance contracts for a user
+ */
+router.get('/user-contracts/:userId', authenticateToken, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+
+        // Only allow users to view their own contracts, or allow admin to view any
+        if (req.user.id !== userId && req.user.accountType !== 'admin') {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const contracts = await db.query(`
+            SELECT
+                uic.id,
+                uic.user_id,
+                uic.company_id,
+                uic.is_active,
+                uic.created_at,
+                uic.updated_at,
+                ic.company_code,
+                ic.company_name,
+                ic.display_name
+            FROM user_insurance_contracts uic
+            JOIN insurance_companies ic ON uic.company_id = ic.id
+            WHERE uic.user_id = $1 AND uic.is_active = true
+            ORDER BY uic.created_at
+        `, [userId]);
+
+        res.json(contracts);
+    } catch (error) {
+        logger.error('User contracts fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch user contracts' });
+    }
+});
+
+/**
+ * POST /api/insurance/user-contracts/:userId
+ * Add a new insurance company contract for a user
+ */
+router.post('/user-contracts/:userId', authenticateToken, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        const { company_id } = req.body;
+
+        // Only allow users to modify their own contracts, or allow admin to modify any
+        if (req.user.id !== userId && req.user.accountType !== 'admin') {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        if (!company_id) {
+            return res.status(400).json({ error: 'company_id is required' });
+        }
+
+        // Check if contract already exists
+        const existing = await db.query(`
+            SELECT id, is_active
+            FROM user_insurance_contracts
+            WHERE user_id = $1 AND company_id = $2
+        `, [userId, company_id]);
+
+        if (existing.length > 0) {
+            // If exists but inactive, reactivate it
+            if (!existing[0].is_active) {
+                await db.query(`
+                    UPDATE user_insurance_contracts
+                    SET is_active = true, updated_at = NOW()
+                    WHERE id = $1
+                `, [existing[0].id]);
+
+                return res.json({
+                    message: 'Contract reactivated successfully',
+                    id: existing[0].id
+                });
+            } else {
+                return res.status(400).json({ error: 'Contract already exists' });
+            }
+        }
+
+        // Create new contract
+        const result = await db.query(`
+            INSERT INTO user_insurance_contracts (user_id, company_id, is_active, created_at, updated_at)
+            VALUES ($1, $2, true, NOW(), NOW())
+            RETURNING id
+        `, [userId, company_id]);
+
+        res.json({
+            message: 'Contract added successfully',
+            id: result[0].id
+        });
+    } catch (error) {
+        logger.error('Add user contract error:', error);
+        res.status(500).json({ error: 'Failed to add contract' });
+    }
+});
+
+/**
+ * DELETE /api/insurance/user-contracts/:userId/:contractId
+ * Remove (soft delete) an insurance company contract
+ */
+router.delete('/user-contracts/:userId/:contractId', authenticateToken, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        const contractId = parseInt(req.params.contractId);
+
+        // Only allow users to modify their own contracts, or allow admin to modify any
+        if (req.user.id !== userId && req.user.accountType !== 'admin') {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const result = await db.query(`
+            UPDATE user_insurance_contracts
+            SET is_active = false, updated_at = NOW()
+            WHERE id = $1 AND user_id = $2
+        `, [contractId, userId]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Contract not found' });
+        }
+
+        res.json({ message: 'Contract removed successfully' });
+    } catch (error) {
+        logger.error('Delete user contract error:', error);
+        res.status(500).json({ error: 'Failed to remove contract' });
+    }
+});
+
 module.exports = router;

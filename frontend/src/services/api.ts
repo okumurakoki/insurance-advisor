@@ -330,6 +330,53 @@ class ApiService {
     return response.data;
   }
 
+  // Get user's insurance contracts
+  async getUserContracts(userId: number): Promise<Array<{
+    id: number;
+    user_id: number;
+    company_id: number;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    company_code: string;
+    company_name: string;
+    display_name: string;
+  }>> {
+    const response = await this.api.get(`/insurance/user-contracts/${userId}`);
+    return response.data;
+  }
+
+  // Add insurance contract for user
+  async addUserContract(userId: number, companyId: number): Promise<{ message: string; id: number }> {
+    const response = await this.api.post(`/insurance/user-contracts/${userId}`, {
+      company_id: companyId
+    });
+    return response.data;
+  }
+
+  // Remove insurance contract for user
+  async removeUserContract(userId: number, contractId: number): Promise<{ message: string }> {
+    const response = await this.api.delete(`/insurance/user-contracts/${userId}/${contractId}`);
+    return response.data;
+  }
+
+  // Get current user's agency stats
+  async getMyAgencyStats(): Promise<{
+    staffCount: number;
+    staffLimit: number;
+    customerCount: number;
+    customerLimit: number;
+    planType: string;
+    planName: string;
+    monthlyPrice: number;
+    basePlanPrice?: number;
+    contractCount?: number;
+    effectiveContractCount?: number;
+  }> {
+    const response = await this.api.get('/users/my-stats');
+    return response.data;
+  }
+
   // Get agencies list (admin only)
   async getAgencies(): Promise<Array<{
     id: number;

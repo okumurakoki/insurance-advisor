@@ -51,9 +51,36 @@ interface AgencyCompany {
   is_active: boolean;
 }
 
+interface UserContract {
+  id: number;
+  user_id: number;
+  company_id: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  company_code: string;
+  company_name: string;
+  display_name: string;
+}
+
+interface AgencyStats {
+  staffCount: number;
+  staffLimit: number;
+  customerCount: number;
+  customerLimit: number;
+  planType: string;
+  planName: string;
+  monthlyPrice: number;
+  basePlanPrice?: number;
+  contractCount?: number;
+  effectiveContractCount?: number;
+}
+
 const AgencySettings: React.FC = () => {
   const [allCompanies, setAllCompanies] = useState<InsuranceCompany[]>([]);
   const [myCompanies, setMyCompanies] = useState<AgencyCompany[]>([]);
+  const [userContracts, setUserContracts] = useState<UserContract[]>([]);
+  const [agencyStats, setAgencyStats] = useState<AgencyStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -68,12 +95,16 @@ const AgencySettings: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [companies, myComps] = await Promise.all([
+      const [companies, myComps, stats] = await Promise.all([
         api.getInsuranceCompanies(),
         api.getMyInsuranceCompanies(),
+        api.getMyAgencyStats().catch(() => null), // Optional: don't fail if stats unavailable
       ]);
       setAllCompanies(companies);
       setMyCompanies(myComps as any);
+      if (stats) {
+        setAgencyStats(stats);
+      }
     } catch (err: any) {
       console.error('Failed to load data:', err);
       setError(err.message || 'Failed to load data');
@@ -162,6 +193,53 @@ const AgencySettings: React.FC = () => {
         <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess(null)}>
           {success}
         </Alert>
+      )}
+
+      {agencyStats && (
+        <Paper sx={{ p: 3, mb: 3, backgroundColor: '#f8f9fa' }}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            プラン料金
+          </Typography>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={3}>
+              <Typography variant="body2" color="text.secondary">
+                プラン
+              </Typography>
+              <Typography variant="h6">
+                {agencyStats.planName}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography variant="body2" color="text.secondary">
+                契約保険会社数
+              </Typography>
+              <Typography variant="h6">
+                {agencyStats.contractCount || myCompanies.length}社
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography variant="body2" color="text.secondary">
+                基本料金
+              </Typography>
+              <Typography variant="h6">
+                ¥{(agencyStats.basePlanPrice || 5000).toLocaleString()}/社
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography variant="body2" color="text.secondary">
+                月額料金（合計）
+              </Typography>
+              <Typography variant="h5" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+                ¥{agencyStats.monthlyPrice.toLocaleString()}/月
+              </Typography>
+            </Grid>
+          </Grid>
+          {agencyStats.basePlanPrice && agencyStats.contractCount && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              料金計算: ¥{agencyStats.basePlanPrice.toLocaleString()} × {agencyStats.contractCount}社 = ¥{agencyStats.monthlyPrice.toLocaleString()}
+            </Typography>
+          )}
+        </Paper>
       )}
 
       <Paper sx={{ p: 3 }}>
