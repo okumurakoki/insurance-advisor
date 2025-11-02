@@ -635,7 +635,7 @@ router.get('/user-contracts/:userId', authenticateToken, async (req, res) => {
                 ic.company_code,
                 ic.company_name,
                 ic.display_name
-            FROM user_insurance_contracts uic
+            FROM agency_insurance_companies uic
             JOIN insurance_companies ic ON uic.company_id = ic.id
             WHERE uic.user_id = $1 AND uic.is_active = true
             ORDER BY uic.created_at
@@ -669,7 +669,7 @@ router.post('/user-contracts/:userId', authenticateToken, async (req, res) => {
         // Check if contract already exists
         const existing = await db.query(`
             SELECT id, is_active
-            FROM user_insurance_contracts
+            FROM agency_insurance_companies
             WHERE user_id = $1 AND company_id = $2
         `, [userId, company_id]);
 
@@ -677,7 +677,7 @@ router.post('/user-contracts/:userId', authenticateToken, async (req, res) => {
             // If exists but inactive, reactivate it
             if (!existing[0].is_active) {
                 await db.query(`
-                    UPDATE user_insurance_contracts
+                    UPDATE agency_insurance_companies
                     SET is_active = true, updated_at = NOW()
                     WHERE id = $1
                 `, [existing[0].id]);
@@ -693,7 +693,7 @@ router.post('/user-contracts/:userId', authenticateToken, async (req, res) => {
 
         // Create new contract
         const result = await db.query(`
-            INSERT INTO user_insurance_contracts (user_id, company_id, is_active, created_at, updated_at)
+            INSERT INTO agency_insurance_companies (user_id, company_id, is_active, created_at, updated_at)
             VALUES ($1, $2, true, NOW(), NOW())
             RETURNING id
         `, [userId, company_id]);
@@ -723,7 +723,7 @@ router.delete('/user-contracts/:userId/:contractId', authenticateToken, async (r
         }
 
         const result = await db.query(`
-            UPDATE user_insurance_contracts
+            UPDATE agency_insurance_companies
             SET is_active = false, updated_at = NOW()
             WHERE id = $1 AND user_id = $2
         `, [contractId, userId]);

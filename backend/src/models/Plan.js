@@ -206,7 +206,7 @@ class Plan {
         // 契約保険会社数（アクティブな契約のみ）
         const contractCountSql = `
             SELECT COUNT(*) as count
-            FROM user_insurance_contracts
+            FROM agency_insurance_companies
             WHERE user_id = $1 AND is_active = true
         `;
         const contractCountResults = await db.query(contractCountSql, [userId]);
