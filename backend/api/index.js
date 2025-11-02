@@ -57,7 +57,7 @@ app.get('/', (req, res) => {
         timestamp: new Date().toISOString(),
         version: '1.3.1',
         deployment: 'auto',
-        testMarker: 'DEPLOYMENT_TEST_2025_11_03_FORCE_REBUILD'
+        testMarker: 'DEPLOYMENT_TEST_2025_11_03_CLEAN_BUILD'
     });
 });
 
