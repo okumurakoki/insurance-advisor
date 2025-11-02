@@ -62,6 +62,7 @@ import {
 import Login from './components/Login.tsx';
 import InsuranceCompanies from './pages/InsuranceCompanies.tsx';
 import AdminAgencyManagement from './pages/AdminAgencyManagement.tsx';
+import PdfUpload from './pages/PdfUpload.tsx';
 import { getUserTheme, defaultTheme, InsuranceCompanyTheme } from './config/insuranceCompanyThemes.ts';
 
 // API Configuration
@@ -231,6 +232,7 @@ function AppContent({ onThemeChange }: AppContentProps) {
     { path: '/dashboard', icon: <DashboardIcon />, text: 'ダッシュボード' },
     ...(user?.accountType === 'admin' ? [{ path: '/agencies', icon: <PeopleIcon />, text: '代理店管理' }] : []),
     ...(user?.accountType === 'admin' ? [{ path: '/admin/agency-management', icon: <BusinessIcon />, text: '保険会社管理' }] : []),
+    ...(user?.accountType === 'admin' ? [{ path: '/admin/pdf-upload', icon: <PdfIcon />, text: 'PDFアップロード' }] : []),
     ...(user?.accountType === 'parent' ? [{ path: '/staff', icon: <PeopleIcon />, text: '担当者管理' }] : []),
     ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/customers', icon: <PeopleIcon />, text: '顧客管理' }] : []),
     ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/insurance-companies', icon: <BusinessIcon />, text: '保険会社' }] : []),
@@ -369,6 +371,7 @@ function AppContent({ onThemeChange }: AppContentProps) {
           {user?.accountType === 'admin' && (
             <>
               <Route path="/admin/agency-management" element={<AdminAgencyManagement />} />
+              <Route path="/admin/pdf-upload" element={<PdfUpload />} />
             </>
           )}
           {user?.accountType === 'parent' && (
