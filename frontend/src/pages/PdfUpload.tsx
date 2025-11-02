@@ -113,7 +113,7 @@ const PdfUpload: React.FC = () => {
       formData.append('pdf', selectedFile);
 
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/pdf-upload/sovani`, {
+      const response = await fetch(`${API_BASE_URL}/api/pdf-upload/auto`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -158,7 +158,7 @@ const PdfUpload: React.FC = () => {
       {/* Upload Section */}
       <Paper sx={{ p: 4, mb: 4 }}>
         <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-          SOVANI 月次PDFアップロード
+          保険会社月次PDFアップロード
         </Typography>
 
         <Box sx={{ mb: 3 }}>
@@ -289,16 +289,31 @@ const PdfUpload: React.FC = () => {
             使い方
           </Typography>
           <Typography variant="body2" paragraph>
-            1. 「PDFを選択」ボタンをクリックして、SOVANI月次レポートPDFを選択します
+            1. 「PDFを選択」ボタンをクリックして、保険会社の月次レポートPDFを選択します
           </Typography>
           <Typography variant="body2" paragraph>
             2. ファイル名が表示されたら、「アップロード」ボタンをクリックします
           </Typography>
           <Typography variant="body2" paragraph>
-            3. PDFから自動的に特別勘定のパフォーマンスデータが抽出され、データベースに保存されます
+            3. PDFから自動的に保険会社と特別勘定のパフォーマンスデータが抽出され、データベースに保存されます
           </Typography>
           <Typography variant="body2" paragraph>
             4. 同じ日付のデータが既に存在する場合は、自動的に更新されます
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 2, fontWeight: 'bold' }}>
+            対応保険会社:
+          </Typography>
+          <Typography variant="body2" component="div">
+            • ソニー生命 変額保険 (full202YMM.pdf)
+          </Typography>
+          <Typography variant="body2" component="div">
+            • ソニー生命 個人年金 SOVANI (sovanifull202YMM.pdf)
+          </Typography>
+          <Typography variant="body2" component="div">
+            • AXA生命 ユニット・リンク (ul_m_YYMM.pdf)
+          </Typography>
+          <Typography variant="body2" component="div">
+            • プルデンシャル生命 変額保険 (データ版_X月.pdf)
           </Typography>
         </CardContent>
       </Card>
