@@ -99,11 +99,13 @@ app.use('/api/pdf-upload', pdfUploadRoutes);
 
 // Add basic root route
 app.get('/', (req, res) => {
-    res.json({ 
+    res.json({
         message: 'Variable Insurance Advisory System API',
         status: 'OK',
         timestamp: new Date().toISOString(),
-        version: '1.0.0'
+        version: '1.3.1',
+        deployment: 'auto',
+        testMarker: 'DEPLOYMENT_TEST_2025_11_03_DIRECT_DEPLOY'
     });
 });
 
