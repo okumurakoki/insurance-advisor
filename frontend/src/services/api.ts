@@ -377,6 +377,48 @@ class ApiService {
     return response.data;
   }
 
+  // Get agency stats by ID (admin only)
+  async getAgencyStats(agencyId: number): Promise<{
+    staffCount: number;
+    staffLimit: number;
+    customerCount: number;
+    customerLimit: number;
+    planType: string;
+    planName: string;
+    monthlyPrice: number;
+    basePlanPrice?: number;
+    contractCount?: number;
+    effectiveContractCount?: number;
+  }> {
+    const response = await this.api.get(`/admin/agencies/${agencyId}/stats`);
+    return response.data;
+  }
+
+  // Get all plan definitions (admin only)
+  async getPlans(): Promise<Array<{
+    plan_type: string;
+    plan_name: string;
+    monthly_price: number;
+    staff_limit: number;
+    customer_limit: number | null;
+    customer_limit_per_staff: number | null;
+    description: string;
+    is_active: boolean;
+  }>> {
+    const response = await this.api.get('/admin/plans');
+    return response.data;
+  }
+
+  // Update agency plan (admin only)
+  async updateAgencyPlan(agencyId: number, data: {
+    planType: string;
+    customStaffLimit?: number;
+    customCustomerLimitPerStaff?: number;
+  }): Promise<{ message: string; planType: string; planName: string; staffLimit: number; customerLimitPerStaff: number | null }> {
+    const response = await this.api.put(`/admin/agencies/${agencyId}/plan`, data);
+    return response.data;
+  }
+
   // Get agencies list (admin only)
   async getAgencies(): Promise<Array<{
     id: number;

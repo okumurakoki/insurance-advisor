@@ -232,6 +232,24 @@ router.put('/agencies/:id/status', authenticateToken, requireAdmin, async (req, 
     }
 });
 
+// 代理店の統計情報のみを取得
+router.get('/agencies/:id/stats', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const agency = await User.findById(parseInt(id));
+
+        if (!agency || agency.account_type !== 'parent') {
+            return res.status(404).json({ error: 'Agency not found' });
+        }
+
+        const stats = await Plan.getAgencyStats(parseInt(id));
+        res.json(stats);
+    } catch (error) {
+        logger.error('Failed to fetch agency stats:', error);
+        res.status(500).json({ error: 'Failed to fetch agency stats' });
+    }
+});
+
 // 代理店の詳細情報を取得
 router.get('/agencies/:id', authenticateToken, requireAdmin, async (req, res) => {
     try {

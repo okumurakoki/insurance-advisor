@@ -5,28 +5,15 @@ import {
   Typography,
   Box,
   Grid,
-  Button,
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   CircularProgress,
   Alert,
   Chip,
 } from '@mui/material';
 import {
   Business as BusinessIcon,
-  Add as AddIcon,
-  Delete as DeleteIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
 import api from '../services/api.ts';
@@ -77,15 +64,11 @@ interface AgencyStats {
 }
 
 const AgencySettings: React.FC = () => {
-  const [allCompanies, setAllCompanies] = useState<InsuranceCompany[]>([]);
   const [myCompanies, setMyCompanies] = useState<AgencyCompany[]>([]);
-  const [userContracts, setUserContracts] = useState<UserContract[]>([]);
   const [agencyStats, setAgencyStats] = useState<AgencyStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [openAddDialog, setOpenAddDialog] = useState<boolean>(false);
-  const [selectedCompanyId, setSelectedCompanyId] = useState<number>(0);
 
   useEffect(() => {
     loadData();
@@ -95,12 +78,10 @@ const AgencySettings: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [companies, myComps, stats] = await Promise.all([
-        api.getInsuranceCompanies(),
+      const [myComps, stats] = await Promise.all([
         api.getMyInsuranceCompanies(),
         api.getMyAgencyStats().catch(() => null), // Optional: don't fail if stats unavailable
       ]);
-      setAllCompanies(companies);
       setMyCompanies(myComps as any);
       if (stats) {
         setAgencyStats(stats);
@@ -112,54 +93,6 @@ const AgencySettings: React.FC = () => {
       setLoading(false);
     }
   };
-
-  const handleAddCompany = async () => {
-    if (!selectedCompanyId) {
-      setError('保険会社を選択してください');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      await api.addAgencyCompany({
-        company_id: selectedCompanyId,
-        contract_start_date: new Date().toISOString().split('T')[0],
-      });
-      setSuccess('保険会社を追加しました');
-      setOpenAddDialog(false);
-      setSelectedCompanyId(0);
-      await loadData();
-    } catch (err: any) {
-      console.error('Failed to add company:', err);
-      setError(err.message || 'Failed to add company');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRemoveCompany = async (agencyCompanyId: number) => {
-    if (!window.confirm('この保険会社を削除しますか？')) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      await api.removeAgencyCompany(agencyCompanyId);
-      setSuccess('保険会社を削除しました');
-      await loadData();
-    } catch (err: any) {
-      console.error('Failed to remove company:', err);
-      setError(err.message || 'Failed to remove company');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const availableCompanies = allCompanies.filter(
-    (company) => !myCompanies.some((myComp) => myComp.company_id === company.id)
-  );
 
   if (loading && myCompanies.length === 0) {
     return (
@@ -245,14 +178,11 @@ const AgencySettings: React.FC = () => {
       <Paper sx={{ p: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h6">取り扱い中の保険会社</Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setOpenAddDialog(true)}
-            disabled={availableCompanies.length === 0}
-          >
-            保険会社を追加
-          </Button>
+          <Chip
+            label="権限の変更は管理者にお問い合わせください"
+            color="info"
+            size="small"
+          />
         </Box>
 
         {myCompanies.length === 0 ? (
@@ -275,56 +205,11 @@ const AgencySettings: React.FC = () => {
                   }
                   secondary={`契約開始日: ${new Date(company.contract_start_date).toLocaleDateString('ja-JP')}`}
                 />
-                <ListItemSecondaryAction>
-                  <IconButton
-                    edge="end"
-                    aria-label="delete"
-                    onClick={() => handleRemoveCompany(company.agency_company_id || company.id)}
-                    color="error"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </ListItemSecondaryAction>
               </ListItem>
             ))}
           </List>
         )}
       </Paper>
-
-      {/* Add Company Dialog */}
-      <Dialog
-        open={openAddDialog}
-        onClose={() => setOpenAddDialog(false)}
-        maxWidth="sm"
-        fullWidth
-        disableRestoreFocus
-      >
-        <DialogTitle>保険会社を追加</DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>保険会社</InputLabel>
-            <Select
-              value={selectedCompanyId}
-              onChange={(e) => setSelectedCompanyId(e.target.value as number)}
-              label="保険会社"
-              autoFocus
-            >
-              <MenuItem value={0}>選択してください</MenuItem>
-              {availableCompanies.map((company) => (
-                <MenuItem key={company.id} value={company.id}>
-                  {company.display_name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenAddDialog(false)}>キャンセル</Button>
-          <Button onClick={handleAddCompany} variant="contained" disabled={!selectedCompanyId}>
-            追加
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Container>
   );
 };

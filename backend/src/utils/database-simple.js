@@ -9,7 +9,9 @@ const store = {
             password_hash: '$2a$10$VhaxtrSyP0OFubuRg75O/e9yaSRmO7PMoD2Yk.7vzB5UjAeSUVUAW', // password123
             account_type: 'admin',
             plan_type: 'exceed',
-            customer_limit: 999,
+            customer_limit: null,
+            customer_limit_per_staff: 999,
+            staff_limit: 999,
             parent_id: null,
             is_active: 1,
             last_login: null,
@@ -21,8 +23,10 @@ const store = {
             user_id: 'demo001',
             password_hash: '$2a$10$VhaxtrSyP0OFubuRg75O/e9yaSRmO7PMoD2Yk.7vzB5UjAeSUVUAW', // password123
             account_type: 'parent',
-            plan_type: 'master',
-            customer_limit: 50,
+            plan_type: 'gold',
+            customer_limit: null,
+            customer_limit_per_staff: 15,
+            staff_limit: 10,
             parent_id: null,
             is_active: 1,
             last_login: null,
@@ -34,8 +38,10 @@ const store = {
             user_id: 'agent001',
             password_hash: '$2a$10$VhaxtrSyP0OFubuRg75O/e9yaSRmO7PMoD2Yk.7vzB5UjAeSUVUAW', // password123
             account_type: 'child',
-            plan_type: 'standard',
-            customer_limit: 10,
+            plan_type: 'gold',
+            customer_limit: null,
+            customer_limit_per_staff: 15,
+            staff_limit: 10,
             parent_id: 2,
             is_active: 1,
             last_login: null,
@@ -87,6 +93,68 @@ const store = {
             id: 1,
             user_id: 2,
             company_id: 4, // AXA_LIFE
+            is_active: true,
+            created_at: '2024-01-01T00:00:00.000Z',
+            updated_at: '2024-01-01T00:00:00.000Z'
+        }
+    ],
+    plan_definitions: [
+        {
+            plan_type: 'bronze',
+            plan_name: 'ブロンズ',
+            monthly_price: 980,
+            staff_limit: 1,
+            customer_limit: 5,
+            customer_limit_per_staff: null,
+            description: '小規模代理店向け',
+            is_active: true,
+            created_at: '2024-01-01T00:00:00.000Z',
+            updated_at: '2024-01-01T00:00:00.000Z'
+        },
+        {
+            plan_type: 'silver',
+            plan_name: 'シルバー',
+            monthly_price: 980,
+            staff_limit: 3,
+            customer_limit: 30,
+            customer_limit_per_staff: null,
+            description: '中小規模代理店向け',
+            is_active: true,
+            created_at: '2024-01-01T00:00:00.000Z',
+            updated_at: '2024-01-01T00:00:00.000Z'
+        },
+        {
+            plan_type: 'gold',
+            plan_name: 'ゴールド',
+            monthly_price: 980,
+            staff_limit: 10,
+            customer_limit: null,
+            customer_limit_per_staff: 15,
+            description: '中規模代理店向け',
+            is_active: true,
+            created_at: '2024-01-01T00:00:00.000Z',
+            updated_at: '2024-01-01T00:00:00.000Z'
+        },
+        {
+            plan_type: 'platinum',
+            plan_name: 'プラチナ',
+            monthly_price: 980,
+            staff_limit: 30,
+            customer_limit: null,
+            customer_limit_per_staff: 30,
+            description: '大規模代理店向け',
+            is_active: true,
+            created_at: '2024-01-01T00:00:00.000Z',
+            updated_at: '2024-01-01T00:00:00.000Z'
+        },
+        {
+            plan_type: 'exceed',
+            plan_name: 'エクシード',
+            monthly_price: 980,
+            staff_limit: 999,
+            customer_limit: null,
+            customer_limit_per_staff: 999,
+            description: 'カスタムプラン',
             is_active: true,
             created_at: '2024-01-01T00:00:00.000Z',
             updated_at: '2024-01-01T00:00:00.000Z'
@@ -201,6 +269,55 @@ class SimpleDatabase {
             if (sqlLower.includes('order by id')) {
                 results.sort((a, b) => a.id - b.id);
             }
+
+            return results;
+        }
+
+        // Handle plan_definitions table
+        if (sqlLower.includes('from plan_definitions')) {
+            let results = [...store.plan_definitions];
+
+            // WHERE handling for plan_definitions
+            if (sqlLower.includes('where is_active = true')) {
+                results = results.filter(plan => plan.is_active === true);
+            } else if (sqlLower.includes('where plan_type = ')) {
+                const planType = getParam();
+                results = results.filter(plan => plan.plan_type === planType);
+            }
+
+            // ORDER BY handling
+            if (sqlLower.includes('order by plan_name')) {
+                results.sort((a, b) => a.plan_name.localeCompare(b.plan_name));
+            }
+
+            return results;
+        }
+
+        // Handle JOIN queries with plan_definitions
+        if (sqlLower.includes('from users') && sqlLower.includes('join plan_definitions')) {
+            let results = [...store.users];
+
+            // WHERE handling for user ID
+            if (sqlLower.includes('where u.id = $')) {
+                const id = parseInt(getParam());
+                results = results.filter(user => user.id === id);
+            }
+
+            // Add plan_definitions data via JOIN
+            results = results.map(user => {
+                const plan = store.plan_definitions.find(p => p.plan_type === user.plan_type);
+                return {
+                    plan_type: user.plan_type,
+                    staff_limit: user.staff_limit,
+                    customer_limit: user.customer_limit,
+                    customer_limit_per_staff: user.customer_limit_per_staff,
+                    plan_name: plan?.plan_name || null,
+                    monthly_price: plan?.monthly_price || null,
+                    plan_staff_limit: plan?.staff_limit || null,
+                    plan_customer_limit: plan?.customer_limit || null,
+                    plan_customer_limit_per_staff: plan?.customer_limit_per_staff || null
+                };
+            });
 
             return results;
         }
