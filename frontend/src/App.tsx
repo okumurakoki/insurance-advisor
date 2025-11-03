@@ -289,7 +289,7 @@ function AppContent({ onThemeChange }: AppContentProps) {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
               <Chip
-                label="v1.8.8"
+                label="v1.8.9"
                 size="small"
                 color="secondary"
                 sx={{
@@ -2728,10 +2728,12 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
     riskTolerance: 'balanced',
     investmentGoal: '',
     notes: '',
-    staffId: ''
+    staffId: '',
+    companyId: ''
   });
   const [loading, setLoading] = useState(false);
   const [staffList, setStaffList] = useState<any[]>([]);
+  const [insuranceCompanies, setInsuranceCompanies] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchStaffList = async () => {
@@ -2757,6 +2759,29 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
 
     fetchStaffList();
   }, [user.accountType, isEdit]);
+
+  useEffect(() => {
+    const fetchInsuranceCompanies = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/api/insurance-companies/my-companies`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setInsuranceCompanies(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch insurance companies:', error);
+      }
+    };
+
+    fetchInsuranceCompanies();
+  }, []);
 
   useEffect(() => {
     const fetchCustomer = async () => {
@@ -2786,7 +2811,9 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
               monthlyPremium: String(data.monthly_premium || data.monthlyPremium || ''),
               riskTolerance: data.risk_tolerance || data.riskTolerance || 'balanced',
               investmentGoal: data.investment_goal || data.investmentGoal || '',
-              notes: data.notes || ''
+              notes: data.notes || '',
+              staffId: '',
+              companyId: String(data.insurance_company_id || data.companyId || '')
             });
           } else {
             alert('顧客情報の取得に失敗しました');
@@ -2837,7 +2864,8 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
           riskTolerance: formData.riskTolerance,
           investmentGoal: formData.investmentGoal,
           notes: formData.notes,
-          staffId: formData.staffId || undefined
+          staffId: formData.staffId || undefined,
+          companyId: formData.companyId ? parseInt(formData.companyId) : undefined
         })
       });
 
@@ -2900,7 +2928,25 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
                 onChange={handleChange('phone')}
               />
             </Grid>
-            
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                select
+                label="加入保険会社"
+                value={formData.companyId}
+                onChange={handleChange('companyId')}
+                helperText="顧客が加入している保険会社を選択してください"
+              >
+                <MenuItem value="">選択なし</MenuItem>
+                {insuranceCompanies.map((company: any) => (
+                  <MenuItem key={company.id} value={company.id}>
+                    {company.display_name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 required
