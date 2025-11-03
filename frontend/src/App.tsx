@@ -288,7 +288,7 @@ function AppContent({ onThemeChange }: AppContentProps) {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
               <Chip
-                label="v1.8.0"
+                label="v1.8.5"
                 size="small"
                 color="secondary"
                 sx={{
