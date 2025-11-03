@@ -2737,7 +2737,7 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
 
   useEffect(() => {
     const fetchStaffList = async () => {
-      if (user.accountType === 'parent' && !isEdit) {
+      if (user.accountType === 'parent') {
         try {
           const token = localStorage.getItem('token');
           const response = await fetch(`${API_BASE_URL}/api/users/staff`, {
@@ -2758,7 +2758,7 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
     };
 
     fetchStaffList();
-  }, [user.accountType, isEdit]);
+  }, [user.accountType]);
 
   useEffect(() => {
     const fetchInsuranceCompanies = async () => {
@@ -3003,7 +3003,7 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
               </TextField>
             </Grid>
 
-            {user.accountType === 'parent' && !isEdit && (
+            {user.accountType === 'parent' && (
               <Grid item xs={12} sm={6}>
                 <TextField
                   required
@@ -3013,7 +3013,7 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
                   value={formData.staffId}
                   onChange={handleChange('staffId')}
                   SelectProps={{ native: true }}
-                  helperText="顧客を担当する担当者を選択してください"
+                  helperText={isEdit ? "担当者を変更できます" : "顧客を担当する担当者を選択してください"}
                 >
                   <option value="">選択してください</option>
                   {staffList.map((staff) => (
