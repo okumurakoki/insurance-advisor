@@ -158,6 +158,11 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
     const { name, email, phone, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes, staffId, companyId } = req.body;
 
+    console.log('=== BACKEND PUT /customers/:id ===');
+    console.log('Customer ID:', req.params.id);
+    console.log('Request body:', req.body);
+    console.log('companyId from body:', companyId);
+
     try {
         const customer = await Customer.findById(req.params.id);
 
@@ -182,6 +187,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
             notes,
             insurance_company_id: companyId
         };
+
+        console.log('updateData being prepared:', updateData);
+        console.log('insurance_company_id in updateData:', updateData.insurance_company_id);
 
         // 代理店の場合、担当者変更が可能
         if (req.user.accountType === 'parent' && staffId) {
@@ -209,6 +217,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
                 updateData.user_id = staffId;
             }
         }
+
+        console.log('=== CALLING Customer.update ===');
+        console.log('updateData final:', updateData);
+        console.log('insurance_company_id final:', updateData.insurance_company_id);
 
         await Customer.update(req.params.id, updateData);
 

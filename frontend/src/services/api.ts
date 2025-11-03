@@ -132,7 +132,12 @@ class ApiService {
   }
 
   async updateCustomer(id: number, data: Partial<CustomerForm>): Promise<{ message: string }> {
+    console.log('=== API updateCustomer ===');
+    console.log('Customer ID:', id);
+    console.log('Data being sent:', data);
+    console.log('Company ID in data:', data.companyId);
     const response = await this.api.put(`/customers/${id}`, data);
+    console.log('Response:', response.data);
     return response.data;
   }
 

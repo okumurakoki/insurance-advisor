@@ -117,6 +117,10 @@ const CustomerForm: React.FC = () => {
     setSuccess('');
     setLoading(true);
 
+    console.log('=== SUBMIT STARTED ===');
+    console.log('Form data:', formData);
+    console.log('Company ID in form:', formData.companyId);
+
     try {
       if (isEditMode && id) {
         const updateData: any = { ...formData };
@@ -124,6 +128,8 @@ const CustomerForm: React.FC = () => {
         if (currentUser?.accountType === 'parent' && selectedStaffId) {
           updateData.staffId = selectedStaffId;
         }
+        console.log('Sending UPDATE data:', updateData);
+        console.log('Company ID in updateData:', updateData.companyId);
         await api.updateCustomer(parseInt(id), updateData);
         setSuccess('顧客情報を更新しました');
       } else {

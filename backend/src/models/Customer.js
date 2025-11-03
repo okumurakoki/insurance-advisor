@@ -103,6 +103,11 @@ class Customer {
     }
 
     static async update(id, updateData) {
+        console.log('=== Customer.update MODEL ===');
+        console.log('Customer ID:', id);
+        console.log('updateData received:', updateData);
+        console.log('insurance_company_id in updateData:', updateData.insurance_company_id);
+
         const fields = [];
         const values = [];
         let paramCount = 1;
@@ -111,18 +116,25 @@ class Customer {
             if (value !== undefined) {
                 fields.push(`${key} = $${paramCount}`);
                 values.push(value);
+                console.log(`Field ${key} = $${paramCount}, value:`, value);
                 paramCount++;
             }
         });
 
         if (fields.length === 0) {
+            console.log('No fields to update!');
             return;
         }
 
         values.push(id);
 
         const sql = `UPDATE customers SET ${fields.join(', ')} WHERE id = $${paramCount}`;
+        console.log('SQL Query:', sql);
+        console.log('Values:', values);
+
         await db.query(sql, values);
+
+        console.log('Update completed');
     }
 
     static async deactivate(id) {
