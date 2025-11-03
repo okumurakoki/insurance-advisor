@@ -78,7 +78,10 @@ const CustomerForm: React.FC = () => {
 
   const fetchInsuranceCompanies = async () => {
     try {
+      console.log('=== Fetching insurance companies ===');
       const companies = await api.getMyInsuranceCompanies();
+      console.log('Insurance companies fetched:', companies);
+      console.log('Number of companies:', companies.length);
       setInsuranceCompanies(companies);
     } catch (err) {
       console.error('Failed to fetch insurance companies:', err);
@@ -168,6 +171,11 @@ const CustomerForm: React.FC = () => {
     );
   }
 
+  console.log('=== RENDERING CustomerForm ===');
+  console.log('insuranceCompanies state:', insuranceCompanies);
+  console.log('insuranceCompanies length:', insuranceCompanies.length);
+  console.log('formData.companyId:', formData.companyId);
+
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 4 }}>
@@ -247,15 +255,21 @@ const CustomerForm: React.FC = () => {
                 select
                 label="加入保険会社"
                 value={formData.companyId || ''}
-                onChange={(e) => handleChange('companyId', e.target.value ? parseInt(e.target.value) : undefined)}
+                onChange={(e) => {
+                  console.log('Insurance company changed:', e.target.value);
+                  handleChange('companyId', e.target.value ? parseInt(e.target.value) : undefined);
+                }}
                 helperText="顧客が加入している保険会社を選択してください"
               >
                 <MenuItem value="">選択なし</MenuItem>
-                {insuranceCompanies.map((company: any) => (
-                  <MenuItem key={company.id} value={company.id}>
-                    {company.display_name}
-                  </MenuItem>
-                ))}
+                {insuranceCompanies.map((company: any) => {
+                  console.log('Rendering company option:', company);
+                  return (
+                    <MenuItem key={company.id} value={company.id}>
+                      {company.display_name}
+                    </MenuItem>
+                  );
+                })}
               </TextField>
             </Grid>
 
