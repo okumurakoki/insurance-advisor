@@ -20,7 +20,7 @@ class Customer {
             INSERT INTO customers (
                 user_id, name, email, phone, contract_date,
                 contract_amount, monthly_premium, risk_tolerance,
-                investment_goal, notes, company_id
+                investment_goal, notes, insurance_company_id
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id
@@ -47,12 +47,12 @@ class Customer {
         const sql = `
             SELECT
                 c.*,
-                ic.id as company_id,
+                c.insurance_company_id,
                 ic.company_code,
                 ic.company_name,
                 ic.display_name
             FROM customers c
-            LEFT JOIN insurance_companies ic ON c.company_id = ic.id
+            LEFT JOIN insurance_companies ic ON c.insurance_company_id = ic.id
             WHERE c.id = $1 AND c.is_active = TRUE
         `;
         const results = await db.query(sql, [id]);
@@ -63,12 +63,12 @@ class Customer {
         const sql = `
             SELECT
                 c.*,
-                ic.id as company_id,
+                c.insurance_company_id,
                 ic.company_code,
                 ic.company_name,
                 ic.display_name
             FROM customers c
-            LEFT JOIN insurance_companies ic ON c.company_id = ic.id
+            LEFT JOIN insurance_companies ic ON c.insurance_company_id = ic.id
             WHERE c.user_id = $1 AND c.is_active = TRUE
             ORDER BY c.created_at DESC
         `;
@@ -82,13 +82,13 @@ class Customer {
                 c.*,
                 u.user_id as staff_user_id,
                 u.id as staff_id,
-                ic.id as company_id,
+                c.insurance_company_id,
                 ic.company_code,
                 ic.company_name,
                 ic.display_name
             FROM customers c
             INNER JOIN users u ON c.user_id = u.id
-            LEFT JOIN insurance_companies ic ON c.company_id = ic.id
+            LEFT JOIN insurance_companies ic ON c.insurance_company_id = ic.id
             WHERE u.parent_id = $1 AND c.is_active = TRUE
             ORDER BY c.created_at DESC
         `;

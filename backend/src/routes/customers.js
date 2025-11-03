@@ -140,7 +140,7 @@ router.post('/', authenticateToken, async (req, res) => {
             risk_tolerance: riskTolerance || 'balanced',
             investment_goal: investmentGoal,
             notes,
-            company_id: companyId
+            company_id: companyId  // This will be renamed to insurance_company_id in the model
         });
 
         logger.info(`Customer created: ${name} by user: ${req.user.userId}, assigned to: ${assignedUserId}`);
@@ -180,7 +180,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
             risk_tolerance: riskTolerance,
             investment_goal: investmentGoal,
             notes,
-            company_id: companyId
+            insurance_company_id: companyId
         };
 
         // 代理店の場合、担当者変更が可能
