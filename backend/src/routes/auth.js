@@ -146,7 +146,7 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/register', async (req, res) => {
-    const { userId, password, accountType, agencyUserId, staffUserId } = req.body;
+    const { userId, name, email, password, accountType, agencyUserId, staffUserId } = req.body;
 
     if (!userId || !password || !accountType) {
         return res.status(400).json({
@@ -193,6 +193,8 @@ router.post('/register', async (req, res) => {
 
             const newUserId = await User.create({
                 userId,
+                name,
+                email,
                 password,
                 accountType: 'child',
                 planType: agencyUser.plan_type,
