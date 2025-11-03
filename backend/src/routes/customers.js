@@ -12,6 +12,72 @@ router.options('*', (req, res) => {
     res.status(200).send();
 });
 
+// Public customer self-registration endpoint (no authentication required)
+router.post('/public/register', async (req, res) => {
+    const { staffId, name, email, phone, contractDate, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes, companyId } = req.body;
+
+    // Validate required fields
+    if (!staffId || !name || !contractDate || !contractAmount || !monthlyPremium) {
+        return res.status(400).json({
+            error: 'Staff ID, name, contract date, contract amount, and monthly premium are required'
+        });
+    }
+
+    try {
+        // Validate staff ID exists and is active
+        const User = require('../models/User');
+        const staff = await User.findById(staffId);
+
+        if (!staff) {
+            return res.status(404).json({
+                error: 'Invalid staff ID. Please check with your advisor for the correct ID.'
+            });
+        }
+
+        // Check if staff account is active (not admin or parent)
+        if (staff.account_type === 'admin' || staff.account_type === 'parent') {
+            return res.status(400).json({
+                error: 'Invalid staff ID. Please provide a staff member ID, not an admin or agency ID.'
+            });
+        }
+
+        // Check staff customer limit
+        const customerCount = await Customer.countByUserId(staffId);
+        const customerLimit = staff.customer_limit || 10;
+
+        if (customerCount >= customerLimit) {
+            return res.status(400).json({
+                error: `This staff member has reached their customer limit. Please contact another advisor.`
+            });
+        }
+
+        // Create customer
+        const customerId = await Customer.create({
+            user_id: staffId,
+            name,
+            email,
+            phone,
+            contract_date: contractDate,
+            contract_amount: contractAmount,
+            monthly_premium: monthlyPremium,
+            risk_tolerance: riskTolerance || 'balanced',
+            investment_goal: investmentGoal,
+            notes,
+            company_id: companyId
+        });
+
+        logger.info(`Public customer registration: ${name} assigned to staff ID: ${staffId}`);
+
+        res.status(201).json({
+            id: customerId,
+            message: 'Customer registration successful. Your advisor will contact you shortly.'
+        });
+    } catch (error) {
+        logger.error('Public customer registration error:', error);
+        res.status(500).json({ error: 'Failed to register customer' });
+    }
+});
+
 router.get('/', authenticateToken, async (req, res) => {
     try {
         let customers;

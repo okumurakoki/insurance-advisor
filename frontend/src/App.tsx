@@ -63,6 +63,7 @@ import Login from './components/Login.tsx';
 import InsuranceCompanies from './pages/InsuranceCompanies.tsx';
 import AdminAgencyManagement from './pages/AdminAgencyManagement.tsx';
 import PdfUpload from './pages/PdfUpload.tsx';
+import PublicCustomerRegister from './pages/PublicCustomerRegister.tsx';
 import { getUserTheme, defaultTheme, InsuranceCompanyTheme } from './config/insuranceCompanyThemes.ts';
 
 // API Configuration
@@ -361,6 +362,9 @@ function AppContent({ onThemeChange }: AppContentProps) {
         </Drawer>
         
         <Routes>
+          {/* Public routes */}
+          <Route path="/register" element={<PublicCustomerRegister />} />
+
           <Route path="/" element={<Dashboard user={user} marketData={marketData} navigate={navigate} />} />
           <Route path="/dashboard" element={<Dashboard user={user} marketData={marketData} navigate={navigate} />} />
           {user?.accountType === 'admin' && (
