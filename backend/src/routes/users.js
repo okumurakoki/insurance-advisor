@@ -21,38 +21,6 @@ router.get('/profile', authenticateToken, async (req, res) => {
     }
 });
 
-// Get user info by ID (for staff information on customer details page)
-router.get('/:id', authenticateToken, async (req, res) => {
-    try {
-        const userId = parseInt(req.params.id);
-        const user = await User.findById(userId);
-
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        // セキュリティチェック: 代理店は配下の担当者の情報のみ取得可能
-        if (req.user.accountType === 'parent') {
-            // 代理店は配下の担当者情報のみ取得可能
-            if (user.parent_id !== req.user.id && user.id !== req.user.id) {
-                return res.status(403).json({ error: 'Access denied' });
-            }
-        } else if (req.user.accountType === 'child') {
-            // 担当者は自分の情報のみ取得可能
-            if (user.id !== req.user.id) {
-                return res.status(403).json({ error: 'Access denied' });
-            }
-        }
-
-        const { password_hash, ...userWithoutPassword } = user;
-
-        res.json(userWithoutPassword);
-    } catch (error) {
-        logger.error('User fetch error:', error);
-        res.status(500).json({ error: 'Failed to fetch user' });
-    }
-});
-
 router.get('/children', authenticateToken, authorizeAccountType('parent'), async (req, res) => {
     try {
         const children = await User.getChildren(req.user.id);
@@ -94,6 +62,40 @@ router.get('/staff', authenticateToken, authorizeAccountType('parent'), async (r
     } catch (error) {
         logger.error('Staff fetch error:', error);
         res.status(500).json({ error: 'Failed to fetch staff' });
+    }
+});
+
+// Get user info by ID (for staff information on customer details page)
+// IMPORTANT: This route must be defined AFTER all specific routes like /profile, /children, /staff
+// because Express matches routes in order and /:id would match those paths first
+router.get('/:id', authenticateToken, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.id);
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // セキュリティチェック: 代理店は配下の担当者の情報のみ取得可能
+        if (req.user.accountType === 'parent') {
+            // 代理店は配下の担当者情報のみ取得可能
+            if (user.parent_id !== req.user.id && user.id !== req.user.id) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+        } else if (req.user.accountType === 'child') {
+            // 担当者は自分の情報のみ取得可能
+            if (user.id !== req.user.id) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+        }
+
+        const { password_hash, ...userWithoutPassword } = user;
+
+        res.json(userWithoutPassword);
+    } catch (error) {
+        logger.error('User fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch user' });
     }
 });
 
