@@ -2371,10 +2371,15 @@ function StaffList({ user, navigate }: StaffListProps) {
                   <CardContent>
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={4}>
-                        <Typography variant="h6">{s.userId || s.user_id}</Typography>
+                        <Typography variant="h6">{s.name || s.userId || s.user_id}</Typography>
                         <Typography variant="body2" color="text.secondary">
-                          ID: {s.id}
+                          ユーザーID: {s.userId || s.user_id}
                         </Typography>
+                        {s.email && (
+                          <Typography variant="body2" color="text.secondary">
+                            {s.email}
+                          </Typography>
+                        )}
                       </Grid>
                       <Grid item xs={12} sm={3}>
                         <Typography variant="body2" color="text.secondary">

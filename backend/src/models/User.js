@@ -51,7 +51,7 @@ class User {
     }
 
     static async getChildren(parentId) {
-        const sql = 'SELECT id, user_id, account_type, plan_type, customer_limit, created_at, is_active FROM users WHERE parent_id = $1 AND is_active = true ORDER BY created_at DESC';
+        const sql = 'SELECT id, user_id, name, email, account_type, plan_type, customer_limit, created_at, is_active FROM users WHERE parent_id = $1 AND is_active = true ORDER BY created_at DESC';
         return await db.query(sql, [parentId]);
     }
 
