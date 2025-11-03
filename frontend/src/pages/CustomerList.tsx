@@ -143,6 +143,7 @@ const CustomerList: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableCell>顧客名</TableCell>
+              <TableCell>加入保険会社</TableCell>
               <TableCell>契約日</TableCell>
               <TableCell align="right">月額保険料</TableCell>
               <TableCell>リスク許容度</TableCell>
@@ -153,7 +154,7 @@ const CustomerList: React.FC = () => {
           <TableBody>
             {filteredCustomers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center">
+                <TableCell colSpan={7} align="center">
                   {searchTerm ? '検索結果がありません' : '顧客が登録されていません'}
                 </TableCell>
               </TableRow>
@@ -162,6 +163,11 @@ const CustomerList: React.FC = () => {
                 <TableRow key={customer.id} hover>
                   <TableCell component="th" scope="row">
                     {customer.name}
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {customer.displayName || customer.companyName || '-'}
+                    </Typography>
                   </TableCell>
                   <TableCell>
                     {new Date(customer.contractDate).toLocaleDateString('ja-JP')}

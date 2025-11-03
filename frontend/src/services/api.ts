@@ -108,7 +108,7 @@ class ApiService {
       isActive: data.is_active,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
-      companyId: data.company_id,
+      companyId: data.insurance_company_id || data.company_id,
       companyCode: data.company_code,
       companyName: data.company_name,
       displayName: data.display_name,

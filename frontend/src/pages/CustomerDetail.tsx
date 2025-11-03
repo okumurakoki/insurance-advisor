@@ -332,6 +332,13 @@ const CustomerDetail: React.FC = () => {
           </Box>
         </Grid>
 
+        <Grid item xs={12} sm={6} md={3}>
+          <Typography color="textSecondary" variant="body2">加入保険会社</Typography>
+          <Typography variant="body1">
+            {customer.displayName || customer.companyName || '-'}
+          </Typography>
+        </Grid>
+
         {customer.investmentGoal && (
           <Grid item xs={12} sm={6}>
             <Typography color="textSecondary" variant="body2">投資目標</Typography>
