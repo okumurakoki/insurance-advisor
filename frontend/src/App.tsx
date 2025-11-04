@@ -2769,7 +2769,7 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
     const fetchInsuranceCompanies = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/api/insurance-companies/my-companies`, {
+        const response = await fetch(`${API_BASE_URL}/api/insurance/my-companies`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
