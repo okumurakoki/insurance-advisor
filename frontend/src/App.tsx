@@ -424,8 +424,6 @@ interface DashboardProps {
 }
 
 function Dashboard({ user, marketData, navigate }: DashboardProps) {
-  const [uploadingMarketData, setUploadingMarketData] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
   const [fundPerformance, setFundPerformance] = useState<any[]>([]);
   const [bondYields, setBondYields] = useState<any>(null);
@@ -434,8 +432,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [riskProfile, setRiskProfile] = useState<'conservative' | 'balanced' | 'aggressive'>('balanced');
   const [myInsuranceCompanies, setMyInsuranceCompanies] = useState<any[]>([]);
   const [allInsuranceCompanies, setAllInsuranceCompanies] = useState<any[]>([]);
-  const [pdfHistory, setPdfHistory] = useState<any[]>([]);
-  const [showPdfHistory, setShowPdfHistory] = useState(false);
 
   // Fetch insurance companies on mount
   useEffect(() => {
@@ -593,167 +589,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
     // Optimization is now calculated directly in the UI from fundPerformance data
   }, [fundPerformance]);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setSelectedFile(event.target.files[0]);
-    }
-  };
-
-  const handleUploadMarketData = async () => {
-    if (!selectedFile) {
-      alert('PDFファイルを選択してください');
-      return;
-    }
-
-    if (!selectedCompanyId) {
-      alert('保険会社を選択してください');
-      return;
-    }
-
-    setUploadingMarketData(true);
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('認証エラー: ログインしてください');
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append('marketData', selectedFile);
-      formData.append('company_id', selectedCompanyId.toString());
-
-      const response = await fetch(`${API_BASE_URL}/api/analysis/upload-market-data`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Upload response:', data);
-        console.log('Fund performance from upload:', data.fundPerformance);
-        console.log('Bond yields from upload:', data.bondYields);
-        if (data.parseError) {
-          console.error('PDF Parse Error from server:', data.parseError);
-          alert(`PDF解析エラー: ${data.parseError.name}\n${data.parseError.message}`);
-        }
-
-        // Update latest market data state (temporary, will be replaced by API call below)
-        setLatestMarketData({
-          id: data.id,
-          fileName: data.fileName,
-          uploadedAt: data.uploadedAt,
-          dataDate: data.reportDate
-        });
-
-        // 抽出された運用実績データを表示
-        const extractedFundPerformance = data.fundPerformance || {};
-        const fundKeys = Object.keys(extractedFundPerformance);
-
-        // アップロードデータから直接fundPerformance配列とbondYieldsを設定
-        // 動的にファンド名を取得（PDFから解析されたファンド名を使用）
-        if (fundKeys.length > 0) {
-          const fundsArray = fundKeys.map(fundType => {
-            const performanceValue = extractedFundPerformance[fundType];
-            return {
-              fundType,
-              performance: performanceValue,
-              recommendation: performanceValue > 10 ? 'recommended' :
-                            performanceValue < 0 ? 'overpriced' : 'neutral'
-            };
-          });
-          setFundPerformance(fundsArray);
-          console.log('Set fundPerformance from upload:', fundsArray);
-        }
-
-        if (data.bondYields && (data.bondYields.japan10Y || data.bondYields.us10Y)) {
-          setBondYields(data.bondYields);
-          console.log('Set bondYields from upload:', data.bondYields);
-        }
-
-        let message = `マーケットデータをアップロードしました！\nファイル: ${data.fileName}`;
-
-        if (fundKeys.length > 0) {
-          message += '\n\n抽出された運用実績:';
-          fundKeys.forEach(fundName => {
-            message += `\n・${fundName}: ${extractedFundPerformance[fundName]}%`;
-          });
-        } else {
-          message += '\n\n注意: 運用実績データを抽出できませんでした。PDFの形式を確認してください。';
-        }
-
-        if (data.reportDate) {
-          message += `\n\nレポート日付: ${data.reportDate}`;
-        }
-
-        alert(message);
-        setSelectedFile(null);
-        // Reset file input
-        const fileInput = document.getElementById('market-data-file') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
-
-        // 最新データを再取得してダッシュボードを更新
-        const marketDataResponse = await fetch(`${API_BASE_URL}/api/analysis/market-data/latest`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (marketDataResponse.ok) {
-          const latestData = await marketDataResponse.json();
-          setLatestMarketData(latestData);
-        }
-
-        // Fund performanceの再取得はスキップ（アップロードレスポンスのデータを使用）
-        console.log('Skipping fund performance reload - using data from upload response');
-
-        // Refresh PDF history if it's currently displayed
-        if (showPdfHistory) {
-          fetchPdfHistory();
-        }
-      } else {
-        const error = await response.json();
-        alert(`アップロードエラー: ${error.error}\n${error.details || ''}`);
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      alert('アップロード中にエラーが発生しました');
-    } finally {
-      setUploadingMarketData(false);
-    }
-  };
-
-  const fetchPdfHistory = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('認証エラー: ログインしてください');
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/analysis/market-data/history`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setPdfHistory(data);
-      } else {
-        const error = await response.json();
-        console.error('Failed to fetch PDF history:', error);
-        alert(`履歴の取得に失敗しました: ${error.error}`);
-      }
-    } catch (error) {
-      console.error('Error fetching PDF history:', error);
-      alert('履歴の取得中にエラーが発生しました');
-    }
-  };
-
-
   const getPlanTypeLabel = (type: string) => {
     const labels = {
       standard: 'スタンダード',
@@ -892,171 +727,27 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           </Grid>
         )}
 
-        {/* Market Data Upload Section (管理者のみ) */}
+        {/* PDF Upload Link (管理者のみ) */}
         {user.accountType === 'admin' && (
           <Grid item xs={12}>
-            <Card sx={{ p: 3, bgcolor: '#f5f5f5' }}>
-              <Typography variant="h6" mb={1}>
-                📊 マーケットデータアップロード
-              </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                月次マーケットレポート（PDF）をアップロードして、最新のファンドパフォーマンスデータを反映できます。
-              </Typography>
-
-              <Box sx={{ mt: 2 }}>
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel id="company-select-label">保険会社を選択 *</InputLabel>
-                  <Select
-                    labelId="company-select-label"
-                    id="company-select"
-                    value={selectedCompanyId || ''}
-                    label="保険会社を選択 *"
-                    onChange={(e) => setSelectedCompanyId(Number(e.target.value))}
-                  >
-                    {allInsuranceCompanies.map((company) => (
-                      <MenuItem key={company.id} value={company.id}>
-                        {company.display_name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input
-                    id="market-data-file"
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handleFileSelect}
-                    style={{ display: 'none' }}
-                  />
-                  <label htmlFor="market-data-file">
-                    <Button variant="outlined" component="span">
-                      PDFを選択
-                    </Button>
-                  </label>
-                  {selectedFile && (
-                    <Typography variant="body2">
-                      選択済み: {selectedFile.name}
-                    </Typography>
-                  )}
-                  <Button
-                    variant="contained"
-                    onClick={handleUploadMarketData}
-                    disabled={!selectedFile || !selectedCompanyId || uploadingMarketData}
-                    startIcon={uploadingMarketData ? <CircularProgress size={20} /> : null}
-                  >
-                    {uploadingMarketData ? 'アップロード中...' : 'アップロード'}
-                  </Button>
+            <Card sx={{ p: 3, bgcolor: '#f0f9ff', border: '1px solid #3b82f6' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h6" mb={1} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    📊 マーケットデータ管理
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    保険会社の月次PDFをアップロードして、ファンドパフォーマンスデータを管理できます。
+                  </Typography>
                 </Box>
-              </Box>
-            </Card>
-          </Grid>
-        )}
-
-        {/* PDF Upload History Section (管理者のみ) */}
-        {user.accountType === 'admin' && (
-          <Grid item xs={12}>
-            <Card sx={{ p: 3, bgcolor: '#fafafa' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">
-                  📋 PDFアップロード履歴
-                </Typography>
                 <Button
-                  variant="outlined"
-                  onClick={() => {
-                    if (!showPdfHistory) {
-                      fetchPdfHistory();
-                    }
-                    setShowPdfHistory(!showPdfHistory);
-                  }}
+                  variant="contained"
+                  onClick={() => navigate('/admin/pdf-upload')}
+                  sx={{ minWidth: 160 }}
                 >
-                  {showPdfHistory ? '履歴を閉じる' : '履歴を表示'}
+                  PDF管理ページへ
                 </Button>
               </Box>
-
-              {showPdfHistory && (
-                <>
-                  {pdfHistory.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
-                      アップロード履歴がありません
-                    </Typography>
-                  ) : (
-                    <TableContainer component={Paper} sx={{ mt: 2 }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                            <TableCell sx={{ fontWeight: 700 }}>保険会社</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }}>データ月</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }}>ファイル名</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }} align="center">ファンド数</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }} align="center">活用顧客数</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }}>最終使用日</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }}>アップロード日時</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }} align="center">ステータス</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {pdfHistory.map((item: any) => (
-                            <TableRow key={item.id} hover>
-                              <TableCell>{item.displayName || item.companyName}</TableCell>
-                              <TableCell>
-                                {item.dataDate ? new Date(item.dataDate).toLocaleDateString('ja-JP', {
-                                  year: 'numeric',
-                                  month: 'long'
-                                }) : '-'}
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                                  {item.fileName || '-'}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="center">
-                                <Chip
-                                  label={item.fundCount || 0}
-                                  size="small"
-                                  color={item.fundCount > 0 ? 'primary' : 'default'}
-                                />
-                              </TableCell>
-                              <TableCell align="center">
-                                <Chip
-                                  label={item.usageCount || 0}
-                                  size="small"
-                                  color={item.usageCount > 0 ? 'success' : 'default'}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                {item.lastUsed
-                                  ? new Date(item.lastUsed).toLocaleDateString('ja-JP', {
-                                      year: 'numeric',
-                                      month: '2-digit',
-                                      day: '2-digit'
-                                    })
-                                  : '未使用'}
-                              </TableCell>
-                              <TableCell>
-                                {new Date(item.uploadedAt).toLocaleString('ja-JP', {
-                                  year: 'numeric',
-                                  month: '2-digit',
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </TableCell>
-                              <TableCell align="center">
-                                {item.parsedSuccessfully ? (
-                                  <Chip label="成功" color="success" size="small" />
-                                ) : (
-                                  <Chip label="失敗" color="error" size="small" />
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  )}
-                </>
-              )}
             </Card>
           </Grid>
         )}
