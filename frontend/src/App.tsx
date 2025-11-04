@@ -2466,7 +2466,8 @@ function CustomerList({ user, navigate }: CustomerListProps) {
               contractDate,
               monthlyPremium: customer.monthly_premium || customer.monthlyPremium,
               riskTolerance: customer.risk_tolerance || customer.riskTolerance || 'balanced',
-              status: customer.is_active ? 'active' : 'inactive'
+              status: customer.is_active ? 'active' : 'inactive',
+              insuranceCompanies: customer.insuranceCompanies || []
             };
           });
           setCustomers(formattedCustomers);
@@ -2652,8 +2653,29 @@ function CustomerList({ user, navigate }: CustomerListProps) {
                         {new Date(customer.contractDate).toLocaleDateString('ja-JP')}
                       </Typography>
                     </Grid>
-                    
+
                     <Grid item xs={12} sm={2}>
+                      <Typography variant="body2" color="text.secondary">
+                        加入保険会社
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                        {customer.insuranceCompanies && customer.insuranceCompanies.length > 0 ? (
+                          customer.insuranceCompanies.map((company: any) => (
+                            <Chip
+                              key={company.id}
+                              label={company.display_name || company.company_name}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
+                          ))
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">未設定</Typography>
+                        )}
+                      </Box>
+                    </Grid>
+
+                    <Grid item xs={12} sm={1}>
                       <Typography variant="body2" color="text.secondary">
                         月額保険料
                       </Typography>
@@ -2661,8 +2683,8 @@ function CustomerList({ user, navigate }: CustomerListProps) {
                         ¥{customer.monthlyPremium.toLocaleString()}
                       </Typography>
                     </Grid>
-                    
-                    <Grid item xs={12} sm={2}>
+
+                    <Grid item xs={12} sm={1}>
                       <Box display="flex" flexDirection="column" gap={1}>
                         <Chip
                           label={getRiskToleranceLabel(customer.riskTolerance)}

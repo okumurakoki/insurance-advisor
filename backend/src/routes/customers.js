@@ -104,6 +104,12 @@ router.get('/', authenticateToken, async (req, res) => {
             });
         }
 
+        // 各顧客の保険会社情報を取得して追加
+        for (const customer of customers) {
+            const insuranceCompanies = await Customer.getInsuranceCompanies(customer.id);
+            customer.insuranceCompanies = insuranceCompanies;
+        }
+
         res.json(customers);
     } catch (error) {
         logger.error('Customer fetch error:', error);
