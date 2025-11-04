@@ -270,7 +270,7 @@ router.post('/recommend/:customerId',
             }
 
             // Check if customer has insurance company assigned
-            if (!customer.company_id) {
+            if (!customer.insurance_company_id) {
                 return res.status(400).json({
                     error: 'この顧客には保険会社が設定されていません。顧客情報を更新して保険会社を設定してください。',
                     code: 'MISSING_INSURANCE_COMPANY'
@@ -290,7 +290,7 @@ router.post('/recommend/:customerId',
             // }
 
             // Get latest market data for customer's insurance company
-            const latestMarketData = await MarketData.getLatest(customer.company_id);
+            const latestMarketData = await MarketData.getLatest(customer.insurance_company_id);
 
             const notebookLM = new NotebookLMService();
             const analysisPrompt = `
@@ -305,11 +305,11 @@ router.post('/recommend/:customerId',
 
             let notebookLMResult;
             if (!latestMarketData) {
-                logger.warn(`No market data available for company_id: ${customer.company_id}`);
+                logger.warn(`No market data available for insurance_company_id: ${customer.insurance_company_id}`);
                 return res.status(400).json({
                     error: 'この保険会社の市場データ（PDF）が登録されていません。管理者にPDFのアップロードを依頼してください。',
                     code: 'MISSING_MARKET_DATA',
-                    companyId: customer.company_id
+                    companyId: customer.insurance_company_id
                 });
             } else {
                 notebookLMResult = await notebookLM.analyzePDF(
