@@ -3,12 +3,8 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 30,
-      "memory": 1024
-    }
-  },
-  "api": {
-    "bodyParser": {
-      "sizeLimit": "50mb"
+      "memory": 1024,
+      "maxRequestBodySize": "50mb"
     }
   },
   "rewrites": [
