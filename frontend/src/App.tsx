@@ -2450,16 +2450,23 @@ function CustomerList({ user, navigate }: CustomerListProps) {
         if (response.ok) {
           const data = await response.json();
           // Convert API data to frontend format
-          const formattedCustomers = data.map((customer: any) => ({
-            id: customer.id,
-            name: customer.name,
-            email: customer.email || '',
-            phone: customer.phone || '',
-            contractDate: customer.contract_date || customer.contractDate,
-            monthlyPremium: customer.monthly_premium || customer.monthlyPremium,
-            riskTolerance: customer.risk_tolerance || customer.riskTolerance || 'balanced',
-            status: customer.is_active ? 'active' : 'inactive'
-          }));
+          const formattedCustomers = data.map((customer: any) => {
+            // Convert contractDate to yyyy-MM-dd format
+            const contractDate = (customer.contract_date || customer.contractDate)
+              ? new Date(customer.contract_date || customer.contractDate).toISOString().split('T')[0]
+              : '';
+
+            return {
+              id: customer.id,
+              name: customer.name,
+              email: customer.email || '',
+              phone: customer.phone || '',
+              contractDate,
+              monthlyPremium: customer.monthly_premium || customer.monthlyPremium,
+              riskTolerance: customer.risk_tolerance || customer.riskTolerance || 'balanced',
+              status: customer.is_active ? 'active' : 'inactive'
+            };
+          });
           setCustomers(formattedCustomers);
           setFilteredCustomers(formattedCustomers);
         } else {
@@ -2807,11 +2814,15 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
 
           if (response.ok) {
             const data = await response.json();
+            // Convert contractDate to yyyy-MM-dd format
+            const contractDate = (data.contract_date || data.contractDate)
+              ? new Date(data.contract_date || data.contractDate).toISOString().split('T')[0]
+              : '';
             setFormData({
               name: data.name || '',
               email: data.email || '',
               phone: data.phone || '',
-              contractDate: data.contract_date || data.contractDate || '',
+              contractDate,
               contractAmount: String(data.contract_amount || data.contractAmount || ''),
               monthlyPremium: String(data.monthly_premium || data.monthlyPremium || ''),
               riskTolerance: data.risk_tolerance || data.riskTolerance || 'balanced',
@@ -3245,12 +3256,17 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
 
         if (response.ok) {
           const data = await response.json();
+          // Convert contractDate to yyyy-MM-dd format
+          const contractDate = (data.contract_date || data.contractDate)
+            ? new Date(data.contract_date || data.contractDate).toISOString().split('T')[0]
+            : '';
+
           setCustomer({
             id: data.id,
             name: data.name,
             email: data.email || '',
             phone: data.phone || '',
-            contractDate: data.contract_date || data.contractDate,
+            contractDate,
             monthlyPremium: data.monthly_premium || data.monthlyPremium,
             contractAmount: data.contract_amount || data.contractAmount,
             riskTolerance: data.risk_tolerance || data.riskTolerance || 'balanced',
