@@ -87,11 +87,16 @@ const CustomerForm: React.FC = () => {
   const fetchCustomer = async (customerId: number) => {
     try {
       const customer = await api.getCustomer(customerId);
+      // contractDateを yyyy-MM-dd 形式に変換
+      const contractDate = customer.contractDate
+        ? new Date(customer.contractDate).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+
       setFormData({
         name: customer.name,
         email: customer.email || '',
         phone: customer.phone || '',
-        contractDate: customer.contractDate,
+        contractDate,
         contractAmount: customer.contractAmount,
         monthlyPremium: customer.monthlyPremium,
         riskTolerance: customer.riskTolerance,
