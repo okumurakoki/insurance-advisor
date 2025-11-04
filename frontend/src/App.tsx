@@ -2821,6 +2821,12 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
             const contractDate = (data.contract_date || data.contractDate)
               ? new Date(data.contract_date || data.contractDate).toISOString().split('T')[0]
               : '';
+
+            // Extract company IDs from insuranceCompanies array
+            const companyIds = data.insuranceCompanies && Array.isArray(data.insuranceCompanies)
+              ? data.insuranceCompanies.map((ic: any) => ic.insurance_company_id)
+              : (data.insurance_company_id ? [data.insurance_company_id] : []);
+
             setFormData({
               name: data.name || '',
               email: data.email || '',
@@ -2832,7 +2838,8 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
               investmentGoal: data.investment_goal || data.investmentGoal || '',
               notes: data.notes || '',
               staffId: '',
-              companyId: String(data.insurance_company_id || data.companyId || '')
+              companyId: String(data.insurance_company_id || data.companyId || ''),
+              companyIds: companyIds
             });
           } else {
             alert('顧客情報の取得に失敗しました');
@@ -2884,7 +2891,8 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
           investmentGoal: formData.investmentGoal,
           notes: formData.notes,
           staffId: formData.staffId || undefined,
-          companyId: formData.companyId ? parseInt(formData.companyId) : undefined
+          companyId: formData.companyId ? parseInt(formData.companyId) : undefined,
+          companyIds: formData.companyIds.length > 0 ? formData.companyIds : undefined
         })
       });
 
@@ -2949,21 +2957,36 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
             </Grid>
 
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                select
-                label="加入保険会社"
-                value={formData.companyId}
-                onChange={handleChange('companyId')}
-                helperText="顧客が加入している保険会社を選択してください"
-              >
-                <MenuItem value="">選択なし</MenuItem>
-                {insuranceCompanies.map((company: any) => (
-                  <MenuItem key={company.id} value={company.id}>
-                    {company.display_name}
-                  </MenuItem>
-                ))}
-              </TextField>
+              <Autocomplete
+                multiple
+                options={insuranceCompanies}
+                getOptionLabel={(option) => option.display_name || option.company_name}
+                value={insuranceCompanies.filter(company =>
+                  formData.companyIds.includes(company.id)
+                )}
+                onChange={(event, newValue) => {
+                  setFormData({
+                    ...formData,
+                    companyIds: newValue.map(company => company.id)
+                  });
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="加入保険会社"
+                    helperText="顧客が加入している保険会社を選択してください（複数選択可）"
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      label={option.display_name || option.company_name}
+                      {...getTagProps({ index })}
+                      key={option.id}
+                    />
+                  ))
+                }
+              />
             </Grid>
 
             <Grid item xs={12} sm={6}>
@@ -3277,6 +3300,7 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
             status: data.is_active ? 'active' : 'inactive',
             insuranceCompanyId: data.insurance_company_id,
             insuranceCompanyName: data.display_name || data.company_name,
+            insuranceCompanies: data.insuranceCompanies || [],
             portfolio: { equity: 0, usEquity: 0, usBond: 0, reit: 0, globalEquity: 0 },
             performanceHistory: []
           });
@@ -3449,9 +3473,21 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
             <Typography variant="subtitle2" color="text.secondary">
               加入保険会社
             </Typography>
-            <Typography variant="body1" gutterBottom>
-              {customer.insuranceCompanyName || '未設定'}
-            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+              {customer.insuranceCompanies && customer.insuranceCompanies.length > 0 ? (
+                customer.insuranceCompanies.map((company: any) => (
+                  <Chip
+                    key={company.id}
+                    label={company.display_name || company.company_name}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                  />
+                ))
+              ) : (
+                <Typography variant="body2" color="text.secondary">未設定</Typography>
+              )}
+            </Box>
           </Grid>
 
           <Grid item xs={12}>
