@@ -434,6 +434,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [riskProfile, setRiskProfile] = useState<'conservative' | 'balanced' | 'aggressive'>('balanced');
   const [myInsuranceCompanies, setMyInsuranceCompanies] = useState<any[]>([]);
   const [allInsuranceCompanies, setAllInsuranceCompanies] = useState<any[]>([]);
+  const [pdfHistory, setPdfHistory] = useState<any[]>([]);
+  const [showPdfHistory, setShowPdfHistory] = useState(false);
 
   // Fetch insurance companies on mount
   useEffect(() => {
@@ -706,6 +708,11 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
         // Fund performanceの再取得はスキップ（アップロードレスポンスのデータを使用）
         console.log('Skipping fund performance reload - using data from upload response');
+
+        // Refresh PDF history if it's currently displayed
+        if (showPdfHistory) {
+          fetchPdfHistory();
+        }
       } else {
         const error = await response.json();
         alert(`アップロードエラー: ${error.error}\n${error.details || ''}`);
@@ -715,6 +722,34 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
       alert('アップロード中にエラーが発生しました');
     } finally {
       setUploadingMarketData(false);
+    }
+  };
+
+  const fetchPdfHistory = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('認証エラー: ログインしてください');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/analysis/market-data/history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPdfHistory(data);
+      } else {
+        const error = await response.json();
+        console.error('Failed to fetch PDF history:', error);
+        alert(`履歴の取得に失敗しました: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error fetching PDF history:', error);
+      alert('履歴の取得中にエラーが発生しました');
     }
   };
 
@@ -914,6 +949,114 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                   </Button>
                 </Box>
               </Box>
+            </Card>
+          </Grid>
+        )}
+
+        {/* PDF Upload History Section (管理者のみ) */}
+        {user.accountType === 'admin' && (
+          <Grid item xs={12}>
+            <Card sx={{ p: 3, bgcolor: '#fafafa' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">
+                  📋 PDFアップロード履歴
+                </Typography>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    if (!showPdfHistory) {
+                      fetchPdfHistory();
+                    }
+                    setShowPdfHistory(!showPdfHistory);
+                  }}
+                >
+                  {showPdfHistory ? '履歴を閉じる' : '履歴を表示'}
+                </Button>
+              </Box>
+
+              {showPdfHistory && (
+                <>
+                  {pdfHistory.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      アップロード履歴がありません
+                    </Typography>
+                  ) : (
+                    <TableContainer component={Paper} sx={{ mt: 2 }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                            <TableCell sx={{ fontWeight: 700 }}>保険会社</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>データ月</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>ファイル名</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }} align="center">ファンド数</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }} align="center">活用顧客数</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>最終使用日</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>アップロード日時</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }} align="center">ステータス</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {pdfHistory.map((item: any) => (
+                            <TableRow key={item.id} hover>
+                              <TableCell>{item.displayName || item.companyName}</TableCell>
+                              <TableCell>
+                                {item.dataDate ? new Date(item.dataDate).toLocaleDateString('ja-JP', {
+                                  year: 'numeric',
+                                  month: 'long'
+                                }) : '-'}
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                                  {item.fileName || '-'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Chip
+                                  label={item.fundCount || 0}
+                                  size="small"
+                                  color={item.fundCount > 0 ? 'primary' : 'default'}
+                                />
+                              </TableCell>
+                              <TableCell align="center">
+                                <Chip
+                                  label={item.usageCount || 0}
+                                  size="small"
+                                  color={item.usageCount > 0 ? 'success' : 'default'}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {item.lastUsed
+                                  ? new Date(item.lastUsed).toLocaleDateString('ja-JP', {
+                                      year: 'numeric',
+                                      month: '2-digit',
+                                      day: '2-digit'
+                                    })
+                                  : '未使用'}
+                              </TableCell>
+                              <TableCell>
+                                {new Date(item.uploadedAt).toLocaleString('ja-JP', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </TableCell>
+                              <TableCell align="center">
+                                {item.parsedSuccessfully ? (
+                                  <Chip label="成功" color="success" size="small" />
+                                ) : (
+                                  <Chip label="失敗" color="error" size="small" />
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+                </>
+              )}
             </Card>
           </Grid>
         )}
