@@ -1,47 +1,44 @@
-const { Client } = require('pg');
+const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
-const dotenv = require('dotenv');
-
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '../.env.vercel') });
 
 async function runMigration() {
-    // Extract project ref from Supabase URL
-    // https://skqzxkdwzxjsonkwoeua.supabase.co -> skqzxkdwzxjsonkwoeua
-    const projectRef = process.env.SUPABASE_URL.replace('https://', '').replace('.supabase.co', '');
+  const DATABASE_URL = process.env.DATABASE_URL;
 
-    const client = new Client({
-        host: `db.${projectRef}.supabase.co`,
-        port: 5432,
-        database: 'postgres',
-        user: 'postgres',
-        password: process.env.SUPABASE_DB_PASSWORD || 'your-database-password',
-        ssl: {
-            rejectUnauthorized: false
-        }
-    });
+  if (!DATABASE_URL) {
+    console.error('DATABASE_URL is not set');
+    process.exit(1);
+  }
 
-    try {
-        await client.connect();
-        console.log('Connected to database');
-
-        const migrationFile = path.join(__dirname, '../migrations/006_create_alerts_table.sql');
-        const sql = fs.readFileSync(migrationFile, 'utf8');
-
-        console.log('Running migration...');
-        await client.query(sql);
-        console.log('Migration completed successfully!');
-
-    } catch (error) {
-        if (error.message.includes('already exists')) {
-            console.log('Table already exists, skipping migration');
-        } else {
-            console.error('Migration error:', error.message);
-        }
-    } finally {
-        await client.end();
+  const pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false
     }
+  });
+
+  try {
+    const migrationFile = process.argv[2];
+    if (!migrationFile) {
+      console.error('Please provide migration file name');
+      console.error('Usage: node run-migration.js <migration-file.sql>');
+      process.exit(1);
+    }
+
+    const migrationPath = path.join(__dirname, '../migrations', migrationFile);
+    const sql = fs.readFileSync(migrationPath, 'utf8');
+
+    console.log(`Running migration: ${migrationFile}`);
+    await pool.query(sql);
+    console.log('Migration completed successfully');
+
+    await pool.end();
+    process.exit(0);
+  } catch (error) {
+    console.error('Migration error:', error);
+    await pool.end();
+    process.exit(1);
+  }
 }
 
 runMigration();
