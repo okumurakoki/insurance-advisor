@@ -2680,7 +2680,7 @@ function CustomerList({ user, navigate }: CustomerListProps) {
                         月額保険料
                       </Typography>
                       <Typography variant="h6" color="primary">
-                        ¥{customer.monthlyPremium.toLocaleString()}
+                        ¥{Math.floor(customer.monthlyPremium).toLocaleString()}
                       </Typography>
                     </Grid>
 
