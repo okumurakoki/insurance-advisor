@@ -125,6 +125,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
             return res.status(403).json({ error: 'Access denied' });
         }
 
+        // 複数の保険会社を取得
+        const insuranceCompanies = await Customer.getInsuranceCompanies(customer.id);
+        customer.insuranceCompanies = insuranceCompanies;
+
         res.json(customer);
     } catch (error) {
         logger.error('Customer fetch error:', error);
@@ -222,12 +226,13 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 router.put('/:id', authenticateToken, async (req, res) => {
-    const { name, email, phone, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes, staffId, companyId } = req.body;
+    const { name, email, phone, contractAmount, monthlyPremium, riskTolerance, investmentGoal, notes, staffId, companyId, companyIds } = req.body;
 
     console.log('=== BACKEND PUT /customers/:id ===');
     console.log('Customer ID:', req.params.id);
     console.log('Request body:', req.body);
     console.log('companyId from body:', companyId);
+    console.log('companyIds from body:', companyIds);
 
     try {
         const customer = await Customer.findById(req.params.id);
@@ -251,7 +256,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
             risk_tolerance: riskTolerance,
             investment_goal: investmentGoal,
             notes,
-            insurance_company_id: companyId
+            insurance_company_id: companyId  // 後方互換性のため残す
         };
 
         console.log('updateData being prepared:', updateData);
@@ -289,6 +294,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
         console.log('insurance_company_id final:', updateData.insurance_company_id);
 
         await Customer.update(req.params.id, updateData);
+
+        // 複数保険会社が指定されている場合、中間テーブルを更新
+        if (companyIds && Array.isArray(companyIds)) {
+            await Customer.setInsuranceCompanies(req.params.id, companyIds);
+            console.log('Updated insurance companies:', companyIds);
+        }
 
         logger.info(`Customer updated: ${customer.name} by user: ${req.user.userId}${staffId ? `, reassigned to staff: ${staffId}` : ''}`);
 

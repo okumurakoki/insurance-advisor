@@ -27,6 +27,7 @@ import {
   InputLabel,
   Select,
   Chip,
+  Autocomplete,
   Drawer,
   List,
   ListItem,
@@ -2742,7 +2743,8 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
     investmentGoal: '',
     notes: '',
     staffId: '',
-    companyId: ''
+    companyId: '',
+    companyIds: [] as number[]
   });
   const [loading, setLoading] = useState(false);
   const [staffList, setStaffList] = useState<any[]>([]);
@@ -3029,14 +3031,13 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
                   label="担当者"
                   value={formData.staffId}
                   onChange={handleChange('staffId')}
-                  SelectProps={{ native: true }}
                   helperText={isEdit ? "担当者を変更できます" : "顧客を担当する担当者を選択してください"}
                 >
-                  <option value="">選択してください</option>
+                  <MenuItem value="">選択してください</MenuItem>
                   {staffList.map((staff) => (
-                    <option key={staff.id} value={staff.id}>
+                    <MenuItem key={staff.id} value={staff.id}>
                       {staff.name || staff.user_id} (ID: {staff.user_id}) - {staff.customerCount || 0}/{staff.customerLimit || 10}人担当中
-                    </option>
+                    </MenuItem>
                   ))}
                 </TextField>
               </Grid>
