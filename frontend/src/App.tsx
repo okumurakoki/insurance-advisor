@@ -3274,6 +3274,8 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
             investmentGoal: data.investment_goal || data.investmentGoal || '',
             notes: data.notes || '',
             status: data.is_active ? 'active' : 'inactive',
+            insuranceCompanyId: data.insurance_company_id,
+            insuranceCompanyName: data.display_name || data.company_name,
             portfolio: { equity: 0, usEquity: 0, usBond: 0, reit: 0, globalEquity: 0 },
             performanceHistory: []
           });
@@ -3435,13 +3437,22 @@ function CustomerDetail({ user, navigate }: CustomerDetailProps) {
               リスク許容度
             </Typography>
             <Chip
-              label={customer.riskTolerance === 'conservative' ? '保守的' : 
+              label={customer.riskTolerance === 'conservative' ? '保守的' :
                      customer.riskTolerance === 'balanced' ? 'バランス型' : '積極的'}
-              color={customer.riskTolerance === 'conservative' ? 'info' : 
+              color={customer.riskTolerance === 'conservative' ? 'info' :
                      customer.riskTolerance === 'balanced' ? 'primary' : 'warning'}
             />
           </Grid>
-          
+
+          <Grid item xs={12} sm={6}>
+            <Typography variant="subtitle2" color="text.secondary">
+              加入保険会社
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              {customer.insuranceCompanyName || '未設定'}
+            </Typography>
+          </Grid>
+
           <Grid item xs={12}>
             <Typography variant="subtitle2" color="text.secondary">
               投資目標
