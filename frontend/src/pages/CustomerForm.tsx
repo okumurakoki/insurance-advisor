@@ -66,7 +66,6 @@ const CustomerForm: React.FC = () => {
       // 代理店アカウントの場合は担当者リストを取得
       if (userInfo.accountType === 'parent') {
         const staff = await api.getStaff();
-        console.log('Staff list from API:', staff);
         setStaffList(staff);
       }
     } catch (err) {
@@ -78,10 +77,7 @@ const CustomerForm: React.FC = () => {
 
   const fetchInsuranceCompanies = async () => {
     try {
-      console.log('=== Fetching insurance companies ===');
       const companies = await api.getMyInsuranceCompanies();
-      console.log('Insurance companies fetched:', companies);
-      console.log('Number of companies:', companies.length);
       setInsuranceCompanies(companies);
     } catch (err) {
       console.error('Failed to fetch insurance companies:', err);
@@ -120,10 +116,6 @@ const CustomerForm: React.FC = () => {
     setSuccess('');
     setLoading(true);
 
-    console.log('=== SUBMIT STARTED ===');
-    console.log('Form data:', formData);
-    console.log('Company ID in form:', formData.companyId);
-
     try {
       if (isEditMode && id) {
         const updateData: any = { ...formData };
@@ -131,8 +123,6 @@ const CustomerForm: React.FC = () => {
         if (currentUser?.accountType === 'parent' && selectedStaffId) {
           updateData.staffId = selectedStaffId;
         }
-        console.log('Sending UPDATE data:', updateData);
-        console.log('Company ID in updateData:', updateData.companyId);
         await api.updateCustomer(parseInt(id), updateData);
         setSuccess('顧客情報を更新しました');
       } else {
@@ -141,9 +131,6 @@ const CustomerForm: React.FC = () => {
         if (currentUser?.accountType === 'parent' && selectedStaffId) {
           createData.staffId = selectedStaffId;
         }
-        console.log('Creating customer with data:', createData);
-        console.log('Current user:', currentUser);
-        console.log('Selected staff ID:', selectedStaffId);
         const result = await api.createCustomer(createData);
         setSuccess('顧客を登録しました');
         setTimeout(() => {
@@ -171,10 +158,7 @@ const CustomerForm: React.FC = () => {
     );
   }
 
-  console.log('=== RENDERING CustomerForm ===');
-  console.log('insuranceCompanies state:', insuranceCompanies);
-  console.log('insuranceCompanies length:', insuranceCompanies.length);
-  console.log('formData.companyId:', formData.companyId);
+  // Debug logs removed to prevent rendering issues
 
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
@@ -256,20 +240,16 @@ const CustomerForm: React.FC = () => {
                 label="加入保険会社"
                 value={formData.companyId || ''}
                 onChange={(e) => {
-                  console.log('Insurance company changed:', e.target.value);
                   handleChange('companyId', e.target.value ? parseInt(e.target.value) : undefined);
                 }}
                 helperText="顧客が加入している保険会社を選択してください"
               >
                 <MenuItem value="">選択なし</MenuItem>
-                {insuranceCompanies.map((company: any) => {
-                  console.log('Rendering company option:', company);
-                  return (
-                    <MenuItem key={company.id} value={company.id}>
-                      {company.display_name}
-                    </MenuItem>
-                  );
-                })}
+                {insuranceCompanies.map((company: any) => (
+                  <MenuItem key={company.id} value={company.id}>
+                    {company.display_name}
+                  </MenuItem>
+                ))}
               </TextField>
             </Grid>
 
