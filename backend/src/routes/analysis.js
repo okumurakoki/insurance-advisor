@@ -95,21 +95,50 @@ router.get('/market-data/latest', authenticateToken, async (req, res) => {
     }
 });
 
-// Get historical market data (past 24 months)
+// Get historical market data (past 24 months) - Admin only
 router.get('/market-data/history', authenticateToken, async (req, res) => {
     try {
+        // 管理者のみアクセス可能
+        if (req.user.accountType !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admin account required.' });
+        }
+
         const endDate = new Date();
         const startDate = new Date();
         startDate.setFullYear(startDate.getFullYear() - 2); // 2 years ago
 
         const historyData = await MarketData.getByDateRange(startDate, endDate, 'monthly_report');
 
-        const formattedData = historyData.map(data => ({
-            id: data.id,
-            fileName: data.data_content?.fileName || data.source_file,
-            uploadedAt: data.created_at,
-            dataDate: data.data_date,
-            uploadedBy: data.uploaded_by
+        // 各PDFの活用状況を取得
+        const db = require('../utils/database-factory');
+        const formattedData = await Promise.all(historyData.map(async (data) => {
+            // このPDFを使って分析した顧客数を取得
+            const usageQuery = await db.query(`
+                SELECT COUNT(DISTINCT ar.customer_id) as usage_count,
+                       MAX(ar.analysis_date) as last_used
+                FROM analysis_results ar
+                JOIN customers c ON ar.customer_id = c.id
+                WHERE c.insurance_company_id = $1
+                AND ar.analysis_date >= $2
+            `, [data.company_id, data.created_at]);
+
+            const usage = usageQuery[0] || { usage_count: 0, last_used: null };
+
+            return {
+                id: data.id,
+                fileName: data.data_content?.fileName || data.source_file,
+                uploadedAt: data.created_at,
+                dataDate: data.data_date,
+                uploadedBy: data.uploaded_by,
+                companyId: data.company_id,
+                companyCode: data.company_code,
+                companyName: data.company_name,
+                displayName: data.display_name,
+                parsedSuccessfully: data.data_content?.parsedSuccessfully || false,
+                fundCount: Object.keys(data.data_content?.fundPerformance || {}).length,
+                usageCount: parseInt(usage.usage_count, 10),
+                lastUsed: usage.last_used
+            };
         }));
 
         res.json(formattedData);
