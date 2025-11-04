@@ -334,9 +334,21 @@ const CustomerDetail: React.FC = () => {
 
         <Grid item xs={12} sm={6} md={3}>
           <Typography color="textSecondary" variant="body2">加入保険会社</Typography>
-          <Typography variant="body1">
-            {customer.displayName || customer.companyName || '-'}
-          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+            {customer.insuranceCompanies && customer.insuranceCompanies.length > 0 ? (
+              customer.insuranceCompanies.map((company: any) => (
+                <Chip
+                  key={company.id}
+                  label={company.display_name || company.company_name}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                />
+              ))
+            ) : (
+              <Typography variant="body1">-</Typography>
+            )}
+          </Box>
         </Grid>
 
         {customer.investmentGoal && (

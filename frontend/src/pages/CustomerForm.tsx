@@ -11,6 +11,8 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
+  Autocomplete,
+  Chip,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -24,7 +26,7 @@ const CustomerForm: React.FC = () => {
   const { id } = useParams();
   const isEditMode = !!id;
 
-  const [formData, setFormData] = useState<CustomerFormType>({
+  const [formData, setFormData] = useState<any>({
     name: '',
     email: '',
     phone: '',
@@ -35,6 +37,7 @@ const CustomerForm: React.FC = () => {
     investmentGoal: '',
     notes: '',
     companyId: undefined,
+    companyIds: [] as number[],
   });
 
   const [loading, setLoading] = useState(false);
@@ -92,6 +95,11 @@ const CustomerForm: React.FC = () => {
         ? new Date(customer.contractDate).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
 
+      // Extract company IDs from insuranceCompanies array
+      const companyIds = customer.insuranceCompanies && Array.isArray(customer.insuranceCompanies)
+        ? customer.insuranceCompanies.map((ic: any) => ic.insurance_company_id)
+        : (customer.companyId ? [customer.companyId] : []);
+
       setFormData({
         name: customer.name,
         email: customer.email || '',
@@ -103,6 +111,7 @@ const CustomerForm: React.FC = () => {
         investmentGoal: customer.investmentGoal || '',
         notes: customer.notes || '',
         companyId: customer.companyId,
+        companyIds: companyIds,
       });
       // 編集時に現在の担当者IDを設定
       if (customer.userId) {
@@ -239,23 +248,36 @@ const CustomerForm: React.FC = () => {
             </Grid>
 
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                select
-                label="加入保険会社"
-                value={formData.companyId || ''}
-                onChange={(e) => {
-                  handleChange('companyId', e.target.value ? parseInt(e.target.value) : undefined);
+              <Autocomplete
+                multiple
+                options={insuranceCompanies}
+                getOptionLabel={(option) => option.display_name || option.company_name}
+                value={insuranceCompanies.filter(company =>
+                  formData.companyIds.includes(company.id)
+                )}
+                onChange={(event, newValue) => {
+                  setFormData({
+                    ...formData,
+                    companyIds: newValue.map(company => company.id)
+                  });
                 }}
-                helperText="顧客が加入している保険会社を選択してください"
-              >
-                <MenuItem value="">選択なし</MenuItem>
-                {insuranceCompanies.map((company: any) => (
-                  <MenuItem key={company.id} value={company.id}>
-                    {company.display_name}
-                  </MenuItem>
-                ))}
-              </TextField>
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="加入保険会社"
+                    helperText="顧客が加入している保険会社を選択してください（複数選択可）"
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      label={option.display_name || option.company_name}
+                      {...getTagProps({ index })}
+                      key={option.id}
+                    />
+                  ))
+                }
+              />
             </Grid>
 
             <Grid item xs={12} sm={6}>
