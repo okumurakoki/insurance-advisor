@@ -2431,6 +2431,8 @@ function CustomerList({ user, navigate }: CustomerListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [staffFilter, setStaffFilter] = useState('all');
+  const [staffList, setStaffList] = useState<any[]>([]);
 
   useEffect(() => {
     // Fetch customers from API
@@ -2467,11 +2469,23 @@ function CustomerList({ user, navigate }: CustomerListProps) {
               monthlyPremium: customer.monthly_premium || customer.monthlyPremium,
               riskTolerance: customer.risk_tolerance || customer.riskTolerance || 'balanced',
               status: customer.is_active ? 'active' : 'inactive',
-              insuranceCompanies: customer.insuranceCompanies || []
+              insuranceCompanies: customer.insuranceCompanies || [],
+              staffName: customer.staff_name || '',
+              staffId: customer.staff_id || customer.user_id
             };
           });
           setCustomers(formattedCustomers);
           setFilteredCustomers(formattedCustomers);
+
+          // Extract unique staff members for filter
+          const uniqueStaff = Array.from(
+            new Map(
+              formattedCustomers
+                .filter(c => c.staffName)
+                .map(c => [c.staffId, { id: c.staffId, name: c.staffName }])
+            ).values()
+          );
+          setStaffList(uniqueStaff);
         } else {
           console.error('Failed to fetch customers:', response.status);
         }
@@ -2491,7 +2505,7 @@ function CustomerList({ user, navigate }: CustomerListProps) {
 
     // 名前での検索
     if (searchTerm) {
-      filtered = filtered.filter(customer => 
+      filtered = filtered.filter(customer =>
         customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.email.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -2507,8 +2521,13 @@ function CustomerList({ user, navigate }: CustomerListProps) {
       filtered = filtered.filter(customer => customer.status === statusFilter);
     }
 
+    // 担当者でのフィルター
+    if (staffFilter !== 'all') {
+      filtered = filtered.filter(customer => String(customer.staffId) === String(staffFilter));
+    }
+
     setFilteredCustomers(filtered);
-  }, [customers, searchTerm, riskFilter, statusFilter]);
+  }, [customers, searchTerm, riskFilter, statusFilter, staffFilter]);
 
   const getRiskToleranceLabel = (risk: string) => {
     const labels = {
@@ -2556,7 +2575,7 @@ function CustomerList({ user, navigate }: CustomerListProps) {
       {/* 検索・フィルター */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={3}>
             <TextField
               fullWidth
               label="顧客名・メールで検索"
@@ -2565,8 +2584,28 @@ function CustomerList({ user, navigate }: CustomerListProps) {
               placeholder="田中 太郎 または tanaka@example.com"
             />
           </Grid>
-          
-          <Grid item xs={12} md={3}>
+
+          {user.accountType === 'parent' && staffList.length > 0 && (
+            <Grid item xs={12} md={2.25}>
+              <TextField
+                fullWidth
+                select
+                label="担当者"
+                value={staffFilter}
+                onChange={(e) => setStaffFilter(e.target.value)}
+                SelectProps={{ native: true }}
+              >
+                <option value="all">すべて</option>
+                {staffList.map((staff) => (
+                  <option key={staff.id} value={staff.id}>
+                    {staff.name}
+                  </option>
+                ))}
+              </TextField>
+            </Grid>
+          )}
+
+          <Grid item xs={12} md={2.25}>
             <TextField
               fullWidth
               select
@@ -2581,8 +2620,8 @@ function CustomerList({ user, navigate }: CustomerListProps) {
               <option value="aggressive">積極的</option>
             </TextField>
           </Grid>
-          
-          <Grid item xs={12} md={3}>
+
+          <Grid item xs={12} md={2.25}>
             <TextField
               fullWidth
               select
@@ -2596,8 +2635,8 @@ function CustomerList({ user, navigate }: CustomerListProps) {
               <option value="inactive">非アクティブ</option>
             </TextField>
           </Grid>
-          
-          <Grid item xs={12} md={2}>
+
+          <Grid item xs={12} md={2.25}>
             <Typography variant="body2" color="text.secondary">
               {filteredCustomers.length}件 / {customers.length}件
             </Typography>
@@ -2624,37 +2663,33 @@ function CustomerList({ user, navigate }: CustomerListProps) {
               >
                 <CardContent>
                   <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={3}>
+                    <Grid item xs={12} sm={2.5}>
                       <Typography variant="h6" component="div">
                         {customer.name}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         ID: {customer.id}
                       </Typography>
+                      {customer.staffName && (
+                        <Typography variant="body2" color="primary" sx={{ mt: 0.5 }}>
+                          担当: {customer.staffName}
+                        </Typography>
+                      )}
                     </Grid>
-                    
-                    <Grid item xs={12} sm={3}>
+
+                    <Grid item xs={12} sm={2.5}>
                       <Typography variant="body2" color="text.secondary">
                         連絡先
                       </Typography>
-                      <Typography variant="body2">
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
                         {customer.email}
                       </Typography>
                       <Typography variant="body2">
                         {customer.phone}
                       </Typography>
                     </Grid>
-                    
-                    <Grid item xs={12} sm={2}>
-                      <Typography variant="body2" color="text.secondary">
-                        契約日
-                      </Typography>
-                      <Typography variant="body2">
-                        {new Date(customer.contractDate).toLocaleDateString('ja-JP')}
-                      </Typography>
-                    </Grid>
 
-                    <Grid item xs={12} sm={2}>
+                    <Grid item xs={12} sm={2.5}>
                       <Typography variant="body2" color="text.secondary">
                         加入保険会社
                       </Typography>
@@ -2675,7 +2710,16 @@ function CustomerList({ user, navigate }: CustomerListProps) {
                       </Box>
                     </Grid>
 
-                    <Grid item xs={12} sm={1}>
+                    <Grid item xs={12} sm={1.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        契約日
+                      </Typography>
+                      <Typography variant="body2">
+                        {new Date(customer.contractDate).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                      </Typography>
+                    </Grid>
+
+                    <Grid item xs={12} sm={1.5}>
                       <Typography variant="body2" color="text.secondary">
                         月額保険料
                       </Typography>
@@ -2684,8 +2728,8 @@ function CustomerList({ user, navigate }: CustomerListProps) {
                       </Typography>
                     </Grid>
 
-                    <Grid item xs={12} sm={1}>
-                      <Box display="flex" flexDirection="column" gap={1}>
+                    <Grid item xs={12} sm={1.5}>
+                      <Box display="flex" flexDirection="column" gap={1} alignItems="stretch">
                         <Chip
                           label={getRiskToleranceLabel(customer.riskTolerance)}
                           color={getRiskToleranceColor(customer.riskTolerance)}

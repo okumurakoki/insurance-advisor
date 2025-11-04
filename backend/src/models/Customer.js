@@ -66,9 +66,12 @@ class Customer {
                 c.insurance_company_id,
                 ic.company_code,
                 ic.company_name,
-                ic.display_name
+                ic.display_name,
+                u.user_id as staff_user_id,
+                u.name as staff_name
             FROM customers c
             LEFT JOIN insurance_companies ic ON c.insurance_company_id = ic.id
+            LEFT JOIN users u ON c.user_id = u.id
             WHERE c.user_id = $1 AND c.is_active = TRUE
             ORDER BY c.created_at DESC
         `;
@@ -82,6 +85,7 @@ class Customer {
                 c.*,
                 u.user_id as staff_user_id,
                 u.id as staff_id,
+                u.name as staff_name,
                 c.insurance_company_id,
                 ic.company_code,
                 ic.company_name,
