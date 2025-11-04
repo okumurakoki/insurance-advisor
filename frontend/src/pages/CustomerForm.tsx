@@ -318,7 +318,7 @@ const CustomerForm: React.FC = () => {
                   <MenuItem value="">選択してください</MenuItem>
                   {staffList.map((staff) => (
                     <MenuItem key={staff.id} value={staff.id}>
-                      {staff.name || staff.user_id} ({staff.customerCount}/{staff.customerLimit}人担当中)
+                      {staff.name || staff.user_id} (ID: {staff.user_id}) - {staff.customerCount}/{staff.customerLimit}人担当中
                     </MenuItem>
                   ))}
                 </TextField>

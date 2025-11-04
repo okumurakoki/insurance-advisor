@@ -1,4 +1,4 @@
-// Build: 2024-11-04 - Fixed date format conversions and insurance API path
+// Build: 2024-11-04-v2 - Fixed staff display showing proper IDs and names
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -3035,7 +3035,7 @@ function CustomerForm({ user, navigate, isEdit = false }: CustomerFormProps) {
                   <option value="">選択してください</option>
                   {staffList.map((staff) => (
                     <option key={staff.id} value={staff.id}>
-                      {staff.userId} ({staff.customerCount || 0}人担当中)
+                      {staff.name || staff.user_id} (ID: {staff.user_id}) - {staff.customerCount || 0}/{staff.customerLimit || 10}人担当中
                     </option>
                   ))}
                 </TextField>
