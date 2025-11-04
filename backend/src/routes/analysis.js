@@ -629,7 +629,7 @@ router.get('/performance/:customerId', authenticateToken, async (req, res) => {
     }
 });
 
-// Get fund performance data
+// Get fund performance data from special_account_performance
 router.get('/fund-performance', authenticateToken, async (req, res) => {
     try {
         // Get company_id from query parameter (selected company from frontend)
@@ -643,49 +643,63 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
             });
         }
 
-        // Get latest market data for the selected company
-        const latestMarketData = await MarketData.getLatest('monthly_report', companyId);
-
-        // Extract fund performance from latest market data if available
-        let actualFundPerformance = {};
-        let allPerformanceData = null;
-        let bondYields = null;
-        let hasActualData = false;
-        let companyCode = null;
-
-        logger.info('=== Fund Performance API Debug ===');
+        logger.info('=== Fund Performance API (special_account_performance) ===');
         logger.info('Requested company_id:', companyId);
-        logger.info('Latest market data ID:', latestMarketData?.id);
-        logger.info('Latest market data company_code:', latestMarketData?.company_code);
-        logger.info('Latest market data source_file:', latestMarketData?.source_file);
-        logger.info('Latest market data data_date:', latestMarketData?.data_date);
-        logger.info('Data content type:', typeof latestMarketData?.data_content);
-        logger.info('Data content keys:', latestMarketData?.data_content ? Object.keys(latestMarketData.data_content) : 'null');
 
-        if (latestMarketData && latestMarketData.data_content) {
-            actualFundPerformance = latestMarketData.data_content.fundPerformance || {};
-            allPerformanceData = latestMarketData.data_content.allPerformanceData || null;
-            bondYields = latestMarketData.data_content.bondYields || null;
-            companyCode = latestMarketData.company_code;
-            hasActualData = Object.keys(actualFundPerformance).length > 0;
+        // Get company code for the requested company_id
+        const companyQuery = await db.query(
+            'SELECT company_code FROM insurance_companies WHERE id = $1',
+            [companyId]
+        );
 
-            logger.info('actualFundPerformance keys:', Object.keys(actualFundPerformance));
-            logger.info('actualFundPerformance:', actualFundPerformance);
-            logger.info('bondYields:', bondYields);
-            logger.info('hasActualData:', hasActualData);
-
-            if (hasActualData) {
-                logger.info('Using actual fund performance from PDF:', actualFundPerformance);
-            } else {
-                logger.warn('fundPerformance is empty object');
-            }
-        } else {
-            logger.warn('No latestMarketData or data_content for company_id:', companyId);
+        if (companyQuery.length === 0) {
+            logger.warn('Company not found for company_id:', companyId);
+            return res.status(404).json({
+                error: '保険会社が見つかりません',
+                code: 'COMPANY_NOT_FOUND'
+            });
         }
 
-        // PDFデータがない場合は空配列を返す
-        if (!hasActualData) {
-            logger.warn('No fund performance data found in market data - PDF not uploaded or parsing failed');
+        const companyCode = companyQuery[0].company_code;
+        logger.info('Company code:', companyCode);
+
+        // Get latest performance data from special_account_performance
+        const performanceData = await db.query(`
+            SELECT
+                sap.id,
+                sap.special_account_id,
+                sap.performance_date,
+                sap.unit_price,
+                sap.return_1m,
+                sap.return_3m,
+                sap.return_6m,
+                sap.return_1y,
+                sap.return_3y,
+                sap.return_since_inception,
+                sap.total_assets,
+                sa.account_code,
+                sa.account_name,
+                sa.account_type,
+                sa.benchmark,
+                ic.company_code,
+                ic.company_name,
+                ic.display_name
+            FROM special_account_performance sap
+            JOIN special_accounts sa ON sap.special_account_id = sa.id
+            JOIN insurance_companies ic ON sa.company_id = ic.id
+            WHERE ic.id = $1
+            AND sap.performance_date = (
+                SELECT MAX(performance_date)
+                FROM special_account_performance
+                WHERE special_account_id = sap.special_account_id
+            )
+            ORDER BY sa.account_type, sa.id
+        `, [companyId]);
+
+        logger.info('Found performance records:', performanceData.length);
+
+        if (performanceData.length === 0) {
+            logger.warn('No performance data found for company_id:', companyId);
             return res.json({
                 funds: [],
                 bondYields: null,
@@ -693,14 +707,12 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
             });
         }
 
-        // Get fund types based on company code - use actual fund names from parsed PDF
-        const fundTypes = Object.keys(actualFundPerformance);
-
-        const performance = fundTypes
-            .map(fundType => {
-                // If fund type not in extracted data, use 0
-                const performanceValue = actualFundPerformance[fundType] !== undefined
-                    ? actualFundPerformance[fundType]
+        // Convert performance data to the format expected by the frontend
+        const performance = performanceData
+            .map(record => {
+                // Use return_1y as the performance value (convert from decimal to percentage)
+                const performanceValue = record.return_1y !== null
+                    ? parseFloat(record.return_1y)
                     : 0;
 
                 // Determine recommendation based on performance
@@ -713,42 +725,28 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
                     recommendation = 'neutral';
                 }
 
-                // Get additional performance data for this fund
-                const additionalData = {};
-                if (allPerformanceData) {
-                    // 年率換算利回り (直近1年)
-                    if (allPerformanceData.annualizedReturn && allPerformanceData.annualizedReturn['直近1年']) {
-                        additionalData.annualizedReturn = allPerformanceData.annualizedReturn['直近1年'][fundType];
-                    }
-                    // 月次利回り (直近1年)
-                    if (allPerformanceData.monthlyReturn && allPerformanceData.monthlyReturn['直近1年']) {
-                        additionalData.monthlyReturn = allPerformanceData.monthlyReturn['直近1年'][fundType];
-                    }
-                    // 5年年率換算
-                    if (allPerformanceData.annualizedReturn && allPerformanceData.annualizedReturn['５年']) {
-                        additionalData.annualizedReturn5Y = allPerformanceData.annualizedReturn['５年'][fundType];
-                    }
-                    // 累積騰落率
-                    if (allPerformanceData.totalReturn) {
-                        additionalData.totalReturn1Y = allPerformanceData.totalReturn['直近1年']?.[fundType];
-                        additionalData.totalReturn5Y = allPerformanceData.totalReturn['５年']?.[fundType];
-                        additionalData.totalReturn10Y = allPerformanceData.totalReturn['10年']?.[fundType];
-                    }
-                }
-
                 return {
-                    fundType,
+                    fundType: record.account_name,
                     performance: parseFloat(performanceValue.toFixed(1)),
                     recommendation,
-                    dataSource: 'actual',
-                    ...additionalData
+                    dataSource: 'special_account_performance',
+                    accountCode: record.account_code,
+                    accountType: record.account_type,
+                    unitPrice: record.unit_price,
+                    return1m: record.return_1m,
+                    return3m: record.return_3m,
+                    return6m: record.return_6m,
+                    return1y: record.return_1y,
+                    performanceDate: record.performance_date
                 };
             })
             .filter(Boolean); // Remove null entries
 
+        logger.info(`Returning ${performance.length} fund performance records`);
+
         res.json({
             funds: performance,
-            bondYields: bondYields
+            bondYields: null
         });
     } catch (error) {
         logger.error('Failed to fetch fund performance:', error);
