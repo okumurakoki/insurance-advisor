@@ -6,6 +6,11 @@
       "memory": 1024
     }
   },
+  "api": {
+    "bodyParser": {
+      "sizeLimit": "50mb"
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",

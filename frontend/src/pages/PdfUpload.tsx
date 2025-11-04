@@ -92,6 +92,12 @@ const PdfUpload: React.FC = () => {
         setError('PDFファイルを選択してください');
         return;
       }
+      // Check file size (Vercel Pro plan supports up to 50MB)
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        setError(`ファイルサイズが大きすぎます。50MB以下のPDFファイルを選択してください。(現在: ${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+        return;
+      }
       setSelectedFile(file);
       setError(null);
       setUploadResult(null);
