@@ -185,80 +185,120 @@ router.post('/upload-market-data',
 
             logger.info(`Uploading PDF for company: ${companyCode} (ID: ${companyId})`);
 
-            // Parse PDF to extract fund performance data
-            let fundPerformance = {};
-            let allPerformanceData = {};
-            let bondYields = {};
-            let extractedText = '';
-            let reportDate = null;
-            let parseError = null;
+            // Parse PDF with auto-detection using new parser
+            const { parsePDF, validateParsedData } = require('../utils/pdfParser');
+            const parsedData = await parsePDF(pdfBuffer);
+
+            // Validate parsed data
+            validateParsedData(parsedData);
+
+            logger.info(`Detected company: ${parsedData.companyCode}`);
+            logger.info(`Parsed data date: ${parsedData.dataDate}`);
+            logger.info(`Parsed ${parsedData.accounts.length} accounts`);
+
+            // Start transaction
+            await db.query('BEGIN');
+
+            let newAccountsCount = 0;
+            let newPerformanceCount = 0;
+            let updatedPerformanceCount = 0;
 
             try {
-                const parser = require('../utils/pdf-parser');
-                const extractedData = await parser.extractAllData(pdfBuffer, companyCode);
+                for (const account of parsedData.accounts) {
+                    // Check if special account exists
+                    let specialAccount = await db.query(
+                        'SELECT id FROM special_accounts WHERE company_id = $1 AND account_code = $2',
+                        [parseInt(companyId), account.accountCode]
+                    );
 
-                fundPerformance = extractedData.fundPerformance || {};
-                allPerformanceData = extractedData.allPerformanceData || {};
-                bondYields = extractedData.bondYields || {};
-                extractedText = extractedData.text || '';
-                reportDate = extractedData.reportDate || null;
+                    let accountId;
 
-                logger.info('PDF parsing successful:', {
-                    fundPerformance,
-                    allPerformanceData,
-                    bondYields,
-                    reportDate,
-                    textLength: extractedText.length
+                    if (specialAccount.length === 0) {
+                        // Insert new special account
+                        const insertResult = await db.query(
+                            `INSERT INTO special_accounts (
+                                company_id, account_code, account_name, account_type, is_active
+                            ) VALUES ($1, $2, $3, $4, true) RETURNING id`,
+                            [parseInt(companyId), account.accountCode, account.accountName, account.accountType]
+                        );
+                        accountId = insertResult[0].id;
+                        newAccountsCount++;
+                    } else {
+                        accountId = specialAccount[0].id;
+                    }
+
+                    // Check if performance data exists for this date
+                    const existingPerf = await db.query(
+                        `SELECT id FROM special_account_performance
+                         WHERE special_account_id = $1 AND performance_date = $2`,
+                        [accountId, parsedData.dataDate]
+                    );
+
+                    if (existingPerf.length === 0) {
+                        // Insert new performance data
+                        await db.query(
+                            `INSERT INTO special_account_performance (
+                                special_account_id, performance_date, unit_price,
+                                return_1m, return_3m, return_6m, return_1y
+                            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                            [
+                                accountId,
+                                parsedData.dataDate,
+                                account.unitPrice,
+                                account.return1m || null,
+                                account.return3m || null,
+                                account.return6m || null,
+                                account.return1y || null
+                            ]
+                        );
+                        newPerformanceCount++;
+                    } else {
+                        // Update existing performance data
+                        await db.query(
+                            `UPDATE special_account_performance SET
+                                unit_price = $1,
+                                return_1m = $2,
+                                return_3m = $3,
+                                return_6m = $4,
+                                return_1y = $5,
+                                updated_at = NOW()
+                             WHERE id = $6`,
+                            [
+                                account.unitPrice,
+                                account.return1m || null,
+                                account.return3m || null,
+                                account.return6m || null,
+                                account.return1y || null,
+                                existingPerf[0].id
+                            ]
+                        );
+                        updatedPerformanceCount++;
+                    }
+                }
+
+                // Commit transaction
+                await db.query('COMMIT');
+
+                logger.info(`Market data uploaded by user: ${req.user.userId}, file: ${req.file.originalname}`);
+
+                res.json({
+                    success: true,
+                    message: 'PDF processed successfully',
+                    data: {
+                        dataDate: parsedData.dataDate,
+                        companyCode: parsedData.companyCode,
+                        totalAccounts: parsedData.accounts.length,
+                        newAccountsCreated: newAccountsCount,
+                        newPerformanceRecords: newPerformanceCount,
+                        updatedPerformanceRecords: updatedPerformanceCount
+                    }
                 });
-            } catch (err) {
-                parseError = err;
-                logger.error('PDF parsing failed:', err);
-                logger.error('Parse error details:', {
-                    message: err.message,
-                    stack: err.stack,
-                    name: err.name
-                });
-                console.error('PDF PARSE ERROR:', err);
-                // Continue without parsed data - save PDF anyway
+
+            } catch (error) {
+                // Rollback on error
+                await db.query('ROLLBACK');
+                throw error;
             }
-
-            const result = await MarketData.create({
-                data_date: reportDate || new Date(),
-                data_type: 'monthly_report',
-                source_file: req.file.originalname,
-                data_content: {
-                    fileName: req.file.originalname,
-                    fileSize: req.file.size,
-                    uploadedAt: new Date().toISOString(),
-                    fundPerformance: fundPerformance,
-                    allPerformanceData: allPerformanceData,
-                    bondYields: bondYields,
-                    reportDate: reportDate,
-                    extractedText: extractedText.substring(0, 5000),
-                    parsedSuccessfully: Object.keys(fundPerformance).length > 0
-                },
-                pdf_content: pdfBuffer,
-                uploaded_by: req.user.id,
-                company_id: parseInt(companyId)
-            });
-
-            logger.info(`Market data uploaded by user: ${req.user.userId}, file: ${req.file.originalname}`);
-
-            res.json({
-                message: 'Market data uploaded and parsed successfully',
-                id: result,
-                fileName: req.file.originalname,
-                uploadedAt: new Date().toISOString(),
-                fundPerformance: fundPerformance,
-                allPerformanceData: allPerformanceData,
-                bondYields: bondYields,
-                reportDate: reportDate,
-                parsedSuccessfully: Object.keys(fundPerformance).length > 0,
-                parseError: parseError ? {
-                    message: parseError.message,
-                    name: parseError.name
-                } : null
-            });
         } catch (error) {
             logger.error('Market data upload error:', error);
             res.status(500).json({ error: 'Failed to upload market data' });
