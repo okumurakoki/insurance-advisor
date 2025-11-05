@@ -713,13 +713,9 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
                 sap.return_3m,
                 sap.return_6m,
                 sap.return_1y,
-                sap.return_3y,
-                sap.return_since_inception,
-                sap.total_assets,
                 sa.account_code,
                 sa.account_name,
                 sa.account_type,
-                sa.benchmark,
                 ic.company_code,
                 ic.company_name,
                 ic.display_name
