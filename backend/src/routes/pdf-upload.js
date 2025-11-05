@@ -278,8 +278,7 @@ router.post('/auto', authenticateToken, upload.single('pdf'), async (req, res) =
                             return_1m = $2,
                             return_3m = $3,
                             return_6m = $4,
-                            return_1y = $5,
-                            updated_at = NOW()
+                            return_1y = $5
                          WHERE id = $6`,
                         [
                             account.unitPrice,
@@ -440,8 +439,7 @@ router.post('/blob', authenticateToken, async (req, res) => {
                             return_1m = $2,
                             return_3m = $3,
                             return_6m = $4,
-                            return_1y = $5,
-                            updated_at = NOW()
+                            return_1y = $5
                          WHERE id = $6`,
                         [
                             account.unitPrice,
