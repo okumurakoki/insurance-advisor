@@ -92,10 +92,10 @@ const PdfUpload: React.FC = () => {
         setError('PDFファイルを選択してください');
         return;
       }
-      // Check file size (Vercel Blob can handle up to 500MB, but let's set a reasonable limit)
-      const maxSize = 50 * 1024 * 1024; // 50MB
+      // Check file size (Vercel has a 4.5MB request body limit)
+      const maxSize = 4 * 1024 * 1024; // 4MB to be safe
       if (file.size > maxSize) {
-        setError(`ファイルサイズが大きすぎます。50MB以下のPDFファイルを選択してください。(現在: ${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+        setError(`ファイルサイズが大きすぎます。4MB以下のPDFファイルを選択してください。(現在: ${(file.size / 1024 / 1024).toFixed(2)}MB)\n\n大きいファイルは https://www.ilovepdf.com/ja/compress_pdf などで圧縮してからアップロードしてください。`);
         return;
       }
       setSelectedFile(file);
@@ -115,29 +115,16 @@ const PdfUpload: React.FC = () => {
     setUploadResult(null);
 
     try {
-      // Convert file to base64
-      const fileReader = new FileReader();
-
-      const fileData = await new Promise<string>((resolve, reject) => {
-        fileReader.onload = () => {
-          const base64 = (fileReader.result as string).split(',')[1];
-          resolve(base64);
-        };
-        fileReader.onerror = reject;
-        fileReader.readAsDataURL(selectedFile);
-      });
+      const formData = new FormData();
+      formData.append('pdf', selectedFile);
 
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/pdf-upload/blob`, {
+      const response = await fetch(`${API_BASE_URL}/api/pdf-upload/auto`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          filename: selectedFile.name,
-          fileData: fileData,
-        }),
+        body: formData,
       });
 
       const result = await response.json();
