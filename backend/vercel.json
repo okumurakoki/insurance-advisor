@@ -1,10 +1,13 @@
 {
   "version": 2,
   "functions": {
-    "api/index.js": {
+    "api/**/*": {
       "maxDuration": 30,
       "memory": 1024
     }
+  },
+  "limits": {
+    "maxRequestBodySizeBytes": 10485760
   },
   "rewrites": [
     {
