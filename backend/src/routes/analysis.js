@@ -789,10 +789,10 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
         // Convert performance data to the format expected by the frontend
         const performance = enrichedData
             .map(record => {
-                // Use return_1y as the performance value (convert from decimal to percentage)
+                // Use return_1y as the performance value, fallback to return_1m if not available
                 const performanceValue = record.return_1y !== null
                     ? parseFloat(record.return_1y)
-                    : 0;
+                    : (record.return_1m !== null ? parseFloat(record.return_1m) : 0);
 
                 // Determine recommendation based on performance
                 let recommendation = 'neutral';
