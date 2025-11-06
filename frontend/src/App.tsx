@@ -66,10 +66,27 @@ import InsuranceCompanies from './pages/InsuranceCompanies.tsx';
 import AdminAgencyManagement from './pages/AdminAgencyManagement.tsx';
 import PdfUpload from './pages/PdfUpload.tsx';
 import PublicCustomerRegister from './pages/PublicCustomerRegister.tsx';
-import { getUserTheme, defaultTheme, InsuranceCompanyTheme } from './config/insuranceCompanyThemes.ts';
+import { getUserTheme, defaultTheme, InsuranceCompanyTheme, getInsuranceCompanyTheme } from './config/insuranceCompanyThemes.ts';
 
 // API Configuration
 const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com').replace(/\/+$/, '');
+
+// Helper function to get company display name based on user type
+const getCompanyDisplayName = (company: any, userAccountType: string): string => {
+  // Admin and staff see full company names
+  if (userAccountType === 'admin' || userAccountType === 'staff') {
+    return company.display_name || company.company_name;
+  }
+
+  // Customers (parent, child, grandchild) see anonymized names
+  const theme = getInsuranceCompanyTheme(company.company_code);
+  if (theme) {
+    return theme.anonymizedName;
+  }
+
+  // Fallback to display_name if no theme found
+  return company.display_name || company.company_name;
+};
 
 
 // 動的テーマ生成関数
@@ -682,12 +699,12 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                   {user.accountType === 'admin'
                     ? allInsuranceCompanies.map((company) => (
                         <MenuItem key={company.id} value={company.id}>
-                          {company.display_name}
+                          {getCompanyDisplayName(company, user.accountType)}
                         </MenuItem>
                       ))
                     : myInsuranceCompanies.map((company) => (
                         <MenuItem key={company.id} value={company.id}>
-                          {company.display_name}
+                          {getCompanyDisplayName(company, user.accountType)}
                         </MenuItem>
                       ))
                   }
@@ -783,7 +800,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     >
                       <BusinessIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
                       <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                        {company.display_name}
+                        {getCompanyDisplayName(company, user.accountType)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                         契約開始: {new Date(company.contract_start_date).toLocaleDateString('ja-JP')}
@@ -1288,7 +1305,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom>
-                    {user.accountType === 'grandchild' ? '現在の運用利回り' : 'お客様の平均利回り'}
+                    {user.accountType === 'grandchild' ? '現在の運用利回り' : 'お客様の想定利回り'}
                   </Typography>
                   <Typography variant="h5" color={statistics && statistics.averageReturn >= 0 ? "success.main" : "error.main"} sx={{ fontWeight: 'bold' }}>
                     {statistics
@@ -1297,6 +1314,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     年率収益率（推定）
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block', mt: 0.5 }}>
+                    ※保険と積み立て商品で実数字と乖離が出る場合があります
                   </Typography>
                 </Box>
                 <Add color="success" sx={{ fontSize: 40 }} />
