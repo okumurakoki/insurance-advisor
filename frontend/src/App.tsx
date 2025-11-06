@@ -964,7 +964,13 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                           const mixed = aggressive * 0.6 + conservative * 0.4;
                           const recommended = Math.round(mixed / 10) * 10;
 
-                          return { ...fund, recommended };
+                          return {
+                            ...fund,
+                            recommended,
+                            fundName: fund.fundName,
+                            performance: fund.performance,
+                            previousPerformance: fund.previousPerformance
+                          };
                         });
                       }
 
@@ -1012,10 +1018,13 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                         }
                       }
 
-                      const current = 17;
+                      return calculations.map(({ fundName, performance, previousPerformance, recommended }) => {
+                        // Use previousPerformance as "current", fallback to performance if not available
+                        const current = previousPerformance !== null && previousPerformance !== undefined
+                          ? previousPerformance
+                          : performance;
+                        const change = performance - current;
 
-                      return calculations.map(({ fundName, performance, recommended }) => {
-                        const change = recommended - current;
                         return (
                           <TableRow key={fundName}>
                             <TableCell sx={{ fontWeight: 600 }}>{fundName}</TableCell>
@@ -1027,10 +1036,12 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                                   color: performance > 0 ? '#10b981' : performance < 0 ? '#ef4444' : '#6b7280'
                                 }}
                               >
-                                {performance > 0 ? '+' : ''}{performance.toFixed(1)}%
+                                {performance > 0 ? '+' : ''}{performance.toFixed(2)}%
                               </Typography>
                             </TableCell>
-                            <TableCell align="right">{current}%</TableCell>
+                            <TableCell align="right">
+                              {current !== null ? `${current.toFixed(2)}%` : '-'}
+                            </TableCell>
                             <TableCell
                               align="right"
                               sx={{
@@ -1049,9 +1060,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                               {recommended >= 10 && recommended < 20 && ' ✓'}
                             </TableCell>
                             <TableCell align="right">
-                              {change !== 0 && (
+                              {change !== 0 && Math.abs(change) >= 0.01 && (
                                 <Chip
-                                  label={`${change > 0 ? '+' : ''}${change}%`}
+                                  label={`${change > 0 ? '+' : ''}${change.toFixed(2)}%`}
                                   size="small"
                                   sx={{
                                     height: 20,
