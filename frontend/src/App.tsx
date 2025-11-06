@@ -425,6 +425,8 @@ interface DashboardProps {
 
 function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [fundPerformance, setFundPerformance] = useState<any[]>([]);
   const [bondYields, setBondYields] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
@@ -484,7 +486,47 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
     fetchCompanies();
   }, []);
 
-  // Fetch fund performance and other data when selectedCompanyId changes
+  // Fetch available dates when company changes
+  useEffect(() => {
+    const fetchAvailableDates = async () => {
+      if (!selectedCompanyId) {
+        setAvailableDates([]);
+        setSelectedDate(null);
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/analysis/available-dates?company_id=${selectedCompanyId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Available dates:', data.dates);
+          setAvailableDates(data.dates || []);
+          // Set the first (latest) date as default
+          if (data.dates && data.dates.length > 0) {
+            setSelectedDate(data.dates[0]);
+          }
+        } else {
+          console.error('Failed to fetch available dates:', response.status);
+          setAvailableDates([]);
+        }
+      } catch (error) {
+        console.error('Error fetching available dates:', error);
+        setAvailableDates([]);
+      }
+    };
+
+    fetchAvailableDates();
+  }, [selectedCompanyId]);
+
+  // Fetch fund performance and other data when selectedCompanyId or selectedDate changes
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -500,10 +542,14 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           return;
         }
 
-        console.log('Fetching data for company ID:', selectedCompanyId);
+        console.log('Fetching data for company ID:', selectedCompanyId, 'date:', selectedDate);
 
-        // Fetch fund performance with company_id
-        const perfResponse = await fetch(`${API_BASE_URL}/api/analysis/fund-performance?company_id=${selectedCompanyId}`, {
+        // Fetch fund performance with company_id and optional performance_date
+        const perfURL = selectedDate
+          ? `${API_BASE_URL}/api/analysis/fund-performance?company_id=${selectedCompanyId}&performance_date=${selectedDate}`
+          : `${API_BASE_URL}/api/analysis/fund-performance?company_id=${selectedCompanyId}`;
+
+        const perfResponse = await fetch(perfURL, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -585,7 +631,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
     };
 
     fetchData();
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, selectedDate]);
 
   // Update optimization results when fund performance changes
   useEffect(() => {
@@ -651,6 +697,32 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                   ※ 保険会社を選択すると、その会社のファンドパフォーマンスデータが表示されます
                 </Typography>
+              )}
+
+              {/* Date Selection */}
+              {selectedCompanyId && availableDates.length > 0 && (
+                <FormControl fullWidth sx={{ mt: 2 }}>
+                  <InputLabel id="date-select-label">データ月を選択</InputLabel>
+                  <Select
+                    labelId="date-select-label"
+                    id="date-select"
+                    value={selectedDate || ''}
+                    label="データ月を選択"
+                    onChange={(e) => setSelectedDate(e.target.value as string)}
+                  >
+                    {availableDates.map((date) => {
+                      // Format date as "YYYY年MM月"
+                      const dateObj = new Date(date);
+                      const year = dateObj.getFullYear();
+                      const month = dateObj.getMonth() + 1;
+                      return (
+                        <MenuItem key={date} value={date}>
+                          {year}年{month}月
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                </FormControl>
               )}
             </Paper>
           </Grid>

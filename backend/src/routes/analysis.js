@@ -674,9 +674,11 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
     try {
         // Get company_id from query parameter (selected company from frontend)
         const companyId = req.query.company_id ? parseInt(req.query.company_id) : null;
+        const performanceDate = req.query.performance_date || null;
 
         logger.info('=== Fund Performance API (special_account_performance) ===');
         logger.info('Requested company_id:', companyId || 'all companies');
+        logger.info('Requested performance_date:', performanceDate || 'latest');
 
         // Get latest performance data from special_account_performance
         let performanceData;
@@ -698,33 +700,61 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
             const companyCode = companyQuery[0].company_code;
             logger.info('Company code:', companyCode);
 
-            performanceData = await db.query(`
-                SELECT
-                    sap.id,
-                    sap.special_account_id,
-                    sap.performance_date,
-                    sap.unit_price,
-                    sap.return_1m,
-                    sap.return_3m,
-                    sap.return_6m,
-                    sap.return_1y,
-                    sa.account_code,
-                    sa.account_name,
-                    sa.account_type,
-                    ic.company_code,
-                    ic.company_name,
-                    ic.display_name
-                FROM special_account_performance sap
-                JOIN special_accounts sa ON sap.special_account_id = sa.id
-                JOIN insurance_companies ic ON sa.company_id = ic.id
-                WHERE ic.id = $1
-                AND sap.performance_date = (
-                    SELECT MAX(performance_date)
-                    FROM special_account_performance
-                    WHERE special_account_id = sap.special_account_id
-                )
-                ORDER BY sa.account_type, sa.id
-            `, [companyId]);
+            if (performanceDate) {
+                // Get data for specific date
+                performanceData = await db.query(`
+                    SELECT
+                        sap.id,
+                        sap.special_account_id,
+                        sap.performance_date,
+                        sap.unit_price,
+                        sap.return_1m,
+                        sap.return_3m,
+                        sap.return_6m,
+                        sap.return_1y,
+                        sa.account_code,
+                        sa.account_name,
+                        sa.account_type,
+                        ic.company_code,
+                        ic.company_name,
+                        ic.display_name
+                    FROM special_account_performance sap
+                    JOIN special_accounts sa ON sap.special_account_id = sa.id
+                    JOIN insurance_companies ic ON sa.company_id = ic.id
+                    WHERE ic.id = $1
+                    AND sap.performance_date = $2
+                    ORDER BY sa.account_type, sa.id
+                `, [companyId, performanceDate]);
+            } else {
+                // Get latest data
+                performanceData = await db.query(`
+                    SELECT
+                        sap.id,
+                        sap.special_account_id,
+                        sap.performance_date,
+                        sap.unit_price,
+                        sap.return_1m,
+                        sap.return_3m,
+                        sap.return_6m,
+                        sap.return_1y,
+                        sa.account_code,
+                        sa.account_name,
+                        sa.account_type,
+                        ic.company_code,
+                        ic.company_name,
+                        ic.display_name
+                    FROM special_account_performance sap
+                    JOIN special_accounts sa ON sap.special_account_id = sa.id
+                    JOIN insurance_companies ic ON sa.company_id = ic.id
+                    WHERE ic.id = $1
+                    AND sap.performance_date = (
+                        SELECT MAX(performance_date)
+                        FROM special_account_performance
+                        WHERE special_account_id = sap.special_account_id
+                    )
+                    ORDER BY sa.account_type, sa.id
+                `, [companyId]);
+            }
         } else {
             // Get all companies' latest performance data
             performanceData = await db.query(`
@@ -1315,6 +1345,49 @@ router.post('/save-allocations', authenticateToken, async (req, res) => {
         logger.error('Failed to save allocations:', error);
         res.status(500).json({
             error: '配分推奨データの保存に失敗しました',
+            message: error.message
+        });
+    }
+});
+
+// Get available performance dates for a company
+router.get('/available-dates', authenticateToken, async (req, res) => {
+    try {
+        const companyId = req.query.company_id ? parseInt(req.query.company_id) : null;
+
+        if (!companyId) {
+            return res.status(400).json({
+                error: 'company_idパラメータが必要です'
+            });
+        }
+
+        logger.info('Fetching available dates for company:', companyId);
+
+        // Get distinct performance dates for this company
+        const dates = await db.query(`
+            SELECT DISTINCT sap.performance_date
+            FROM special_account_performance sap
+            JOIN special_accounts sa ON sap.special_account_id = sa.id
+            WHERE sa.company_id = $1
+            ORDER BY sap.performance_date DESC
+        `, [companyId]);
+
+        // Format dates as YYYY-MM-DD strings
+        const availableDates = dates.map(row => {
+            const date = new Date(row.performance_date);
+            return date.toISOString().split('T')[0];
+        });
+
+        logger.info(`Found ${availableDates.length} available dates for company ${companyId}`);
+
+        res.json({
+            success: true,
+            dates: availableDates
+        });
+    } catch (error) {
+        logger.error('Failed to fetch available dates:', error);
+        res.status(500).json({
+            error: '利用可能な日付の取得に失敗しました',
             message: error.message
         });
     }
