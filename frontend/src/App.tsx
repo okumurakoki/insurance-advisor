@@ -516,11 +516,18 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           console.log('data.funds:', data.funds);
           console.log('data.funds.length:', data.funds?.length);
           console.log('Bond yields:', data.bondYields);
+          console.log('Previous allocations:', data.previousAllocations);
 
           const fundsData = data.funds || data;
           console.log('Setting fundPerformance to:', fundsData);
           setFundPerformance(fundsData);
           setBondYields(data.bondYields || null);
+
+          // Store previous allocations if available
+          if (data.previousAllocations) {
+            (window as any).__previousAllocations = data.previousAllocations;
+            console.log('Stored previous allocations:', data.previousAllocations);
+          }
         } else {
           console.error('Fund performance API failed:', perfResponse.status);
           const errorData = await perfResponse.json();
@@ -824,9 +831,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                     <TableRow>
                       <TableCell sx={{ fontWeight: 700 }}>ファンド</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 700 }}>パフォーマンス</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>現在</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>推奨</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>変更</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>前月配分</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>推奨配分</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>配分変更</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1018,12 +1025,52 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                         }
                       }
 
+                      // Save allocations to database
+                      const saveAllocations = async () => {
+                        try {
+                          const token = localStorage.getItem('token');
+                          const recommendationDate = fundData[0]?.performanceDate || new Date().toISOString().split('T')[0];
+
+                          const allocations = calculations.map(calc => ({
+                            fundType: calc.fundName,
+                            recommendedAllocation: calc.recommended,
+                            accountCode: null
+                          }));
+
+                          await fetch(`${API_BASE_URL}/api/analysis/save-allocations`, {
+                            method: 'POST',
+                            headers: {
+                              'Authorization': `Bearer ${token}`,
+                              'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                              companyId: selectedCompanyId,
+                              recommendationDate,
+                              allocations,
+                              riskProfile: 'balanced'
+                            })
+                          });
+
+                          console.log('✓ Allocations saved successfully');
+                        } catch (error) {
+                          console.error('Failed to save allocations:', error);
+                        }
+                      };
+
+                      // Call save function (don't await to avoid blocking render)
+                      saveAllocations();
+
+                      // Get previous allocations from window storage
+                      const previousAllocations = (window as any).__previousAllocations;
+
                       return calculations.map(({ fundName, performance, previousPerformance, recommended }) => {
-                        // Use previousPerformance as "current", fallback to performance if not available
-                        const current = previousPerformance !== null && previousPerformance !== undefined
-                          ? previousPerformance
-                          : performance;
-                        const change = performance - current;
+                        // Get previous allocation for this fund
+                        const previousAllocation = previousAllocations?.allocations?.[fundName] || null;
+
+                        // Calculate allocation change
+                        const allocationChange = previousAllocation !== null
+                          ? recommended - previousAllocation
+                          : null;
 
                         return (
                           <TableRow key={fundName}>
@@ -1040,7 +1087,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                               </Typography>
                             </TableCell>
                             <TableCell align="right">
-                              {current !== null ? `${current.toFixed(2)}%` : '-'}
+                              {previousAllocation !== null ? `${previousAllocation.toFixed(0)}%` : '-'}
                             </TableCell>
                             <TableCell
                               align="right"
@@ -1060,15 +1107,15 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                               {recommended >= 10 && recommended < 20 && ' ✓'}
                             </TableCell>
                             <TableCell align="right">
-                              {change !== 0 && Math.abs(change) >= 0.01 && (
+                              {allocationChange !== null && allocationChange !== 0 && (
                                 <Chip
-                                  label={`${change > 0 ? '+' : ''}${change.toFixed(2)}%`}
+                                  label={`${allocationChange > 0 ? '+' : ''}${allocationChange.toFixed(0)}%`}
                                   size="small"
                                   sx={{
                                     height: 20,
                                     fontSize: '0.75rem',
                                     fontWeight: 700,
-                                    background: change > 0 ? '#10b981' : '#ef4444',
+                                    background: allocationChange > 0 ? '#10b981' : '#ef4444',
                                     color: '#fff'
                                   }}
                                 />
