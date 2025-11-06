@@ -11,6 +11,7 @@ const logger = require('../utils/logger');
 const { authenticateToken, authorizePlanFeature, authorizeAccountType } = require('../middleware/auth');
 const PDFReportGenerator = require('../utils/pdf-generator');
 const ExcelReportGenerator = require('../utils/excel-generator');
+const db = require('../utils/database-factory');
 
 const upload = multer({
     storage: multer.memoryStorage(),
