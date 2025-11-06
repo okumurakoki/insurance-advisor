@@ -767,46 +767,57 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
         }
 
         // Calculate missing multi-period returns from historical data if needed
+        // Also get previous month's data for comparison
         const enrichedData = await Promise.all(performanceData.map(async (record) => {
             let return3m = record.return_3m;
             let return6m = record.return_6m;
             let return1y = record.return_1y;
+            let previousMonthReturn = null;
 
-            // If any multi-period returns are missing, calculate from historical data
-            if (return3m === null || return6m === null || return1y === null) {
-                try {
-                    // Get historical data for this account
-                    const historicalData = await db.query(`
-                        SELECT performance_date, return_1m
-                        FROM special_account_performance
-                        WHERE special_account_id = $1
-                        AND return_1m IS NOT NULL
-                        ORDER BY performance_date DESC
-                        LIMIT 13
-                    `, [record.special_account_id]);
+            // Get historical data for this account (for calculations and previous month)
+            try {
+                const historicalData = await db.query(`
+                    SELECT performance_date, return_1m, return_1y
+                    FROM special_account_performance
+                    WHERE special_account_id = $1
+                    AND return_1m IS NOT NULL
+                    ORDER BY performance_date DESC
+                    LIMIT 13
+                `, [record.special_account_id]);
 
-                    if (historicalData.length >= 2) {
-                        // Calculate 3-month return if missing
-                        if (return3m === null && historicalData.length >= 3) {
-                            return3m = historicalData.slice(0, 3).reduce((sum, r) => sum + parseFloat(r.return_1m || 0), 0);
-                        }
+                if (historicalData.length >= 2) {
+                    // Get previous month's performance (second most recent)
+                    const previousMonth = historicalData[1];
+                    previousMonthReturn = previousMonth.return_1y !== null
+                        ? parseFloat(previousMonth.return_1y)
+                        : (previousMonth.return_1m !== null ? parseFloat(previousMonth.return_1m) : null);
 
-                        // Calculate 6-month return if missing
-                        if (return6m === null && historicalData.length >= 6) {
-                            return6m = historicalData.slice(0, 6).reduce((sum, r) => sum + parseFloat(r.return_1m || 0), 0);
-                        }
-
-                        // Calculate 1-year return if missing
-                        if (return1y === null && historicalData.length >= 12) {
-                            return1y = historicalData.slice(0, 12).reduce((sum, r) => sum + parseFloat(r.return_1m || 0), 0);
-                        }
+                    // Calculate 3-month return if missing
+                    if (return3m === null && historicalData.length >= 3) {
+                        return3m = historicalData.slice(0, 3).reduce((sum, r) => sum + parseFloat(r.return_1m || 0), 0);
                     }
-                } catch (err) {
-                    logger.error('Error calculating historical returns:', err);
+
+                    // Calculate 6-month return if missing
+                    if (return6m === null && historicalData.length >= 6) {
+                        return6m = historicalData.slice(0, 6).reduce((sum, r) => sum + parseFloat(r.return_1m || 0), 0);
+                    }
+
+                    // Calculate 1-year return if missing
+                    if (return1y === null && historicalData.length >= 12) {
+                        return1y = historicalData.slice(0, 12).reduce((sum, r) => sum + parseFloat(r.return_1m || 0), 0);
+                    }
                 }
+            } catch (err) {
+                logger.error('Error calculating historical returns:', err);
             }
 
-            return { ...record, return_3m: return3m, return_6m: return6m, return_1y: return1y };
+            return {
+                ...record,
+                return_3m: return3m,
+                return_6m: return6m,
+                return_1y: return1y,
+                previous_month_return: previousMonthReturn
+            };
         }));
 
         // Convert performance data to the format expected by the frontend
@@ -830,6 +841,9 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
                 return {
                     fundType: record.account_name,
                     performance: parseFloat(performanceValue.toFixed(2)),
+                    previousPerformance: record.previous_month_return !== null
+                        ? parseFloat(record.previous_month_return.toFixed(2))
+                        : null,
                     recommendation,
                     dataSource: 'special_account_performance',
                     accountCode: record.account_code,
