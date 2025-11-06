@@ -743,8 +743,51 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
             });
         }
 
+        // Calculate missing multi-period returns from historical data if needed
+        const enrichedData = await Promise.all(performanceData.map(async (record) => {
+            let return3m = record.return_3m;
+            let return6m = record.return_6m;
+            let return1y = record.return_1y;
+
+            // If any multi-period returns are missing, calculate from historical data
+            if (return3m === null || return6m === null || return1y === null) {
+                try {
+                    // Get historical data for this account
+                    const historicalData = await db.query(`
+                        SELECT performance_date, return_1m
+                        FROM special_account_performance
+                        WHERE special_account_id = $1
+                        AND return_1m IS NOT NULL
+                        ORDER BY performance_date DESC
+                        LIMIT 13
+                    `, [record.special_account_id]);
+
+                    if (historicalData.length >= 2) {
+                        // Calculate 3-month return if missing
+                        if (return3m === null && historicalData.length >= 3) {
+                            return3m = historicalData.slice(0, 3).reduce((sum, r) => sum + parseFloat(r.return_1m || 0), 0);
+                        }
+
+                        // Calculate 6-month return if missing
+                        if (return6m === null && historicalData.length >= 6) {
+                            return6m = historicalData.slice(0, 6).reduce((sum, r) => sum + parseFloat(r.return_1m || 0), 0);
+                        }
+
+                        // Calculate 1-year return if missing
+                        if (return1y === null && historicalData.length >= 12) {
+                            return1y = historicalData.slice(0, 12).reduce((sum, r) => sum + parseFloat(r.return_1m || 0), 0);
+                        }
+                    }
+                } catch (err) {
+                    logger.error('Error calculating historical returns:', err);
+                }
+            }
+
+            return { ...record, return_3m: return3m, return_6m: return6m, return_1y: return1y };
+        }));
+
         // Convert performance data to the format expected by the frontend
-        const performance = performanceData
+        const performance = enrichedData
             .map(record => {
                 // Use return_1y as the performance value (convert from decimal to percentage)
                 const performanceValue = record.return_1y !== null
