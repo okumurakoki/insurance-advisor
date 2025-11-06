@@ -675,62 +675,85 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
         // Get company_id from query parameter (selected company from frontend)
         const companyId = req.query.company_id ? parseInt(req.query.company_id) : null;
 
-        if (!companyId) {
-            logger.warn('No company_id provided in fund-performance request');
-            return res.status(400).json({
-                error: '保険会社を選択してください',
-                code: 'MISSING_COMPANY_ID'
-            });
-        }
-
         logger.info('=== Fund Performance API (special_account_performance) ===');
-        logger.info('Requested company_id:', companyId);
-
-        // Get company code for the requested company_id
-        const companyQuery = await db.query(
-            'SELECT company_code FROM insurance_companies WHERE id = $1',
-            [companyId]
-        );
-
-        if (companyQuery.length === 0) {
-            logger.warn('Company not found for company_id:', companyId);
-            return res.status(404).json({
-                error: '保険会社が見つかりません',
-                code: 'COMPANY_NOT_FOUND'
-            });
-        }
-
-        const companyCode = companyQuery[0].company_code;
-        logger.info('Company code:', companyCode);
+        logger.info('Requested company_id:', companyId || 'all companies');
 
         // Get latest performance data from special_account_performance
-        const performanceData = await db.query(`
-            SELECT
-                sap.id,
-                sap.special_account_id,
-                sap.performance_date,
-                sap.unit_price,
-                sap.return_1m,
-                sap.return_3m,
-                sap.return_6m,
-                sap.return_1y,
-                sa.account_code,
-                sa.account_name,
-                sa.account_type,
-                ic.company_code,
-                ic.company_name,
-                ic.display_name
-            FROM special_account_performance sap
-            JOIN special_accounts sa ON sap.special_account_id = sa.id
-            JOIN insurance_companies ic ON sa.company_id = ic.id
-            WHERE ic.id = $1
-            AND sap.performance_date = (
-                SELECT MAX(performance_date)
-                FROM special_account_performance
-                WHERE special_account_id = sap.special_account_id
-            )
-            ORDER BY sa.account_type, sa.id
-        `, [companyId]);
+        let performanceData;
+        if (companyId) {
+            // Get company code for the requested company_id
+            const companyQuery = await db.query(
+                'SELECT company_code FROM insurance_companies WHERE id = $1',
+                [companyId]
+            );
+
+            if (companyQuery.length === 0) {
+                logger.warn('Company not found for company_id:', companyId);
+                return res.status(404).json({
+                    error: '保険会社が見つかりません',
+                    code: 'COMPANY_NOT_FOUND'
+                });
+            }
+
+            const companyCode = companyQuery[0].company_code;
+            logger.info('Company code:', companyCode);
+
+            performanceData = await db.query(`
+                SELECT
+                    sap.id,
+                    sap.special_account_id,
+                    sap.performance_date,
+                    sap.unit_price,
+                    sap.return_1m,
+                    sap.return_3m,
+                    sap.return_6m,
+                    sap.return_1y,
+                    sa.account_code,
+                    sa.account_name,
+                    sa.account_type,
+                    ic.company_code,
+                    ic.company_name,
+                    ic.display_name
+                FROM special_account_performance sap
+                JOIN special_accounts sa ON sap.special_account_id = sa.id
+                JOIN insurance_companies ic ON sa.company_id = ic.id
+                WHERE ic.id = $1
+                AND sap.performance_date = (
+                    SELECT MAX(performance_date)
+                    FROM special_account_performance
+                    WHERE special_account_id = sap.special_account_id
+                )
+                ORDER BY sa.account_type, sa.id
+            `, [companyId]);
+        } else {
+            // Get all companies' latest performance data
+            performanceData = await db.query(`
+                SELECT
+                    sap.id,
+                    sap.special_account_id,
+                    sap.performance_date,
+                    sap.unit_price,
+                    sap.return_1m,
+                    sap.return_3m,
+                    sap.return_6m,
+                    sap.return_1y,
+                    sa.account_code,
+                    sa.account_name,
+                    sa.account_type,
+                    ic.company_code,
+                    ic.company_name,
+                    ic.display_name
+                FROM special_account_performance sap
+                JOIN special_accounts sa ON sap.special_account_id = sa.id
+                JOIN insurance_companies ic ON sa.company_id = ic.id
+                WHERE sap.performance_date = (
+                    SELECT MAX(performance_date)
+                    FROM special_account_performance
+                    WHERE special_account_id = sap.special_account_id
+                )
+                ORDER BY ic.id, sa.account_type, sa.id
+            `);
+        }
 
         logger.info('Found performance records:', performanceData.length);
 
