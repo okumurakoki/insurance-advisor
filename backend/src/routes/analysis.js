@@ -829,7 +829,7 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
 
                 return {
                     fundType: record.account_name,
-                    performance: parseFloat(performanceValue.toFixed(1)),
+                    performance: parseFloat(performanceValue.toFixed(2)),
                     recommendation,
                     dataSource: 'special_account_performance',
                     accountCode: record.account_code,
