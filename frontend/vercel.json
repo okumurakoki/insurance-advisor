@@ -1,8 +1,10 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
   "routes": [
     {
       "src": "/static/(.*)",
-      "headers": { 
+      "headers": {
         "cache-control": "s-maxage=31536000,immutable",
         "X-Content-Type-Options": "nosniff"
       },
