@@ -500,7 +500,7 @@ router.get('/history', authenticateToken, async (req, res) => {
                 sap.performance_date,
                 COUNT(DISTINCT sap.special_account_id) as accounts_count,
                 COUNT(*) as records_count,
-                COALESCE(MAX(sap.updated_at), MAX(sap.created_at)) as uploaded_at
+                MAX(sap.updated_at) as uploaded_at
             FROM special_account_performance sap
             JOIN special_accounts sa ON sa.id = sap.special_account_id
             JOIN insurance_companies ic ON ic.id = sa.company_id
