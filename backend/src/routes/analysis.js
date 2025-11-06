@@ -860,9 +860,44 @@ router.get('/fund-performance', authenticateToken, async (req, res) => {
 
         logger.info(`Returning ${performance.length} fund performance records`);
 
+        // Get previous month's allocation recommendations if available
+        let previousAllocations = null;
+        if (companyId && performanceData.length > 0) {
+            try {
+                const currentDate = performanceData[0].performance_date;
+
+                // Get previous month's allocations for balanced profile (60/40 mix)
+                const previousAllocData = await db.query(`
+                    SELECT fund_type, recommended_allocation, recommendation_date
+                    FROM monthly_allocation_recommendations
+                    WHERE company_id = $1
+                    AND risk_profile = 'balanced'
+                    AND recommendation_date < $2
+                    ORDER BY recommendation_date DESC
+                    LIMIT 50
+                `, [companyId, currentDate]);
+
+                if (previousAllocData.length > 0) {
+                    previousAllocations = {
+                        date: previousAllocData[0].recommendation_date,
+                        allocations: {}
+                    };
+
+                    previousAllocData.forEach(row => {
+                        previousAllocations.allocations[row.fund_type] = parseFloat(row.recommended_allocation);
+                    });
+
+                    logger.info(`Found ${previousAllocData.length} previous allocations from ${previousAllocations.date}`);
+                }
+            } catch (err) {
+                logger.error('Error fetching previous allocations:', err);
+            }
+        }
+
         res.json({
             funds: performance,
-            bondYields: null
+            bondYields: null,
+            previousAllocations
         });
     } catch (error) {
         logger.error('Failed to fetch fund performance:', error);
@@ -1194,6 +1229,94 @@ router.get('/report/:analysisId/excel', authenticateToken, async (req, res) => {
     } catch (error) {
         logger.error('Failed to generate Excel report:', error);
         res.status(500).json({ error: 'Failed to generate Excel report' });
+    }
+});
+
+// Save allocation recommendations
+router.post('/save-allocations', authenticateToken, async (req, res) => {
+    try {
+        const { companyId, recommendationDate, allocations, riskProfile } = req.body;
+
+        if (!companyId || !recommendationDate || !allocations || !riskProfile) {
+            return res.status(400).json({
+                error: '必須パラメータが不足しています',
+                required: ['companyId', 'recommendationDate', 'allocations', 'riskProfile']
+            });
+        }
+
+        logger.info('Saving allocation recommendations:', {
+            companyId,
+            recommendationDate,
+            riskProfile,
+            allocationCount: allocations.length
+        });
+
+        await db.query('BEGIN');
+
+        try {
+            let savedCount = 0;
+            let updatedCount = 0;
+
+            for (const allocation of allocations) {
+                const { fundType, recommendedAllocation, accountCode } = allocation;
+
+                if (!fundType || recommendedAllocation === undefined) {
+                    logger.warn('Skipping invalid allocation:', allocation);
+                    continue;
+                }
+
+                // Check if record exists
+                const existing = await db.query(
+                    `SELECT id FROM monthly_allocation_recommendations
+                     WHERE company_id = $1 AND recommendation_date = $2
+                     AND fund_type = $3 AND risk_profile = $4`,
+                    [companyId, recommendationDate, fundType, riskProfile]
+                );
+
+                if (existing.length > 0) {
+                    // Update existing
+                    await db.query(
+                        `UPDATE monthly_allocation_recommendations
+                         SET recommended_allocation = $1, account_code = $2
+                         WHERE id = $3`,
+                        [recommendedAllocation, accountCode || null, existing[0].id]
+                    );
+                    updatedCount++;
+                } else {
+                    // Insert new
+                    await db.query(
+                        `INSERT INTO monthly_allocation_recommendations
+                         (company_id, recommendation_date, fund_type, account_code, recommended_allocation, risk_profile)
+                         VALUES ($1, $2, $3, $4, $5, $6)`,
+                        [companyId, recommendationDate, fundType, accountCode || null, recommendedAllocation, riskProfile]
+                    );
+                    savedCount++;
+                }
+            }
+
+            await db.query('COMMIT');
+
+            logger.info(`Allocations saved: ${savedCount} new, ${updatedCount} updated`);
+
+            res.json({
+                success: true,
+                message: '配分推奨データを保存しました',
+                data: {
+                    saved: savedCount,
+                    updated: updatedCount,
+                    total: savedCount + updatedCount
+                }
+            });
+        } catch (error) {
+            await db.query('ROLLBACK');
+            throw error;
+        }
+    } catch (error) {
+        logger.error('Failed to save allocations:', error);
+        res.status(500).json({
+            error: '配分推奨データの保存に失敗しました',
+            message: error.message
+        });
     }
 });
 

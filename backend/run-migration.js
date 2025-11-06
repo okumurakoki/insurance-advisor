@@ -9,27 +9,26 @@ async function runMigration() {
     });
 
     try {
-        console.log('Running migration: add_name_email_to_users.sql');
+        console.log('Running migration: 001_add_monthly_allocation_recommendations.sql\n');
 
-        const migrationFile = path.join(__dirname, 'migrations', 'add_name_email_to_users.sql');
+        const migrationFile = path.join(__dirname, 'migrations', '001_add_monthly_allocation_recommendations.sql');
         const sql = fs.readFileSync(migrationFile, 'utf8');
 
         await pool.query(sql);
 
-        console.log('✓ Migration completed successfully');
+        console.log('✓ Migration completed successfully\n');
 
-        // Verify the columns were added
+        // Verify the table was created
         const result = await pool.query(`
-            SELECT column_name, data_type
+            SELECT column_name, data_type, is_nullable
             FROM information_schema.columns
-            WHERE table_name = 'users'
-            AND column_name IN ('name', 'email')
-            ORDER BY column_name
+            WHERE table_name = 'monthly_allocation_recommendations'
+            ORDER BY ordinal_position
         `);
 
-        console.log('\nVerification - Columns added:');
+        console.log('Table structure:');
         result.rows.forEach(row => {
-            console.log(`  - ${row.column_name}: ${row.data_type}`);
+            console.log(`  - ${row.column_name} (${row.data_type}) ${row.is_nullable === 'NO' ? 'NOT NULL' : ''}`);
         });
 
     } catch (error) {
