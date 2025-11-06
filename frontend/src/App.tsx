@@ -457,7 +457,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
     const fetchCompanies = async () => {
       try {
         const token = localStorage.getItem('token');
-        if (!token) return;
+        if (!token || !user.accountType) return;
 
         // Fetch insurance companies
         if (user.accountType === 'admin') {
@@ -501,7 +501,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
     };
 
     fetchCompanies();
-  }, []);
+  }, [user.accountType]);
 
   // Fetch available dates when company changes
   useEffect(() => {
