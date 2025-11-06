@@ -123,7 +123,8 @@ router.post('/sovani', authenticateToken, upload.single('pdf'), async (req, res)
                             return_1m = $2,
                             return_3m = $3,
                             return_6m = $4,
-                            return_1y = $5
+                            return_1y = $5,
+                            created_at = CURRENT_TIMESTAMP
                          WHERE id = $6`,
                         [
                             account.unitPrice,
@@ -277,7 +278,8 @@ router.post('/auto', authenticateToken, upload.single('pdf'), async (req, res) =
                             return_1m = $2,
                             return_3m = $3,
                             return_6m = $4,
-                            return_1y = $5
+                            return_1y = $5,
+                            created_at = CURRENT_TIMESTAMP
                          WHERE id = $6`,
                         [
                             account.unitPrice,
@@ -438,7 +440,8 @@ router.post('/blob', authenticateToken, async (req, res) => {
                             return_1m = $2,
                             return_3m = $3,
                             return_6m = $4,
-                            return_1y = $5
+                            return_1y = $5,
+                            created_at = CURRENT_TIMESTAMP
                          WHERE id = $6`,
                         [
                             account.unitPrice,
@@ -500,7 +503,7 @@ router.get('/history', authenticateToken, async (req, res) => {
                 sap.performance_date,
                 COUNT(DISTINCT sap.special_account_id) as accounts_count,
                 COUNT(*) as records_count,
-                MAX(COALESCE(sap.updated_at, sap.created_at)) as uploaded_at
+                MAX(sap.created_at) as uploaded_at
             FROM special_account_performance sap
             JOIN special_accounts sa ON sa.id = sap.special_account_id
             JOIN insurance_companies ic ON ic.id = sa.company_id
