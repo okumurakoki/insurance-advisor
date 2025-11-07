@@ -216,7 +216,7 @@ router.post('/', authenticateToken, async (req, res) => {
             risk_tolerance: riskTolerance || 'balanced',
             investment_goal: investmentGoal,
             notes,
-            company_id: companyId  // This will be renamed to insurance_company_id in the model
+            insurance_company_id: companyId
         });
 
         logger.info(`Customer created: ${name} by user: ${req.user.userId}, assigned to: ${assignedUserId}`);

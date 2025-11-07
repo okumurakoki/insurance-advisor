@@ -13,7 +13,8 @@ class Customer {
             risk_tolerance,
             investment_goal,
             notes,
-            company_id
+            company_id,
+            insurance_company_id
         } = customerData;
 
         const sql = `
@@ -37,7 +38,7 @@ class Customer {
             risk_tolerance || 'balanced',
             investment_goal || null,
             notes || null,
-            company_id || null
+            insurance_company_id || company_id || null
         ]);
 
         return result.insertId || result[0]?.id;
