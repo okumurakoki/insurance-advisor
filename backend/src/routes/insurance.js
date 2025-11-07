@@ -447,7 +447,7 @@ router.get('/my-companies', authenticateToken, async (req, res) => {
                     NULL as contract_start_date,
                     NULL as contract_end_date
                 FROM insurance_companies ic
-                JOIN customers c ON c.insurance_company_code = ic.company_code
+                JOIN customers c ON c.insurance_company_id = ic.id
                 WHERE c.user_id = $1 AND ic.is_active = TRUE
                 ORDER BY ic.id
             `;
