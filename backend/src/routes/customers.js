@@ -63,7 +63,7 @@ router.post('/public/register', async (req, res) => {
             risk_tolerance: riskTolerance || 'balanced',
             investment_goal: investmentGoal,
             notes,
-            company_id: companyId
+            insurance_company_id: companyId
         });
 
         logger.info(`Public customer registration: ${name} assigned to staff ID: ${staffId}`);
