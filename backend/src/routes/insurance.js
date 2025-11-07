@@ -433,7 +433,26 @@ router.get('/my-companies', authenticateToken, async (req, res) => {
             `;
             params = [userId];
         }
-        // Grandchild (customer) - should not access this endpoint
+        // Grandchild (customer) - get company from their customer profile
+        else if (accountType === 'grandchild') {
+            query = `
+                SELECT DISTINCT
+                    ic.id,
+                    ic.company_code,
+                    ic.company_name,
+                    ic.company_name_en,
+                    ic.display_name,
+                    ic.is_active,
+                    NULL as agency_company_id,
+                    NULL as contract_start_date,
+                    NULL as contract_end_date
+                FROM insurance_companies ic
+                JOIN customers c ON c.insurance_company_code = ic.company_code
+                WHERE c.user_id = $1 AND ic.is_active = TRUE
+                ORDER BY ic.id
+            `;
+            params = [userId];
+        }
         else {
             return res.status(403).json({ error: 'Access denied' });
         }
