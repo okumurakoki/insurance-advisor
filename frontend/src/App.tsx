@@ -477,8 +477,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           } catch (error) {
             console.error('Failed to fetch all insurance companies:', error);
           }
-        } else if (user.accountType === 'parent' || user.accountType === 'child') {
-          // Parent/Child: Fetch contracted insurance companies only
+        } else if (user.accountType === 'parent' || user.accountType === 'child' || user.accountType === 'grandchild') {
+          // Parent/Child/Grandchild: Fetch contracted insurance companies only
           try {
             const companiesResponse = await fetch(`${API_BASE_URL}/api/insurance/my-companies`, {
               headers: {
@@ -488,8 +488,15 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
             if (companiesResponse.ok) {
               const companies = await companiesResponse.json();
-              console.log('My insurance companies:', companies);
+              console.log('[App.tsx fetchCompanies] My insurance companies:', companies);
+              console.log('[App.tsx fetchCompanies] User account type:', user.accountType);
               setMyInsuranceCompanies(companies);
+
+              // Auto-select company for grandchild if they have exactly one
+              if (user.accountType === 'grandchild' && companies.length === 1) {
+                console.log('[App.tsx] Auto-selecting company for grandchild:', companies[0].id);
+                setSelectedCompanyId(companies[0].id);
+              }
             }
           } catch (error) {
             console.error('Failed to fetch insurance companies:', error);
