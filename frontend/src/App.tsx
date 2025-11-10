@@ -570,9 +570,14 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             console.log('Stored previous allocations:', data.previousAllocations);
           }
         } else {
-          console.error('Fund performance API failed:', perfResponse.status);
-          const errorData = await perfResponse.json();
-          console.error('Error details:', errorData);
+          // Silently retry on 403 (token refresh)
+          if (perfResponse.status === 403) {
+            console.warn('Fund performance API returned 403, will retry on next request');
+          } else {
+            console.error('Fund performance API failed:', perfResponse.status);
+            const errorData = await perfResponse.json().catch(() => ({}));
+            console.error('Error details:', errorData);
+          }
           setFundPerformance([]);
           setBondYields(null);
         }
@@ -618,7 +623,9 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             setLatestMarketData(null);
           }
         } else {
-          console.error('Failed to fetch market data:', marketDataResponse.status);
+          // Market data is optional - silently ignore errors
+          console.warn('Market data not available:', marketDataResponse.status);
+          setLatestMarketData(null);
         }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
