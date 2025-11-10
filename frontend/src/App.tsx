@@ -170,37 +170,6 @@ function AppContent({ onThemeChange }: AppContentProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const fetchInsuranceCompaniesAndSetTheme = useCallback(async (user: User, token: string) => {
-    if (user.accountType === 'parent' || user.accountType === 'child' || user.accountType === 'grandchild') {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/insurance/my-companies`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const companies = await response.json();
-          console.log('[App.tsx fetchInsuranceCompaniesAndSetTheme] My insurance companies:', companies);
-
-          // Auto-select company for grandchild if they have exactly one
-          if (user.accountType === 'grandchild' && companies.length === 1) {
-            console.log('[App.tsx] Auto-selecting company for grandchild:', companies[0].id);
-            setSelectedCompanyId(companies[0].id);
-          }
-
-          // Set theme based on first company
-          if (companies.length > 0) {
-            const newTheme = getInsuranceCompanyTheme(companies[0].company_code);
-            setCurrentTheme(newTheme);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch insurance companies:', error);
-      }
-    }
-  }, []);
-
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
@@ -209,10 +178,8 @@ function AppContent({ onThemeChange }: AppContentProps) {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
       fetchMarketData();
-      // 保険会社情報を取得してテーマを設定
-      fetchInsuranceCompaniesAndSetTheme(parsedUser, token);
     }
-  }, [fetchInsuranceCompaniesAndSetTheme]);
+  }, []);
 
   const fetchMarketData = async () => {
     // Market data is now fetched dynamically in Dashboard component via API
@@ -694,8 +661,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           </Box>
         </Grid>
 
-        {/* Company Selection for Dashboard (管理者・代理店・担当者) */}
-        {(user.accountType === 'admin' || user.accountType === 'parent' || user.accountType === 'child') && (
+        {/* Company Selection for Dashboard (管理者・代理店・担当者・顧客) */}
+        {(user.accountType === 'admin' || user.accountType === 'parent' || user.accountType === 'child' || user.accountType === 'grandchild') && (
           <Grid item xs={12}>
             <Paper sx={{ p: 2, mb: 1, bgcolor: '#f9fafb', border: '1px solid #e5e7eb' }}>
               <FormControl fullWidth>
