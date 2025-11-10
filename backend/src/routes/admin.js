@@ -289,22 +289,6 @@ router.get('/agencies/:id', authenticateToken, requireAdmin, async (req, res) =>
     }
 });
 
-// 代理店を削除（論理削除）
-router.delete('/agencies/:id', authenticateToken, requireAdmin, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        await User.deactivate(parseInt(id));
-
-        logger.info(`Agency deactivated by admin: ID ${id}`);
-
-        res.json({ message: 'Agency deactivated successfully' });
-    } catch (error) {
-        logger.error('Failed to deactivate agency:', error);
-        res.status(500).json({ error: 'Failed to deactivate agency' });
-    }
-});
-
 // システム統計情報を取得
 router.get('/stats', authenticateToken, requireAdmin, async (req, res) => {
     try {

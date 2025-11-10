@@ -480,48 +480,6 @@ router.get('/history/:customerId', authenticateToken, async (req, res) => {
     }
 });
 
-router.get('/export/:analysisId', 
-    authenticateToken,
-    authorizePlanFeature('export_formats'),
-    async (req, res) => {
-        const { analysisId } = req.params;
-        const { format } = req.query;
-
-        try {
-            const analysis = await AnalysisResult.findById(analysisId);
-            
-            if (!analysis) {
-                return res.status(404).json({ error: 'Analysis not found' });
-            }
-
-            const customer = await Customer.findById(analysis.customer_id);
-            
-            if (!customer || customer.user_id !== req.user.id) {
-                return res.status(403).json({ error: 'Access denied' });
-            }
-
-            const allowedFormats = req.planFeature.feature_value.split(',');
-            
-            if (!format || !allowedFormats.includes(format)) {
-                return res.status(400).json({ 
-                    error: `Invalid export format. Your ${req.user.planType} plan supports: ${allowedFormats.join(', ')}` 
-                });
-            }
-
-            const exportService = require('../services/export.service');
-            const exportData = await exportService.generateExport(analysis, customer, format);
-
-            res.setHeader('Content-Type', exportData.contentType);
-            res.setHeader('Content-Disposition', `attachment; filename="${exportData.filename}"`);
-            res.send(exportData.content);
-
-        } catch (error) {
-            logger.error('Export error:', error);
-            res.status(500).json({ error: 'Failed to export analysis' });
-        }
-    }
-);
-
 // Get all analysis results (reports) for current user
 router.get('/results', authenticateToken, async (req, res) => {
     try {

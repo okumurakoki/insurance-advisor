@@ -21,22 +21,6 @@ router.get('/profile', authenticateToken, async (req, res) => {
     }
 });
 
-router.get('/children', authenticateToken, authorizeAccountType('parent'), async (req, res) => {
-    try {
-        const children = await User.getChildren(req.user.id);
-
-        const childrenWithoutPasswords = children.map(child => {
-            const { password_hash, ...childWithoutPassword } = child;
-            return childWithoutPassword;
-        });
-
-        res.json(childrenWithoutPasswords);
-    } catch (error) {
-        logger.error('Children fetch error:', error);
-        res.status(500).json({ error: 'Failed to fetch child accounts' });
-    }
-});
-
 // 代理店用：担当者一覧を顧客数と一緒に取得
 router.get('/staff', authenticateToken, authorizeAccountType('parent'), async (req, res) => {
     try {
@@ -99,87 +83,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 });
 
-router.post('/create-child', authenticateToken, authorizeAccountType('parent'), async (req, res) => {
-    const { userId, password, accountType } = req.body;
-
-    if (!userId || !password || !accountType) {
-        return res.status(400).json({ 
-            error: 'User ID, password, and account type are required' 
-        });
-    }
-
-    if (accountType !== 'child' && accountType !== 'grandchild') {
-        return res.status(400).json({ 
-            error: 'Parent accounts can only create child or grandchild accounts' 
-        });
-    }
-
-    try {
-        const existingUser = await User.findByUserId(userId, accountType);
-        if (existingUser) {
-            return res.status(409).json({ error: 'User already exists' });
-        }
-
-        const parentUser = await User.findById(req.user.id);
-
-        const newUserId = await User.create({
-            userId,
-            password,
-            accountType,
-            planType: parentUser.plan_type,
-            parentId: req.user.id,
-            customerLimit: parentUser.customer_limit
-        });
-
-        logger.info(`Child account created: ${userId} (${accountType}) by parent: ${req.user.userId}`);
-
-        res.status(201).json({ 
-            message: 'Child account created successfully',
-            userId: newUserId
-        });
-    } catch (error) {
-        logger.error('Child account creation error:', error);
-        res.status(500).json({ error: 'Failed to create child account' });
-    }
-});
-
-router.put('/update-plan', authenticateToken, authorizeAccountType('parent'), async (req, res) => {
-    const { planType } = req.body;
-
-    const validPlans = ['standard', 'master', 'exceed'];
-    if (!planType || !validPlans.includes(planType)) {
-        return res.status(400).json({ 
-            error: 'Valid plan type required: standard, master, or exceed' 
-        });
-    }
-
-    try {
-        const customerLimits = {
-            'standard': 10,
-            'master': 50,
-            'exceed': 999
-        };
-
-        await User.updatePlan(req.user.id, planType, customerLimits[planType]);
-
-        const children = await User.getChildren(req.user.id);
-        for (const child of children) {
-            await User.updatePlan(child.id, planType, customerLimits[planType]);
-        }
-
-        logger.info(`Plan updated to ${planType} for user: ${req.user.userId}`);
-
-        res.json({ 
-            message: 'Plan updated successfully',
-            planType,
-            customerLimit: customerLimits[planType]
-        });
-    } catch (error) {
-        logger.error('Plan update error:', error);
-        res.status(500).json({ error: 'Failed to update plan' });
-    }
-});
-
 router.delete('/deactivate/:userId', authenticateToken, authorizeAccountType('parent'), authorizeParentAccess, async (req, res) => {
     const { userId } = req.params;
 
@@ -192,26 +95,6 @@ router.delete('/deactivate/:userId', authenticateToken, authorizeAccountType('pa
     } catch (error) {
         logger.error('Deactivation error:', error);
         res.status(500).json({ error: 'Failed to deactivate user' });
-    }
-});
-
-router.get('/plan-features', authenticateToken, async (req, res) => {
-    try {
-        const features = await User.getPlanFeatures(req.user.planType);
-
-        res.json({
-            planType: req.user.planType,
-            features: features.reduce((acc, feature) => {
-                acc[feature.feature_name] = {
-                    value: feature.feature_value,
-                    description: feature.description
-                };
-                return acc;
-            }, {})
-        });
-    } catch (error) {
-        logger.error('Plan features fetch error:', error);
-        res.status(500).json({ error: 'Failed to fetch plan features' });
     }
 });
 
@@ -243,53 +126,6 @@ router.get('/', authenticateToken, authorizeAccountType('admin'), async (req, re
     } catch (error) {
         logger.error('Users fetch error:', error);
         res.status(500).json({ error: 'Failed to fetch users' });
-    }
-});
-
-// 管理者専用: 新規ユーザー作成
-router.post('/', authenticateToken, authorizeAccountType('admin'), async (req, res) => {
-    const { userId, name, email, password, accountType, planType, customerLimit, parentId, customerId } = req.body;
-
-    if (!userId || !name || !email || !password || !accountType) {
-        return res.status(400).json({ 
-            error: 'ユーザーID、名前、メール、パスワード、アカウント種別は必須です' 
-        });
-    }
-
-    const validAccountTypes = ['admin', 'parent', 'child', 'grandchild'];
-    if (!validAccountTypes.includes(accountType)) {
-        return res.status(400).json({ 
-            error: '無効なアカウント種別です' 
-        });
-    }
-
-    try {
-        const existingUser = await User.findByUserId(userId);
-        if (existingUser) {
-            return res.status(409).json({ error: 'ユーザーIDが既に存在します' });
-        }
-
-        const newUserId = await User.createWithDetails({
-            userId,
-            name,
-            email,
-            password,
-            accountType,
-            planType: planType || 'standard',
-            customerLimit: customerLimit || 10,
-            parentId,
-            customerId
-        });
-
-        logger.info(`New user created: ${userId} (${accountType}) by admin: ${req.user.userId}`);
-
-        res.status(201).json({ 
-            message: 'ユーザーが正常に作成されました',
-            userId: newUserId
-        });
-    } catch (error) {
-        logger.error('User creation error:', error);
-        res.status(500).json({ error: 'ユーザー作成に失敗しました' });
     }
 });
 

@@ -172,38 +172,4 @@ router.post('/update-market-data', async (req, res) => {
     }
 });
 
-/**
- * 手動でマーケットデータを更新するエンドポイント（管理者のみ）
- */
-router.post('/manual-update', async (req, res) => {
-    try {
-        // 実装は上記と同じだが、認証が必要
-        // TODO: 管理者認証を追加
-
-        logger.info('Manual market data update triggered');
-
-        // 上記と同じロジックを実行
-        const pdfResults = await pdfDownloader.downloadAllPDFs();
-        const marketDataList = pdfDownloader.convertToMarketData(pdfResults);
-
-        res.json({
-            success: true,
-            message: 'Manual update completed',
-            pdfCount: marketDataList.length,
-            results: pdfResults.map(r => ({
-                name: r.name,
-                success: r.success,
-                error: r.error
-            }))
-        });
-
-    } catch (error) {
-        logger.error('Manual market data update failed:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
-
 module.exports = router;

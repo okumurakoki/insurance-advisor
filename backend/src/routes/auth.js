@@ -14,53 +14,6 @@ router.options('*', (req, res) => {
     res.status(200).send();
 });
 
-// Test endpoint for database connectivity
-router.get('/test', async (req, res) => {
-    try {
-        console.log('Testing database connection...');
-        console.log('Environment vars:', {
-            USE_SQLITE: process.env.USE_SQLITE,
-            NODE_ENV: process.env.NODE_ENV
-        });
-        
-        const db = require('../utils/database-factory');
-        console.log('Database factory loaded');
-        
-        // Initialize if needed
-        if (db.initialize && typeof db.initialize === 'function') {
-            await db.initialize();
-            console.log('Database initialized');
-        }
-        
-        // Check users in database
-        const users = await db.query('SELECT id, user_id, account_type FROM users LIMIT 5');
-        console.log('Users in database:', users);
-        
-        res.json({
-            status: 'OK',
-            message: 'Auth endpoint and database working',
-            cors: 'Enabled',
-            database: 'Connected',
-            users: users,
-            timestamp: new Date().toISOString(),
-            env: {
-                USE_SQLITE: process.env.USE_SQLITE,
-                NODE_ENV: process.env.NODE_ENV
-            }
-        });
-    } catch (error) {
-        console.error('Test endpoint error:', error);
-        res.status(500).json({ 
-            error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-            env: {
-                USE_SQLITE: process.env.USE_SQLITE,
-                NODE_ENV: process.env.NODE_ENV
-            }
-        });
-    }
-});
-
 router.post('/login', async (req, res) => {
     const { userId, password, accountType } = req.body;
     console.log('Login attempt:', { userId, accountType });
@@ -288,23 +241,6 @@ router.post('/register', async (req, res) => {
             message: error.message,
             details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
-    }
-});
-
-router.post('/logout', authenticateToken, async (req, res) => {
-    try {
-        const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1];
-        
-        if (token) {
-            const tokenHash = require('crypto').createHash('sha256').update(token).digest('hex');
-            await db.query('DELETE FROM user_sessions WHERE token_hash = $1', [tokenHash]);
-        }
-
-        res.json({ message: 'Logged out successfully' });
-    } catch (error) {
-        logger.error('Logout error:', error);
-        res.status(500).json({ error: 'Logout failed' });
     }
 });
 
