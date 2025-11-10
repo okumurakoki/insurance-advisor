@@ -94,6 +94,12 @@ router.get('/market-data/latest', authenticateToken, async (req, res) => {
             parsedSuccessfully: latest.data_content?.parsedSuccessfully || false
         });
     } catch (error) {
+        // Check if the error is due to table not existing
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            logger.info('Market data table does not exist - returning null (feature not enabled)');
+            return res.json(null);
+        }
+
         logger.error('Failed to get latest market data:', error);
         logger.error('Error stack:', error.stack);
         logger.error('Company ID:', req.query.company_id);
