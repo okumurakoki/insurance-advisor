@@ -418,7 +418,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
   const [fundPerformance, setFundPerformance] = useState<any[]>([]);
   const [bondYields, setBondYields] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
-  const [latestMarketData, setLatestMarketData] = useState<any>(null);
   const [riskProfile, setRiskProfile] = useState<'conservative' | 'balanced' | 'aggressive'>('balanced');
   const [myInsuranceCompanies, setMyInsuranceCompanies] = useState<any[]>([]);
   const [allInsuranceCompanies, setAllInsuranceCompanies] = useState<any[]>([]);
@@ -606,27 +605,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           // Optimization data is now handled through fundPerformance
         }
 
-        // Fetch latest market data for selected company
-        const marketDataResponse = await fetch(`${API_BASE_URL}/api/analysis/market-data/latest?company_id=${selectedCompanyId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (marketDataResponse.ok) {
-          const data = await marketDataResponse.json();
-          console.log('Latest market data from API:', data);
-          if (data) {
-            setLatestMarketData(data);
-          } else {
-            console.log('No market data available');
-            setLatestMarketData(null);
-          }
-        } else {
-          // Market data is optional - silently ignore errors
-          console.warn('Market data not available:', marketDataResponse.status);
-          setLatestMarketData(null);
-        }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       }
@@ -730,33 +708,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           </Grid>
         )}
 
-        {/* Latest Market Data Info (全アカウント) */}
-        {latestMarketData && (
-          <Grid item xs={12}>
-            <Card sx={{ p: 2, bgcolor: 'success.50', border: '1px solid', borderColor: 'success.main' }}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <Typography variant="body1" color="success.dark" sx={{ fontWeight: 'bold' }}>
-                  ✓ 最新マーケットデータ
-                </Typography>
-                <Chip label="最新" color="success" size="small" />
-              </Box>
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  ファイル名: {latestMarketData.fileName}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  アップロード日時: {new Date(latestMarketData.uploadedAt).toLocaleString('ja-JP')}
-                </Typography>
-                {latestMarketData.dataDate && (
-                  <Typography variant="body2" color="text.secondary">
-                    データ基準日: {new Date(latestMarketData.dataDate).toLocaleDateString('ja-JP')}
-                  </Typography>
-                )}
-              </Box>
-            </Card>
-          </Grid>
-        )}
-
         {/* Contracted Insurance Companies (代理店・担当者のみ) */}
         {(user.accountType === 'parent' || user.accountType === 'child') && myInsuranceCompanies.length > 0 && (
           <Grid item xs={12}>
@@ -835,16 +786,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
         {/* 最適化結果表示領域 */}
         <Grid item xs={12}>
-          {latestMarketData && fundPerformance.length === 0 && (
-            <Paper sx={{ p: 3, mb: 2, bgcolor: 'warning.light' }}>
-              <Typography variant="body1" gutterBottom>
-                ⚠️ マーケットデータがアップロードされていますが、ファンドパフォーマンスデータの抽出に失敗している可能性があります。
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                PDFの形式を確認して、再度アップロードしてください。
-              </Typography>
-            </Paper>
-          )}
           {fundPerformance.length > 0 ? (
             <Paper sx={{ p: 2, mb: 3 }}>
               <Box sx={{ mb: 2 }}>
