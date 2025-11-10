@@ -1293,64 +1293,65 @@ router.post('/save-allocations', authenticateToken, async (req, res) => {
             allocationCount: allocations.length
         });
 
-        await db.query('BEGIN');
+        // Filter out invalid allocations
+        const validAllocations = allocations.filter(allocation => {
+            const { fundType, recommendedAllocation } = allocation;
+            if (!fundType || recommendedAllocation === undefined) {
+                logger.warn('Skipping invalid allocation:', allocation);
+                return false;
+            }
+            return true;
+        });
+
+        if (validAllocations.length === 0) {
+            return res.status(400).json({
+                error: '有効な配分データがありません'
+            });
+        }
+
+        // Build bulk upsert query using PostgreSQL's ON CONFLICT
+        const values = [];
+        const placeholders = [];
+
+        validAllocations.forEach((allocation, index) => {
+            const { fundType, recommendedAllocation, accountCode } = allocation;
+            const offset = index * 6;
+            placeholders.push(
+                `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`
+            );
+            values.push(
+                companyId,
+                recommendationDate,
+                fundType,
+                accountCode || null,
+                recommendedAllocation,
+                riskProfile
+            );
+        });
+
+        const upsertQuery = `
+            INSERT INTO monthly_allocation_recommendations
+            (company_id, recommendation_date, fund_type, account_code, recommended_allocation, risk_profile)
+            VALUES ${placeholders.join(', ')}
+            ON CONFLICT (company_id, recommendation_date, fund_type, risk_profile)
+            DO UPDATE SET
+                recommended_allocation = EXCLUDED.recommended_allocation,
+                account_code = EXCLUDED.account_code
+        `;
 
         try {
-            let savedCount = 0;
-            let updatedCount = 0;
+            await db.query(upsertQuery, values);
 
-            for (const allocation of allocations) {
-                const { fundType, recommendedAllocation, accountCode } = allocation;
-
-                if (!fundType || recommendedAllocation === undefined) {
-                    logger.warn('Skipping invalid allocation:', allocation);
-                    continue;
-                }
-
-                // Check if record exists
-                const existing = await db.query(
-                    `SELECT id FROM monthly_allocation_recommendations
-                     WHERE company_id = $1 AND recommendation_date = $2
-                     AND fund_type = $3 AND risk_profile = $4`,
-                    [companyId, recommendationDate, fundType, riskProfile]
-                );
-
-                if (existing.length > 0) {
-                    // Update existing
-                    await db.query(
-                        `UPDATE monthly_allocation_recommendations
-                         SET recommended_allocation = $1, account_code = $2
-                         WHERE id = $3`,
-                        [recommendedAllocation, accountCode || null, existing[0].id]
-                    );
-                    updatedCount++;
-                } else {
-                    // Insert new
-                    await db.query(
-                        `INSERT INTO monthly_allocation_recommendations
-                         (company_id, recommendation_date, fund_type, account_code, recommended_allocation, risk_profile)
-                         VALUES ($1, $2, $3, $4, $5, $6)`,
-                        [companyId, recommendationDate, fundType, accountCode || null, recommendedAllocation, riskProfile]
-                    );
-                    savedCount++;
-                }
-            }
-
-            await db.query('COMMIT');
-
-            logger.info(`Allocations saved: ${savedCount} new, ${updatedCount} updated`);
+            logger.info(`Allocations saved: ${validAllocations.length} records upserted`);
 
             res.json({
                 success: true,
                 message: '配分推奨データを保存しました',
                 data: {
-                    saved: savedCount,
-                    updated: updatedCount,
-                    total: savedCount + updatedCount
+                    total: validAllocations.length
                 }
             });
         } catch (error) {
-            await db.query('ROLLBACK');
             throw error;
         }
     } catch (error) {
