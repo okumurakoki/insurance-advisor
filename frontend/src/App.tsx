@@ -1,5 +1,5 @@
 // Build: 2024-11-04-v2 - Fixed staff display showing proper IDs and names
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import {
   ThemeProvider,
@@ -59,7 +59,6 @@ import {
   Menu as MenuIcon,
   TableChart as TableIcon,
   Business as BusinessIcon,
-  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import Login from './components/Login.tsx';
 import InsuranceCompanies from './pages/InsuranceCompanies.tsx';
@@ -166,11 +165,41 @@ function AppContent({ onThemeChange }: AppContentProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [marketData, setMarketData] = useState<any[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [myInsuranceCompanies, setMyInsuranceCompanies] = useState<any[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const fetchInsuranceCompaniesAndSetTheme = useCallback(async (user: User, token: string) => {
+    if (user.accountType === 'parent' || user.accountType === 'child' || user.accountType === 'grandchild') {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/insurance/my-companies`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const companies = await response.json();
+          console.log('[App.tsx fetchInsuranceCompaniesAndSetTheme] My insurance companies:', companies);
+
+          // Auto-select company for grandchild if they have exactly one
+          if (user.accountType === 'grandchild' && companies.length === 1) {
+            console.log('[App.tsx] Auto-selecting company for grandchild:', companies[0].id);
+            setSelectedCompanyId(companies[0].id);
+          }
+
+          // Set theme based on first company
+          if (companies.length > 0) {
+            const newTheme = getInsuranceCompanyTheme(companies[0].company_code);
+            setCurrentTheme(newTheme);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch insurance companies:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -183,32 +212,7 @@ function AppContent({ onThemeChange }: AppContentProps) {
       // 保険会社情報を取得してテーマを設定
       fetchInsuranceCompaniesAndSetTheme(parsedUser, token);
     }
-  }, []);
-
-  // 保険会社情報を取得してテーマを変更
-  const fetchInsuranceCompaniesAndSetTheme = async (user: User, token: string) => {
-    if (user.accountType === 'parent' || user.accountType === 'child') {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/insurance/my-companies`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const companies = await response.json();
-          setMyInsuranceCompanies(companies);
-
-          // 保険会社に基づいてテーマを変更
-          const companyTheme = getUserTheme(companies);
-          const newTheme = createDynamicTheme(companyTheme);
-          onThemeChange(newTheme);
-        }
-      } catch (error) {
-        console.error('Failed to fetch insurance companies for theme:', error);
-      }
-    }
-  };
+  }, [fetchInsuranceCompaniesAndSetTheme]);
 
   const fetchMarketData = async () => {
     // Market data is now fetched dynamically in Dashboard component via API
