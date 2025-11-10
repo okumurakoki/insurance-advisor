@@ -532,7 +532,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           console.log('No company selected - clearing fund performance');
           setFundPerformance([]);
           setBondYields(null);
-          setLatestMarketData(null);
           return;
         }
 
