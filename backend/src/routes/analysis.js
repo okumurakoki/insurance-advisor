@@ -71,9 +71,12 @@ router.get('/market-data/latest', authenticateToken, async (req, res) => {
         // Get company_id from query parameter (optional for backward compatibility)
         const companyId = req.query.company_id ? parseInt(req.query.company_id) : null;
 
+        logger.info(`Fetching latest market data for company_id: ${companyId}`);
+
         const latest = await MarketData.getLatest('monthly_report', companyId);
 
         if (!latest) {
+            logger.info(`No market data found for company_id: ${companyId}`);
             return res.json(null);
         }
 
@@ -92,7 +95,10 @@ router.get('/market-data/latest', authenticateToken, async (req, res) => {
         });
     } catch (error) {
         logger.error('Failed to get latest market data:', error);
-        res.status(500).json({ error: 'Failed to get market data' });
+        logger.error('Error stack:', error.stack);
+        logger.error('Company ID:', req.query.company_id);
+        // Return null instead of 500 error since market data is optional
+        res.json(null);
     }
 });
 
