@@ -87,6 +87,7 @@ const adminRoutes = require('./routes/admin');
 const insuranceRoutes = require('./routes/insurance');
 const pdfUploadRoutes = require('./routes/pdf-upload');
 const migrationsRoutes = require('./routes/migrations');
+const stripeRoutes = require('./routes/stripe');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -98,6 +99,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/insurance', insuranceRoutes);
 app.use('/api/pdf-upload', pdfUploadRoutes);
 app.use('/api/migrations', migrationsRoutes);
+app.use('/api/stripe', stripeRoutes);
 
 // Add basic root route
 app.get('/', (req, res) => {

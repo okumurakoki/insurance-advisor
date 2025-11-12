@@ -365,4 +365,43 @@ router.post('/agencies/fix-plans', authenticateToken, requireAdmin, async (req, 
     }
 });
 
+// 代理店の支払い方法を設定
+router.put('/agencies/:id/payment-method', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { paymentMethod } = req.body;
+
+        if (!paymentMethod) {
+            return res.status(400).json({ error: 'paymentMethod is required' });
+        }
+
+        // Validate payment method
+        if (!['card', 'bank_transfer'].includes(paymentMethod)) {
+            return res.status(400).json({
+                error: 'Invalid payment method. Must be "card" or "bank_transfer"'
+            });
+        }
+
+        const db = require('../utils/database-factory');
+        const sql = `
+            UPDATE users
+            SET payment_method = $1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2 AND account_type = 'parent'
+        `;
+
+        await db.query(sql, [paymentMethod, parseInt(id)]);
+
+        logger.info(`Agency payment method updated by admin: ID ${id}, paymentMethod: ${paymentMethod}`);
+
+        res.json({
+            message: 'Payment method updated successfully',
+            paymentMethod
+        });
+    } catch (error) {
+        logger.error('Failed to update payment method:', error);
+        res.status(500).json({ error: 'Failed to update payment method' });
+    }
+});
+
 module.exports = router;
