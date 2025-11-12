@@ -44,6 +44,7 @@ interface Agency {
   account_type?: string;
   planType?: string;
   isActive?: boolean;
+  paymentMethod?: string;
 }
 
 interface InsuranceCompany {
@@ -119,6 +120,7 @@ const AdminAgencyManagement: React.FC = () => {
   const [customMonthlyPrice, setCustomMonthlyPrice] = useState<string>('');
   const [customStaffLimit, setCustomStaffLimit] = useState<string>('');
   const [customCustomerLimitPerStaff, setCustomCustomerLimitPerStaff] = useState<string>('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
 
   useEffect(() => {
     loadAgencies();
@@ -249,6 +251,27 @@ const AdminAgencyManagement: React.FC = () => {
     }
   };
 
+  const handleUpdatePaymentMethod = async () => {
+    if (!selectedAgencyId || !selectedPaymentMethod) {
+      setError('代理店と支払い方法を選択してください');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      await api.updateAgencyPaymentMethod(selectedAgencyId, selectedPaymentMethod);
+      setSuccess('支払い方法を更新しました');
+      await loadAgencies();
+      setSelectedPaymentMethod('');
+    } catch (err: any) {
+      console.error('Failed to update payment method:', err);
+      setError(err.message || '支払い方法の更新に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpdatePlan = async () => {
     if (!selectedAgencyId || !selectedPlanType) {
       setError('代理店とプランを選択してください');
@@ -351,6 +374,7 @@ const AdminAgencyManagement: React.FC = () => {
         <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} aria-label="代理店管理タブ">
           <Tab label="保険会社管理" />
           <Tab label="プラン設定" />
+          <Tab label="支払い設定" />
         </Tabs>
       </Paper>
 
@@ -639,6 +663,131 @@ const AdminAgencyManagement: React.FC = () => {
                     disabled={!selectedPlanType || loading}
                   >
                     プランを更新
+                  </Button>
+                </>
+              )}
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
+
+      {activeTab === 2 && (
+        <Grid container spacing={3}>
+          {/* 代理店選択 */}
+          <Grid item xs={12} md={4}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  代理店選択
+                </Typography>
+                <FormControl fullWidth>
+                  <InputLabel>代理店</InputLabel>
+                  <Select
+                    value={selectedAgencyId || ''}
+                    onChange={(e) => setSelectedAgencyId(e.target.value as number)}
+                    label="代理店"
+                  >
+                    {agencies.map((agency) => (
+                      <MenuItem key={agency.id} value={agency.id}>
+                        {agency.userId || agency.user_id}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                {selectedAgency && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      現在の支払い方法: {
+                        selectedAgency.paymentMethod === 'card' ? 'クレジットカード' :
+                        selectedAgency.paymentMethod === 'bank_transfer' ? '銀行振込' :
+                        '未設定'
+                      }
+                    </Typography>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* 支払い方法変更 */}
+          <Grid item xs={12} md={8}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                支払い方法設定
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+
+              {!selectedAgencyId ? (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body1" color="text.secondary">
+                    代理店を選択してください
+                  </Typography>
+                </Box>
+              ) : (
+                <>
+                  <Box sx={{ mb: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      代理店がStripe経由でクレジットカード決済をするか、手動で銀行振込をするかを設定します。
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      クレジットカードを選択した場合、代理店は自動的に月額課金されます。
+                    </Typography>
+                  </Box>
+
+                  <FormControl fullWidth sx={{ mb: 3 }}>
+                    <InputLabel>支払い方法</InputLabel>
+                    <Select
+                      value={selectedPaymentMethod}
+                      onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                      label="支払い方法"
+                    >
+                      <MenuItem value="">選択してください</MenuItem>
+                      <MenuItem value="card">クレジットカード（Stripe自動課金）</MenuItem>
+                      <MenuItem value="bank_transfer">銀行振込（手動）</MenuItem>
+                    </Select>
+                  </FormControl>
+
+                  {selectedPaymentMethod === 'card' && (
+                    <Box sx={{ mb: 3, p: 2, backgroundColor: '#e3f2fd', borderRadius: 1, border: '1px solid #2196f3' }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: '#1565c0' }}>
+                        クレジットカード決済について
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        • 代理店アカウントがStripe Checkoutで決済手続きを行います
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        • 毎月自動的に課金されます
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        • 代理店は自身でプラン変更やキャンセルが可能です
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {selectedPaymentMethod === 'bank_transfer' && (
+                    <Box sx={{ mb: 3, p: 2, backgroundColor: '#fff3e0', borderRadius: 1, border: '1px solid #ff9800' }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: '#e65100' }}>
+                        銀行振込について
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        • 代理店は手動で銀行振込を行います
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        • 毎月請求書を発行する必要があります
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        • 入金確認後、アカウントを有効化してください
+                      </Typography>
+                    </Box>
+                  )}
+
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleUpdatePaymentMethod}
+                    disabled={!selectedPaymentMethod || loading}
+                  >
+                    支払い方法を設定
                   </Button>
                 </>
               )}

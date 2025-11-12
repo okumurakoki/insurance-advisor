@@ -561,6 +561,14 @@ class ApiService {
     const response = await this.api.get('/insurance/performance/latest', { params });
     return response.data;
   }
+
+  // Update agency payment method (admin only)
+  async updateAgencyPaymentMethod(agencyId: number, paymentMethod: 'card' | 'bank_transfer'): Promise<{ message: string; paymentMethod: string }> {
+    const response = await this.api.put(`/admin/agencies/${agencyId}/payment-method`, {
+      paymentMethod
+    });
+    return response.data;
+  }
 }
 
 export default new ApiService();
