@@ -33,6 +33,7 @@
     "pdf-parse": "^1.1.4",
     "pdfkit": "^0.14.0",
     "pg": "^8.11.3",
+    "stripe": "^19.3.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
