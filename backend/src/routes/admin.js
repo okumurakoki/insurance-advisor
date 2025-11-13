@@ -41,6 +41,7 @@ router.get('/agencies', authenticateToken, requireAdmin, async (req, res) => {
                         id: agency.id,
                         userId: agency.user_id,
                         planType: agency.plan_type,
+                        paymentMethod: agency.payment_method,
                         isActive: agency.is_active,
                         createdAt: agency.created_at,
                         ...stats
