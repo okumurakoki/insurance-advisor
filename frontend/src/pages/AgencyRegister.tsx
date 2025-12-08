@@ -25,7 +25,9 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com/api';
+// 環境変数から取得し、/apiが含まれていない場合は追加
+const baseUrl = (process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com').replace(/\/+$/, '');
+const API_URL = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
 
 interface PlanDefinition {
   plan_type: string;
