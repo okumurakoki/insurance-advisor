@@ -36,6 +36,9 @@ app.use(cors({
 
 app.options('*', cors());
 
+// Stripe webhookはraw bodyが必要なので、JSONパースの前に処理
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -149,6 +152,14 @@ try {
     console.log('✅ PDF Upload routes loaded');
 } catch (error) {
     console.error('❌ Failed to load PDF Upload routes:', error.message);
+}
+
+try {
+    const stripeRoutes = require('../src/routes/stripe');
+    app.use('/api/stripe', stripeRoutes);
+    console.log('✅ Stripe routes loaded');
+} catch (error) {
+    console.error('❌ Failed to load Stripe routes:', error.message);
 }
 
 // 404 handler
