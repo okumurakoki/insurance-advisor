@@ -289,7 +289,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, apiBaseUrl }) => {
             <Button
               variant="outlined"
               color="primary"
-              href="/agency-register"
+              onClick={() => window.location.href = '/agency-register'}
               fullWidth
             >
               代理店登録はこちら

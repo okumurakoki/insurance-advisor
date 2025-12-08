@@ -391,8 +391,9 @@ router.post('/cancel-subscription', authenticateToken, async (req, res) => {
 /**
  * GET /api/stripe/available-plans
  * Get list of plans available for agency subscription
+ * Public endpoint - no authentication required
  */
-router.get('/available-plans', authenticateToken, async (req, res) => {
+router.get('/available-plans', async (req, res) => {
     try {
         // Only show plans that agencies can select
         const plans = await db.query(
