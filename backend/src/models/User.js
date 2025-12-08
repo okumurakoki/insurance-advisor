@@ -69,10 +69,7 @@ class User {
     }
 
     static async checkPassword(inputPassword, hashedPassword) {
-        console.log('Checking password with bcrypt:', { inputPassword, hashedPassword: hashedPassword ? hashedPassword.substring(0, 20) + '...' : 'null' });
-        const result = await bcrypt.compare(inputPassword, hashedPassword);
-        console.log('Bcrypt compare result:', result);
-        return result;
+        return await bcrypt.compare(inputPassword, hashedPassword);
     }
 
     static async changePassword(id, newPassword) {

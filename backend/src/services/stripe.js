@@ -1,11 +1,12 @@
 // Stripe service for subscription management
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../utils/database-factory');
+const logger = require('../utils/logger');
 
 class StripeService {
     constructor() {
         if (!process.env.STRIPE_SECRET_KEY) {
-            console.warn('⚠️ STRIPE_SECRET_KEY not configured - Stripe payments will not work');
+            logger.warn('STRIPE_SECRET_KEY not configured - Stripe payments will not work');
         }
     }
 
@@ -261,7 +262,7 @@ class StripeService {
      * Handle webhook events from Stripe
      */
     async handleWebhook(event) {
-        console.log('Stripe webhook event:', event.type);
+        logger.info('Stripe webhook event', { type: event.type });
 
         switch (event.type) {
             case 'customer.subscription.created':
@@ -282,7 +283,7 @@ class StripeService {
                 break;
 
             default:
-                console.log('Unhandled event type:', event.type);
+                logger.info('Unhandled Stripe event type', { type: event.type });
         }
     }
 
@@ -290,7 +291,7 @@ class StripeService {
         const userId = subscription.metadata.user_id;
 
         if (!userId) {
-            console.error('No user_id in subscription metadata');
+            logger.error('No user_id in subscription metadata');
             return;
         }
 
@@ -300,14 +301,14 @@ class StripeService {
             [subscription.id, userId]
         );
 
-        console.log(`Subscription updated for user ${userId}: ${subscription.status}`);
+        logger.info('Subscription updated', { userId, status: subscription.status });
     }
 
     async handleSubscriptionDeleted(subscription) {
         const userId = subscription.metadata.user_id;
 
         if (!userId) {
-            console.error('No user_id in subscription metadata');
+            logger.error('No user_id in subscription metadata');
             return;
         }
 
@@ -317,7 +318,7 @@ class StripeService {
             [userId]
         );
 
-        console.log(`Subscription deleted for user ${userId}`);
+        logger.info('Subscription deleted', { userId });
     }
 
     async handlePaymentSucceeded(invoice) {
@@ -330,7 +331,7 @@ class StripeService {
         );
 
         if (!user || user.length === 0) {
-            console.error('User not found for customer:', customerId);
+            logger.error('User not found for customer', { customerId });
             return;
         }
 
@@ -340,7 +341,7 @@ class StripeService {
             [user[0].id]
         );
 
-        console.log(`Payment succeeded for user ${user[0].id}, amount: ${invoice.amount_paid / 100} JPY`);
+        logger.info('Payment succeeded', { userId: user[0].id, amount: invoice.amount_paid / 100 });
     }
 
     async handlePaymentFailed(invoice) {
@@ -353,11 +354,11 @@ class StripeService {
         );
 
         if (!user || user.length === 0) {
-            console.error('User not found for customer:', customerId);
+            logger.error('User not found for customer', { customerId });
             return;
         }
 
-        console.error(`Payment failed for user ${user[0].id}, invoice: ${invoice.id}`);
+        logger.error('Payment failed', { userId: user[0].id, invoiceId: invoice.id });
         // Optionally notify user or take other actions
     }
 }

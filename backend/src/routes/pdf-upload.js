@@ -4,6 +4,7 @@ const { put } = require('@vercel/blob');
 const { parsePDF, parseSovaniPDF, validateParsedData } = require('../utils/pdfParser');
 const db = require('../utils/database-factory');
 const { authenticateToken } = require('../middleware/auth');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 
@@ -35,7 +36,7 @@ router.post('/auto', authenticateToken, upload.single('pdf'), async (req, res) =
         }
 
         // File is in memory (req.file.buffer)
-        console.log(`Processing PDF: ${req.file.originalname}`);
+        logger.info('Processing PDF', { filename: req.file.originalname });
 
         // Read PDF file
         const pdfBuffer = req.file.buffer;
@@ -46,9 +47,11 @@ router.post('/auto', authenticateToken, upload.single('pdf'), async (req, res) =
         // Validate parsed data
         validateParsedData(parsedData);
 
-        console.log(`Detected company: ${parsedData.companyCode}`);
-        console.log(`Parsed data date: ${parsedData.dataDate}`);
-        console.log(`Parsed ${parsedData.accounts.length} accounts`);
+        logger.info('PDF parsed successfully', {
+            companyCode: parsedData.companyCode,
+            dataDate: parsedData.dataDate,
+            accountsCount: parsedData.accounts.length
+        });
 
         // Get company ID
         const companies = await db.query(

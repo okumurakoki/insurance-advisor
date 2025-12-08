@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const logger = require('./logger');
 
 class DatabasePostgreSQL {
     constructor() {
@@ -10,15 +11,15 @@ class DatabasePostgreSQL {
             const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
             if (!connectionString) {
-                console.error('DATABASE_URL not found in environment variables');
+                logger.error('DATABASE_URL not found in environment variables');
                 throw new Error('DATABASE_URL is required for PostgreSQL connection');
             }
 
-            console.log('Initializing PostgreSQL with connection string:', connectionString.substring(0, 30) + '...');
+            logger.info('Initializing PostgreSQL connection');
 
             this.pool = new Pool({
                 connectionString,
-                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
                 max: 5, // Reduced for Vercel serverless
                 idleTimeoutMillis: 30000,
                 connectionTimeoutMillis: 20000, // Increased to 20s for serverless cold starts
@@ -30,16 +31,15 @@ class DatabasePostgreSQL {
                 const client = await this.pool.connect();
                 await client.query('SELECT NOW()');
                 client.release();
-                console.log('✅ PostgreSQL database connection established successfully');
+                logger.info('PostgreSQL database connection established successfully');
 
                 // Skip automatic table setup - tables already exist in Supabase
                 // await this.setupTables();
             } catch (error) {
-                console.error('❌ Database connection failed:', error.message);
-                console.error('Connection string (masked):', connectionString.substring(0, 30) + '...');
+                logger.error('Database connection failed:', { error: error.message });
                 // Don't throw error - allow app to start even if DB connection fails initially
                 // The connection will be retried on each query
-                console.warn('⚠️  App starting without database connection. Queries may fail until connection is established.');
+                logger.warn('App starting without database connection. Queries may fail until connection is established.');
             }
         }
         return this.pool;
@@ -172,9 +172,9 @@ class DatabasePostgreSQL {
         try {
             await client.query(schema);
             await this.insertInitialData(client);
-            console.log('Database schema created successfully');
+            logger.info('Database schema created successfully');
         } catch (error) {
-            console.error('Error creating schema:', error);
+            logger.error('Error creating schema:', { error: error.message });
             throw error;
         } finally {
             client.release();
@@ -299,11 +299,11 @@ class DatabasePostgreSQL {
             `;
             
             await client.query(demoCustomers);
-            console.log('Initial demo data inserted');
+            logger.info('Initial demo data inserted');
         } catch (error) {
             // Ignore conflicts on demo data
             if (!error.message.includes('duplicate key')) {
-                console.error('Error inserting demo data:', error);
+                logger.error('Error inserting demo data:', { error: error.message });
             }
         }
     }
@@ -312,13 +312,9 @@ class DatabasePostgreSQL {
         try {
             await this.initialize();
 
-            console.log('PostgreSQL Query:', sql.substring(0, 100), 'params:', params);
-
             const client = await this.pool.connect();
             try {
                 const result = await client.query(sql, params);
-
-                console.log('Query result:', result.rowCount, 'rows affected/returned');
 
                 // For SELECT queries, return rows array
                 if (sql.trim().toUpperCase().startsWith('SELECT')) {
@@ -339,8 +335,7 @@ class DatabasePostgreSQL {
                 client.release();
             }
         } catch (error) {
-            console.error('❌ Query execution error:', error.message);
-            console.error('SQL:', sql.substring(0, 100));
+            logger.error('Query execution error:', { error: error.message });
             throw error;
         }
     }
@@ -365,7 +360,7 @@ class DatabasePostgreSQL {
     async close() {
         if (this.pool) {
             await this.pool.end();
-            console.log('PostgreSQL connection closed');
+            logger.info('PostgreSQL connection closed');
         }
     }
 }

@@ -25,13 +25,15 @@ app.use(helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false
 }));
-// CORS configuration with better error handling
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || ['*'];
-console.log('CORS allowed origins:', allowedOrigins);
+// CORS configuration with proper security
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || [
+    'https://app.insurance-optimizer.com',
+    'https://insurance-optimizer.com'
+];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, curl, etc.)
+        // Allow requests with no origin (mobile apps, curl, Postman, etc.)
         if (!origin) return callback(null, true);
 
         // In development, allow all origins
@@ -39,16 +41,14 @@ app.use(cors({
             return callback(null, true);
         }
 
-        // Temporarily allow all origins to debug
-        return callback(null, true);
-
-        // Check if origin is in allowed list or if wildcard is set
-        // if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-        //     return callback(null, true);
-        // } else {
-        //     console.error(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
-        //     return callback(new Error('Not allowed by CORS'), false);
-        // }
+        // In production, check whitelist
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        } else {
+            const logger = require('./utils/logger');
+            logger.warn(`CORS blocked origin: ${origin}`);
+            return callback(new Error('Not allowed by CORS'), false);
+        }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -167,22 +167,26 @@ app.get('/favicon.ico', (req, res) => {
 });
 
 // Global error handler
+const logger = require('./utils/logger');
 app.use((err, req, res, next) => {
-    console.error('Global error handler:', err);
+    logger.error('Global error handler:', { error: err.message, stack: err.stack });
 
     // Handle CORS errors specifically
     if (err.message && err.message.includes('CORS')) {
         return res.status(403).json({
-            error: 'CORS policy violation',
-            message: err.message
+            error: 'このリクエストは許可されていません。'
         });
     }
 
+    // User-friendly error messages for production
+    const userMessage = process.env.NODE_ENV === 'production'
+        ? 'サーバーエラーが発生しました。しばらくしてから再度お試しください。'
+        : err.message;
+
     res.status(err.status || 500).json({
-        error: process.env.NODE_ENV === 'production'
-            ? 'Internal server error'
-            : err.message,
-        details: process.env.NODE_ENV === 'production' ? undefined : err.stack
+        error: userMessage,
+        // Never expose stack traces in production
+        ...(process.env.NODE_ENV !== 'production' && { details: err.stack })
     });
 });
 
@@ -190,8 +194,8 @@ const PORT = process.env.PORT || 3000;
 
 if (require.main === module) {
     app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-        console.log(`Environment: ${process.env.NODE_ENV}`);
+        logger.info(`Server running on port ${PORT}`);
+        logger.info(`Environment: ${process.env.NODE_ENV}`);
     });
 }
 

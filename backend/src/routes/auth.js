@@ -16,7 +16,7 @@ router.options('*', (req, res) => {
 
 router.post('/login', async (req, res) => {
     const { userId, password, accountType } = req.body;
-    console.log('Login attempt:', { userId, accountType });
+    logger.info('Login attempt', { userId, accountType });
 
     try {
 
@@ -33,15 +33,7 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'User not found' });
         }
 
-        // Debug password check
-        console.log('Password check:', { 
-            userId, 
-            inputPassword: password,
-            passwordHash: user.password_hash ? user.password_hash.substring(0, 20) + '...' : 'null'
-        });
-        
         const isValid = await User.checkPassword(password, user.password_hash);
-        console.log('Password valid:', isValid);
         
         if (!isValid) {
             logger.warn(`Wrong password for user: ${userId}`);
@@ -79,7 +71,6 @@ router.post('/login', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Login error details:', error);
         logger.error('Login error:', {
             error: error.message,
             stack: error.stack,
@@ -89,11 +80,11 @@ router.post('/login', async (req, res) => {
         
         // Check for specific database connection errors
         if (error.message.includes('connect ECONNREFUSED') || error.message.includes('Connection terminated')) {
-            res.status(503).json({ error: 'Database connection failed' });
+            res.status(503).json({ error: 'サービスが一時的に利用できません。しばらくしてから再度お試しください。' });
         } else if (error.message.includes('CORS') || error.message.includes('Host validation')) {
-            res.status(403).json({ error: 'Request not allowed from this origin' });
+            res.status(403).json({ error: 'このリクエストは許可されていません。' });
         } else {
-            res.status(500).json({ error: 'Login failed' });
+            res.status(500).json({ error: 'ログインに失敗しました。しばらくしてから再度お試しください。' });
         }
     }
 });
