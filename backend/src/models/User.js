@@ -3,11 +3,9 @@ const bcrypt = require('bcryptjs');
 
 class User {
     static async create(userData) {
-        const { userId, name, email, password, accountType, planType, parentId, customerLimit } = userData;
+        const { userId, name, email, password, accountType, planType, parentId, customerLimit, isActive } = userData;
 
         const passwordHash = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 10);
-
-        // No mapping needed anymore - using accountType directly
 
         const sql = `
             INSERT INTO users (user_id, name, email, password_hash, account_type, plan_type, customer_limit, parent_id, is_active)
@@ -20,11 +18,11 @@ class User {
             name || null,
             email || null,
             passwordHash,
-            accountType, // Use original accountType, not mapped
+            accountType,
             planType || 'standard',
             customerLimit || 10,
             parentId,
-            true
+            isActive !== undefined ? isActive : true  // デフォルトはtrue、明示的にfalseを渡せる
         ]);
 
         return result[0]?.id;

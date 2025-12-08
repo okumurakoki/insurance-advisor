@@ -265,6 +265,10 @@ class StripeService {
         logger.info('Stripe webhook event', { type: event.type });
 
         switch (event.type) {
+            case 'checkout.session.completed':
+                await this.handleCheckoutCompleted(event.data.object);
+                break;
+
             case 'customer.subscription.created':
             case 'customer.subscription.updated':
                 await this.handleSubscriptionUpdate(event.data.object);
@@ -285,6 +289,50 @@ class StripeService {
             default:
                 logger.info('Unhandled Stripe event type', { type: event.type });
         }
+    }
+
+    /**
+     * Handle checkout session completed - activate account
+     */
+    async handleCheckoutCompleted(session) {
+        const userId = session.metadata?.user_id;
+        const planType = session.metadata?.plan_type;
+
+        if (!userId) {
+            logger.error('No user_id in checkout session metadata');
+            return;
+        }
+
+        logger.info('Checkout completed', { userId, planType, customerId: session.customer });
+
+        // プラン定義を取得
+        const planDef = await db.query(
+            'SELECT * FROM plan_definitions WHERE plan_type = $1',
+            [planType]
+        );
+
+        // アカウントを有効化し、Stripe Customer IDを保存
+        await db.query(
+            `UPDATE users SET
+                is_active = TRUE,
+                stripe_customer_id = $1,
+                stripe_subscription_id = $2,
+                staff_limit = $3,
+                customer_limit = $4,
+                customer_limit_per_staff = $5,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $6`,
+            [
+                session.customer,
+                session.subscription,
+                planDef[0]?.staff_limit || 5,
+                planDef[0]?.customer_limit || 100,
+                planDef[0]?.customer_limit_per_staff || 20,
+                userId
+            ]
+        );
+
+        logger.info('Account activated after payment', { userId, planType });
     }
 
     async handleSubscriptionUpdate(subscription) {

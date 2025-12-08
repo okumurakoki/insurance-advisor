@@ -204,10 +204,48 @@ router.post('/register', async (req, res) => {
             });
         }
 
-        // 代理店は管理者のみが作成可能
+        // 代理店の新規登録（決済前は非アクティブ状態）
         if (accountType === 'parent') {
-            return res.status(403).json({
-                error: 'Agency accounts can only be created by administrators'
+            const { planType } = req.body;
+
+            // プランタイプの検証
+            const allowedPlans = ['bronze', 'silver', 'gold', 'platinum'];
+            if (!planType || !allowedPlans.includes(planType)) {
+                return res.status(400).json({
+                    error: 'プランを選択してください（bronze, silver, gold, platinum）'
+                });
+            }
+
+            // プラン定義を取得
+            const planDef = await db.query(
+                'SELECT * FROM plan_definitions WHERE plan_type = $1',
+                [planType]
+            );
+
+            if (!planDef || planDef.length === 0) {
+                return res.status(400).json({ error: 'プランが見つかりません' });
+            }
+
+            // アカウント作成（is_active = false で作成）
+            const newUserId = await User.create({
+                userId,
+                name,
+                email,
+                password,
+                accountType: 'parent',
+                planType: planType,
+                parentId: null,
+                customerLimit: planDef[0].customer_limit || 100,
+                isActive: false  // 決済完了まで非アクティブ
+            });
+
+            logger.info(`New agency registered (pending payment): ${userId}, plan: ${planType}`);
+
+            return res.status(201).json({
+                message: '代理店アカウントを作成しました。決済を完了してサービスを開始してください。',
+                userId: newUserId,
+                planType: planType,
+                requiresPayment: true
             });
         }
 

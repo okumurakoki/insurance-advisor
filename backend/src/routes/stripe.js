@@ -4,6 +4,7 @@ const router = express.Router();
 const stripeService = require('../services/stripe');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const db = require('../utils/database-factory');
+const logger = require('../utils/logger');
 
 /**
  * POST /api/stripe/create-checkout-session
@@ -46,10 +47,75 @@ router.post('/create-checkout-session', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error creating checkout session:', error);
+        logger.error('Error creating checkout session:', { error: error.message });
         res.status(500).json({
             success: false,
             message: 'Failed to create checkout session',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * POST /api/stripe/create-initial-checkout
+ * Create Stripe Checkout session for new agency registration
+ * Public endpoint - used after registration, before login
+ */
+router.post('/create-initial-checkout', async (req, res) => {
+    try {
+        const { userId, planType } = req.body;
+
+        if (!userId || !planType) {
+            return res.status(400).json({
+                success: false,
+                message: 'ユーザーIDとプランタイプが必要です'
+            });
+        }
+
+        // ユーザーを検索（非アクティブユーザーも含めて）
+        const users = await db.query(
+            'SELECT id, user_id, account_type, is_active, stripe_customer_id FROM users WHERE user_id = $1 AND account_type = $2',
+            [userId, 'parent']
+        );
+
+        if (!users || users.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'ユーザーが見つかりません'
+            });
+        }
+
+        const user = users[0];
+
+        // 既にアクティブな場合はエラー
+        if (user.is_active) {
+            return res.status(400).json({
+                success: false,
+                message: '既にアカウントは有効化されています'
+            });
+        }
+
+        // Checkout Session作成
+        const session = await stripeService.createCheckoutSession(
+            user.id,
+            planType,
+            `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+            `${process.env.FRONTEND_URL}/register?cancelled=true`
+        );
+
+        logger.info('Initial checkout session created', { userId: user.id, planType });
+
+        res.json({
+            success: true,
+            sessionId: session.id,
+            url: session.url
+        });
+
+    } catch (error) {
+        logger.error('Error creating initial checkout session:', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: '決済セッションの作成に失敗しました',
             error: error.message
         });
     }
@@ -81,7 +147,7 @@ router.post('/create-portal-session', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error creating portal session:', error);
+        logger.error('Error creating portal session:', { error: error.message });
         res.status(500).json({
             success: false,
             message: 'Failed to create portal session',
@@ -100,7 +166,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
-        console.error('STRIPE_WEBHOOK_SECRET not configured');
+        logger.error('STRIPE_WEBHOOK_SECRET not configured');
         return res.status(500).send('Webhook secret not configured');
     }
 
@@ -110,7 +176,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
         event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } catch (err) {
-        console.error('Webhook signature verification failed:', err.message);
+        logger.error('Webhook signature verification failed:', { error: err.message });
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
@@ -118,7 +184,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         await stripeService.handleWebhook(event);
         res.json({ received: true });
     } catch (error) {
-        console.error('Error handling webhook:', error);
+        logger.error('Error handling webhook:', { error: error.message });
         res.status(500).json({
             success: false,
             message: 'Webhook handling failed',
@@ -199,7 +265,7 @@ router.post('/change-plan', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error changing plan:', error);
+        logger.error('Error changing plan:', { error: error.message });
         res.status(500).json({
             success: false,
             message: 'Failed to change plan',
@@ -259,7 +325,7 @@ router.get('/subscription-status', authenticateToken, async (req, res) => {
                     cancel_at_period_end: subscription.cancel_at_period_end
                 };
             } catch (error) {
-                console.error('Error fetching subscription from Stripe:', error);
+                logger.error('Error fetching subscription from Stripe:', { error: error.message });
             }
         }
 
@@ -277,7 +343,7 @@ router.get('/subscription-status', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error fetching subscription status:', error);
+        logger.error('Error fetching subscription status:', { error: error.message });
         res.status(500).json({
             success: false,
             message: 'Failed to fetch subscription status',
@@ -313,7 +379,7 @@ router.post('/cancel-subscription', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error cancelling subscription:', error);
+        logger.error('Error cancelling subscription:', { error: error.message });
         res.status(500).json({
             success: false,
             message: 'Failed to cancel subscription',
@@ -349,7 +415,7 @@ router.get('/available-plans', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error fetching available plans:', error);
+        logger.error('Error fetching available plans:', { error: error.message });
         res.status(500).json({
             success: false,
             message: 'Failed to fetch available plans',
