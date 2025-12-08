@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Plan = require('../models/Plan');
 const logger = require('../utils/logger');
 const { authenticateToken } = require('../middleware/auth');
+const stripeService = require('../services/stripe');
 
 // 管理者権限チェックミドルウェア
 const requireAdmin = (req, res, next) => {
@@ -207,6 +208,17 @@ router.put('/agencies/:id/plan', authenticateToken, requireAdmin, async (req, re
         ]);
 
         logger.info(`Agency plan updated by admin: ID ${id}, new plan: ${planType}, staffLimit: ${staffLimit}, customerLimitPerStaff: ${customerLimitPerStaff}, monthlyPrice: ${monthlyPrice}`);
+
+        // Stripeサブスクリプション金額を自動更新
+        try {
+            await stripeService.updateSubscriptionAmount(parseInt(id));
+            logger.info('Stripe subscription updated after plan change', { userId: id, planType });
+        } catch (stripeError) {
+            logger.error('Failed to update Stripe subscription after plan change', {
+                userId: id,
+                error: stripeError.message
+            });
+        }
 
         res.json({
             message: 'Agency plan updated successfully',

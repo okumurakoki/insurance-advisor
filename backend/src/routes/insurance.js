@@ -3,6 +3,7 @@ const router = express.Router();
 const logger = require('../utils/logger');
 const db = require('../utils/database-factory');
 const { authenticateToken } = require('../middleware/auth');
+const stripeService = require('../services/stripe');
 
 // Handle CORS preflight requests
 router.options('*', (req, res) => {
@@ -544,6 +545,14 @@ router.post('/agency-companies', authenticateToken, async (req, res) => {
             notes || null
         ]);
 
+        // Stripeサブスクリプション金額を自動更新
+        try {
+            await stripeService.updateSubscriptionAmount(userId);
+            logger.info('Stripe subscription updated after admin added insurance company', { userId, company_id });
+        } catch (stripeError) {
+            logger.error('Failed to update Stripe subscription', { userId, error: stripeError.message });
+        }
+
         res.json({
             message: 'Insurance company added successfully',
             data: result[0] || result
@@ -610,6 +619,12 @@ router.delete('/agency-companies/:id', authenticateToken, async (req, res) => {
             return res.status(403).json({ error: 'Admin access required' });
         }
 
+        // 削除前にuser_idを取得
+        const contract = await db.query(
+            'SELECT user_id FROM agency_insurance_companies WHERE id = $1',
+            [req.params.id]
+        );
+
         const query = `
             UPDATE agency_insurance_companies
             SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
@@ -621,6 +636,22 @@ router.delete('/agency-companies/:id', authenticateToken, async (req, res) => {
 
         if (result.length === 0) {
             return res.status(404).json({ error: 'Record not found' });
+        }
+
+        // Stripeサブスクリプション金額を自動更新
+        if (contract.length > 0) {
+            try {
+                await stripeService.updateSubscriptionAmount(contract[0].user_id);
+                logger.info('Stripe subscription updated after admin removed insurance company', {
+                    userId: contract[0].user_id,
+                    contractId: req.params.id
+                });
+            } catch (stripeError) {
+                logger.error('Failed to update Stripe subscription', {
+                    userId: contract[0].user_id,
+                    error: stripeError.message
+                });
+            }
         }
 
         res.json({ message: 'Insurance company removed successfully' });
@@ -717,6 +748,15 @@ router.post('/user-contracts/:userId', authenticateToken, async (req, res) => {
             RETURNING id
         `, [userId, company_id]);
 
+        // Stripeサブスクリプション金額を自動更新
+        try {
+            await stripeService.updateSubscriptionAmount(userId);
+            logger.info('Stripe subscription updated after adding insurance company', { userId, company_id });
+        } catch (stripeError) {
+            // Stripe更新失敗してもDBの契約追加は成功させる
+            logger.error('Failed to update Stripe subscription', { userId, error: stripeError.message });
+        }
+
         res.json({
             message: 'Contract added successfully',
             id: result[0].id
@@ -753,6 +793,15 @@ router.delete('/user-contracts/:userId/:contractId', authenticateToken, async (r
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: 'Contract not found' });
+        }
+
+        // Stripeサブスクリプション金額を自動更新
+        try {
+            await stripeService.updateSubscriptionAmount(userId);
+            logger.info('Stripe subscription updated after removing insurance company', { userId, contractId });
+        } catch (stripeError) {
+            // Stripe更新失敗してもDBの契約削除は成功させる
+            logger.error('Failed to update Stripe subscription', { userId, error: stripeError.message });
         }
 
         res.json({ message: 'Contract removed successfully' });

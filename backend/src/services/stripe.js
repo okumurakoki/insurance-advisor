@@ -12,7 +12,7 @@ class StripeService {
 
     /**
      * Get monthly price for an agency
-     * Returns custom_monthly_price if set, otherwise returns plan default
+     * Returns: 基本料金 × 契約保険会社数
      */
     async getMonthlyPrice(userId) {
         const user = await db.query(
@@ -24,12 +24,61 @@ class StripeService {
             throw new Error('User not found');
         }
 
-        // If custom price is set, use it
+        // 基本料金を決定（カスタム価格 or プラン定義）
+        let basePlanPrice;
+        if (user[0].custom_monthly_price !== null && user[0].custom_monthly_price > 0) {
+            basePlanPrice = parseFloat(user[0].custom_monthly_price);
+        } else {
+            const planDef = await db.query(
+                'SELECT monthly_price FROM plan_definitions WHERE plan_type = $1',
+                [user[0].plan_type]
+            );
+
+            if (!planDef || planDef.length === 0) {
+                throw new Error('Plan not found');
+            }
+            basePlanPrice = parseFloat(planDef[0].monthly_price);
+        }
+
+        // 契約保険会社数を取得
+        const contractCountResult = await db.query(
+            'SELECT COUNT(*) as count FROM agency_insurance_companies WHERE user_id = $1 AND is_active = true',
+            [userId]
+        );
+        const contractCount = parseInt(contractCountResult[0].count) || 0;
+        const effectiveContractCount = Math.max(contractCount, 1); // 最低1社
+
+        // 月額料金 = 基本料金 × 契約保険会社数
+        const totalMonthlyPrice = basePlanPrice * effectiveContractCount;
+
+        logger.info('Monthly price calculated', {
+            userId,
+            basePlanPrice,
+            contractCount,
+            effectiveContractCount,
+            totalMonthlyPrice
+        });
+
+        return totalMonthlyPrice;
+    }
+
+    /**
+     * Get base plan price (without multiplying by contract count)
+     */
+    async getBasePlanPrice(userId) {
+        const user = await db.query(
+            'SELECT custom_monthly_price, plan_type FROM users WHERE id = $1',
+            [userId]
+        );
+
+        if (!user || user.length === 0) {
+            throw new Error('User not found');
+        }
+
         if (user[0].custom_monthly_price !== null && user[0].custom_monthly_price > 0) {
             return parseFloat(user[0].custom_monthly_price);
         }
 
-        // Otherwise get default plan price
         const planDef = await db.query(
             'SELECT monthly_price FROM plan_definitions WHERE plan_type = $1',
             [user[0].plan_type]
@@ -40,6 +89,17 @@ class StripeService {
         }
 
         return parseFloat(planDef[0].monthly_price);
+    }
+
+    /**
+     * Get contract count for an agency
+     */
+    async getContractCount(userId) {
+        const result = await db.query(
+            'SELECT COUNT(*) as count FROM agency_insurance_companies WHERE user_id = $1 AND is_active = true',
+            [userId]
+        );
+        return parseInt(result[0].count) || 0;
     }
 
     /**
@@ -203,6 +263,74 @@ class StripeService {
         );
 
         return subscription;
+    }
+
+    /**
+     * Update subscription amount when contract count changes
+     * Called when insurance company is added/removed
+     */
+    async updateSubscriptionAmount(userId) {
+        const user = await db.query(
+            'SELECT stripe_subscription_id, plan_type, payment_method FROM users WHERE id = $1',
+            [userId]
+        );
+
+        if (!user || user.length === 0) {
+            throw new Error('User not found');
+        }
+
+        // 銀行振込の場合はStripe更新不要
+        if (user[0].payment_method === 'bank_transfer') {
+            logger.info('Skipping Stripe update for bank_transfer payment method', { userId });
+            return null;
+        }
+
+        // サブスクリプションがない場合は何もしない
+        if (!user[0].stripe_subscription_id) {
+            logger.info('No subscription to update', { userId });
+            return null;
+        }
+
+        try {
+            // 新しい月額料金を計算
+            const newMonthlyPrice = await this.getMonthlyPrice(userId);
+            const planType = user[0].plan_type;
+
+            // 新しい価格オブジェクトを作成/取得
+            const priceId = await this.getOrCreatePrice(planType, newMonthlyPrice);
+
+            // 現在のサブスクリプションを取得
+            const subscription = await stripe.subscriptions.retrieve(user[0].stripe_subscription_id);
+
+            // サブスクリプションを更新
+            const updated = await stripe.subscriptions.update(user[0].stripe_subscription_id, {
+                items: [{
+                    id: subscription.items.data[0].id,
+                    price: priceId
+                }],
+                proration_behavior: 'create_prorations', // 日割り計算
+                metadata: {
+                    user_id: userId.toString(),
+                    plan_type: planType,
+                    updated_at: new Date().toISOString()
+                }
+            });
+
+            logger.info('Subscription amount updated', {
+                userId,
+                subscriptionId: updated.id,
+                newMonthlyPrice,
+                status: updated.status
+            });
+
+            return updated;
+        } catch (error) {
+            logger.error('Failed to update subscription amount', {
+                userId,
+                error: error.message
+            });
+            throw error;
+        }
     }
 
     /**
