@@ -66,6 +66,7 @@ import AdminAgencyManagement from './pages/AdminAgencyManagement.tsx';
 import PdfUpload from './pages/PdfUpload.tsx';
 import PublicCustomerRegister from './pages/PublicCustomerRegister.tsx';
 import AgencyRegister from './pages/AgencyRegister.tsx';
+import PaymentSuccess from './pages/PaymentSuccess.tsx';
 import { getUserTheme, defaultTheme, InsuranceCompanyTheme, getInsuranceCompanyTheme } from './config/insuranceCompanyThemes.ts';
 
 // API Configuration
@@ -402,6 +403,20 @@ function AppContent({ onThemeChange }: AppContentProps) {
     // ログイン時にも保険会社情報を取得してテーマを設定
     fetchInsuranceCompaniesAndSetTheme(userData, token);
   };
+
+  // 未ログインでもアクセス可能なパブリックルート
+  const publicPaths = ['/agency-register', '/register', '/payment-success'];
+  const isPublicPath = publicPaths.some(path => location.pathname.startsWith(path));
+
+  if (isPublicPath) {
+    return (
+      <Routes>
+        <Route path="/register" element={<PublicCustomerRegister />} />
+        <Route path="/agency-register" element={<AgencyRegister />} />
+        <Route path="/payment-success" element={<PaymentSuccess />} />
+      </Routes>
+    );
+  }
 
   return <Login onLoginSuccess={handleLoginSuccess} apiBaseUrl={API_BASE_URL} />;
 }
