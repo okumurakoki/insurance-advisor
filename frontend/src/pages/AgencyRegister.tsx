@@ -25,7 +25,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com/api';
 
 interface PlanDefinition {
   plan_type: string;
