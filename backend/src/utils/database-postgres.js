@@ -19,7 +19,7 @@ class DatabasePostgreSQL {
 
             this.pool = new Pool({
                 connectionString,
-                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
                 max: 5, // Reduced for Vercel serverless
                 idleTimeoutMillis: 30000,
                 connectionTimeoutMillis: 20000, // Increased to 20s for serverless cold starts

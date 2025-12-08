@@ -278,10 +278,23 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, apiBaseUrl }) => {
                 • 担当者: 代理店IDが必要です
                 <br />
                 • 顧客: 担当者IDが必要です
-                <br />• 代理店アカウントは管理者が作成します
               </Typography>
             </Box>
           )}
+
+          <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'grey.300', textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              代理店として新規登録する場合
+            </Typography>
+            <Button
+              variant="outlined"
+              color="primary"
+              href="/agency-register"
+              fullWidth
+            >
+              代理店登録はこちら
+            </Button>
+          </Box>
         </CardContent>
       </Card>
     </Box>

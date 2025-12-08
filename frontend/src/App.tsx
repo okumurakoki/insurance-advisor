@@ -65,6 +65,7 @@ import InsuranceCompanies from './pages/InsuranceCompanies.tsx';
 import AdminAgencyManagement from './pages/AdminAgencyManagement.tsx';
 import PdfUpload from './pages/PdfUpload.tsx';
 import PublicCustomerRegister from './pages/PublicCustomerRegister.tsx';
+import AgencyRegister from './pages/AgencyRegister.tsx';
 import { getUserTheme, defaultTheme, InsuranceCompanyTheme, getInsuranceCompanyTheme } from './config/insuranceCompanyThemes.ts';
 
 // API Configuration
@@ -354,6 +355,7 @@ function AppContent({ onThemeChange }: AppContentProps) {
         <Routes>
           {/* Public routes */}
           <Route path="/register" element={<PublicCustomerRegister />} />
+          <Route path="/agency-register" element={<AgencyRegister />} />
 
           <Route path="/" element={<Dashboard user={user} marketData={marketData} navigate={navigate} />} />
           <Route path="/dashboard" element={<Dashboard user={user} marketData={marketData} navigate={navigate} />} />
