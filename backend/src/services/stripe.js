@@ -64,9 +64,9 @@ class StripeService {
             basePlanPrice = parseFloat(planDef[0].monthly_price);
         }
 
-        // 契約保険会社数を取得
+        // 契約保険会社数を取得（未アクティブも含む - 初回登録時のため）
         const contractCountResult = await db.query(
-            'SELECT COUNT(*) as count FROM agency_insurance_companies WHERE user_id = $1 AND is_active = true',
+            'SELECT COUNT(*) as count FROM agency_insurance_companies WHERE user_id = $1',
             [userId]
         );
         const contractCount = parseInt(contractCountResult[0].count) || 0;
@@ -120,7 +120,7 @@ class StripeService {
      */
     async getContractCount(userId) {
         const result = await db.query(
-            'SELECT COUNT(*) as count FROM agency_insurance_companies WHERE user_id = $1 AND is_active = true',
+            'SELECT COUNT(*) as count FROM agency_insurance_companies WHERE user_id = $1',
             [userId]
         );
         return parseInt(result[0].count) || 0;
