@@ -229,8 +229,7 @@ class StripeService {
                 interval: 'month'
             },
             product_data: {
-                name: `変額保険アドバイザー - ${planType.toUpperCase()}プラン`,
-                description: `${planType}プランの月額サブスクリプション`
+                name: `変額保険アドバイザー - ${planType.toUpperCase()}プラン`
             },
             metadata: {
                 plan_type: planType
