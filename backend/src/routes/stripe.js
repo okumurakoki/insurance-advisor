@@ -406,11 +406,24 @@ router.get('/debug-env', async (req, res) => {
     const hasKey = stripeKey.length > 0;
     const keyPrefix = stripeKey.substring(0, 7); // sk_live or sk_test
     const keyLength = stripeKey.length;
+    const keySuffix = stripeKey.substring(stripeKey.length - 5);
+
+    // Check for invalid characters
+    const hasNewline = stripeKey.includes('\n') || stripeKey.includes('\r');
+    const hasSpace = stripeKey.includes(' ');
+    const hasTab = stripeKey.includes('\t');
+    const charCodes = stripeKey.split('').map(c => c.charCodeAt(0));
+    const invalidChars = charCodes.filter(code => code < 32 || code > 126);
 
     res.json({
         hasStripeKey: hasKey,
         keyPrefix: keyPrefix,
+        keySuffix: keySuffix,
         keyLength: keyLength,
+        hasNewline: hasNewline,
+        hasSpace: hasSpace,
+        hasTab: hasTab,
+        invalidCharCodes: invalidChars,
         nodeEnv: process.env.NODE_ENV,
         vercelEnv: process.env.VERCEL_ENV
     });
