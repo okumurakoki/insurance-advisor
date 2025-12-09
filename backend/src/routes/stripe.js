@@ -417,6 +417,88 @@ router.get('/debug-env', async (req, res) => {
 });
 
 /**
+ * GET /api/stripe/test-connection
+ * Test Stripe connection with raw HTTP request
+ * Public endpoint - temporary for debugging
+ */
+router.get('/test-connection', async (req, res) => {
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+
+    if (!stripeKey) {
+        return res.json({ error: 'No STRIPE_SECRET_KEY' });
+    }
+
+    try {
+        // Test 1: Raw fetch to Stripe API
+        const https = require('https');
+
+        const testRawHttp = () => {
+            return new Promise((resolve, reject) => {
+                const options = {
+                    hostname: 'api.stripe.com',
+                    port: 443,
+                    path: '/v1/balance',
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${stripeKey}`,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    timeout: 10000
+                };
+
+                const req = https.request(options, (response) => {
+                    let data = '';
+                    response.on('data', chunk => data += chunk);
+                    response.on('end', () => {
+                        resolve({
+                            statusCode: response.statusCode,
+                            headers: response.headers,
+                            body: data.substring(0, 500)
+                        });
+                    });
+                });
+
+                req.on('error', (e) => reject(e));
+                req.on('timeout', () => reject(new Error('Request timeout')));
+                req.end();
+            });
+        };
+
+        const rawResult = await testRawHttp();
+
+        // Test 2: Stripe SDK
+        let sdkResult = null;
+        let sdkError = null;
+        try {
+            const stripe = require('stripe')(stripeKey, {
+                timeout: 10000,
+                maxNetworkRetries: 1
+            });
+            const balance = await stripe.balance.retrieve();
+            sdkResult = { available: balance.available, pending: balance.pending };
+        } catch (e) {
+            sdkError = {
+                message: e.message,
+                type: e.type,
+                code: e.code
+            };
+        }
+
+        res.json({
+            rawHttpTest: rawResult,
+            sdkTest: sdkResult,
+            sdkError: sdkError
+        });
+
+    } catch (error) {
+        res.json({
+            error: error.message,
+            stack: error.stack
+        });
+    }
+});
+
+/**
  * GET /api/stripe/available-plans
  * Get list of plans available for agency subscription
  * Public endpoint - no authentication required
