@@ -389,6 +389,26 @@ router.post('/cancel-subscription', authenticateToken, async (req, res) => {
 });
 
 /**
+ * GET /api/stripe/debug-env
+ * Debug endpoint to check environment variables (masked)
+ * Public endpoint - temporary for debugging
+ */
+router.get('/debug-env', async (req, res) => {
+    const stripeKey = process.env.STRIPE_SECRET_KEY || '';
+    const hasKey = stripeKey.length > 0;
+    const keyPrefix = stripeKey.substring(0, 7); // sk_live or sk_test
+    const keyLength = stripeKey.length;
+
+    res.json({
+        hasStripeKey: hasKey,
+        keyPrefix: keyPrefix,
+        keyLength: keyLength,
+        nodeEnv: process.env.NODE_ENV,
+        vercelEnv: process.env.VERCEL_ENV
+    });
+});
+
+/**
  * GET /api/stripe/available-plans
  * Get list of plans available for agency subscription
  * Public endpoint - no authentication required

@@ -1,13 +1,28 @@
 // Stripe service for subscription management
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../utils/database-factory');
 const logger = require('../utils/logger');
 
+// Lazy initialization - Stripe client created on first use
+let _stripe = null;
+function getStripe() {
+    if (!_stripe) {
+        const key = process.env.STRIPE_SECRET_KEY;
+        if (!key) {
+            throw new Error('STRIPE_SECRET_KEY is not configured');
+        }
+        _stripe = require('stripe')(key);
+        logger.info('Stripe client initialized');
+    }
+    return _stripe;
+}
+
 class StripeService {
     constructor() {
-        if (!process.env.STRIPE_SECRET_KEY) {
-            logger.warn('STRIPE_SECRET_KEY not configured - Stripe payments will not work');
-        }
+        // Stripe will be initialized lazily on first API call
+    }
+
+    get stripe() {
+        return getStripe();
     }
 
     /**
@@ -122,7 +137,7 @@ class StripeService {
         }
 
         // Create new Stripe customer
-        const customer = await stripe.customers.create({
+        const customer = await this.stripe.customers.create({
             metadata: {
                 user_id: userId,
                 account_type: 'parent',
@@ -150,7 +165,7 @@ class StripeService {
         // Create or get price object in Stripe
         const priceId = await this.getOrCreatePrice(planType, monthlyPrice);
 
-        const session = await stripe.checkout.sessions.create({
+        const session = await this.stripe.checkout.sessions.create({
             customer: customerId,
             payment_method_types: ['card'],
             line_items: [{
@@ -173,32 +188,40 @@ class StripeService {
      * Create or get Stripe Price for a plan
      */
     async getOrCreatePrice(planType, amount) {
-        // Search for existing price
-        const prices = await stripe.prices.list({
-            product: process.env.STRIPE_PRODUCT_ID || 'insurance_advisor',
-            active: true,
-            limit: 100
-        });
+        const unitAmount = Math.round(amount);
 
-        const existingPrice = prices.data.find(price =>
-            price.unit_amount === Math.round(amount * 100) &&
-            price.recurring?.interval === 'month'
-        );
+        // If STRIPE_PRODUCT_ID is set, try to find existing price
+        if (process.env.STRIPE_PRODUCT_ID) {
+            try {
+                const prices = await this.stripe.prices.list({
+                    product: process.env.STRIPE_PRODUCT_ID,
+                    active: true,
+                    limit: 100
+                });
 
-        if (existingPrice) {
-            return existingPrice.id;
+                const existingPrice = prices.data.find(price =>
+                    price.unit_amount === unitAmount &&
+                    price.recurring?.interval === 'month'
+                );
+
+                if (existingPrice) {
+                    return existingPrice.id;
+                }
+            } catch (err) {
+                logger.warn('Failed to list existing prices, will create new one', { error: err.message });
+            }
         }
 
-        // Create new price
-        const price = await stripe.prices.create({
-            unit_amount: Math.round(amount * 100), // Convert to cents
+        // Create new price with inline product
+        const price = await this.stripe.prices.create({
+            unit_amount: unitAmount,
             currency: 'jpy',
             recurring: {
                 interval: 'month'
             },
             product_data: {
-                name: `Insurance Advisor - ${planType.toUpperCase()} Plan`,
-                description: `Monthly subscription for ${planType} plan`
+                name: `変額保険アドバイザー - ${planType.toUpperCase()}プラン`,
+                description: `${planType}プランの月額サブスクリプション`
             },
             metadata: {
                 plan_type: planType
@@ -227,10 +250,10 @@ class StripeService {
 
         // If subscription exists, update it
         if (user[0].stripe_subscription_id) {
-            const subscription = await stripe.subscriptions.retrieve(user[0].stripe_subscription_id);
+            const subscription = await this.stripe.subscriptions.retrieve(user[0].stripe_subscription_id);
 
             // Update subscription with new price
-            const updated = await stripe.subscriptions.update(user[0].stripe_subscription_id, {
+            const updated = await this.stripe.subscriptions.update(user[0].stripe_subscription_id, {
                 items: [{
                     id: subscription.items.data[0].id,
                     price: priceId
@@ -245,7 +268,7 @@ class StripeService {
         }
 
         // Create new subscription
-        const subscription = await stripe.subscriptions.create({
+        const subscription = await this.stripe.subscriptions.create({
             customer: customerId,
             items: [{
                 price: priceId
@@ -300,10 +323,10 @@ class StripeService {
             const priceId = await this.getOrCreatePrice(planType, newMonthlyPrice);
 
             // 現在のサブスクリプションを取得
-            const subscription = await stripe.subscriptions.retrieve(user[0].stripe_subscription_id);
+            const subscription = await this.stripe.subscriptions.retrieve(user[0].stripe_subscription_id);
 
             // サブスクリプションを更新
-            const updated = await stripe.subscriptions.update(user[0].stripe_subscription_id, {
+            const updated = await this.stripe.subscriptions.update(user[0].stripe_subscription_id, {
                 items: [{
                     id: subscription.items.data[0].id,
                     price: priceId
@@ -350,7 +373,7 @@ class StripeService {
             throw new Error('No active subscription');
         }
 
-        const subscription = await stripe.subscriptions.del(user[0].stripe_subscription_id);
+        const subscription = await this.stripe.subscriptions.del(user[0].stripe_subscription_id);
 
         // Clear subscription ID
         await db.query(
@@ -378,7 +401,7 @@ class StripeService {
             throw new Error('No Stripe customer found');
         }
 
-        const session = await stripe.billingPortal.sessions.create({
+        const session = await this.stripe.billingPortal.sessions.create({
             customer: user[0].stripe_customer_id,
             return_url: returnUrl
         });
