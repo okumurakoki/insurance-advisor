@@ -249,9 +249,9 @@ router.post('/register', async (req, res) => {
             // 選択した保険会社を登録（is_active = false で作成、決済完了後に有効化）
             for (const companyId of insuranceCompanyIds) {
                 await db.query(
-                    `INSERT INTO agency_insurance_companies (user_id, insurance_company_id, is_active)
-                     VALUES ($1, $2, false)
-                     ON CONFLICT (user_id, insurance_company_id) DO NOTHING`,
+                    `INSERT INTO agency_insurance_companies (user_id, company_id, is_active, created_at, updated_at)
+                     VALUES ($1, $2, false, NOW(), NOW())
+                     ON CONFLICT (user_id, company_id) DO NOTHING`,
                     [newUserId, companyId]
                 );
             }
