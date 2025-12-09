@@ -10,8 +10,17 @@ function getStripe() {
         if (!key) {
             throw new Error('STRIPE_SECRET_KEY is not configured');
         }
-        _stripe = require('stripe')(key);
-        logger.info('Stripe client initialized');
+        _stripe = require('stripe')(key, {
+            apiVersion: '2024-11-20.acacia',
+            maxNetworkRetries: 3,
+            timeout: 30000, // 30 seconds
+            httpAgent: null, // Use default agent
+            telemetry: false
+        });
+        logger.info('Stripe client initialized', {
+            keyPrefix: key.substring(0, 7),
+            keyLength: key.length
+        });
     }
     return _stripe;
 }

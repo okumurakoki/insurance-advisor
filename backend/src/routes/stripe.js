@@ -112,11 +112,19 @@ router.post('/create-initial-checkout', async (req, res) => {
         });
 
     } catch (error) {
-        logger.error('Error creating initial checkout session:', { error: error.message });
+        logger.error('Error creating initial checkout session:', {
+            error: error.message,
+            type: error.type,
+            code: error.code,
+            statusCode: error.statusCode,
+            raw: error.raw ? JSON.stringify(error.raw) : null
+        });
         res.status(500).json({
             success: false,
             message: '決済セッションの作成に失敗しました',
-            error: error.message
+            error: error.message,
+            errorType: error.type,
+            errorCode: error.code
         });
     }
 });
