@@ -100,7 +100,7 @@ router.post('/create-initial-checkout', async (req, res) => {
             user.id,
             planType,
             `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-            `${process.env.FRONTEND_URL}/register?cancelled=true`
+            `${process.env.FRONTEND_URL}/agency-register?cancelled=true`
         );
 
         logger.info('Initial checkout session created', { userId: user.id, planType });

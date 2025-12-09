@@ -491,6 +491,12 @@ class StripeService {
             ]
         );
 
+        // 保険会社契約も有効化
+        await db.query(
+            `UPDATE agency_insurance_companies SET is_active = TRUE WHERE user_id = $1`,
+            [userId]
+        );
+
         logger.info('Account activated after payment', { userId, planType });
     }
 

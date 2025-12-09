@@ -11,10 +11,12 @@ import {
   CircularProgress,
   Card,
   CardContent,
-  CardActions,
   Chip,
   InputAdornment,
   IconButton,
+  Checkbox,
+  FormControlLabel,
+  Divider,
 } from '@mui/material';
 import {
   Visibility,
@@ -39,19 +41,29 @@ interface PlanDefinition {
   description: string;
 }
 
+interface InsuranceCompany {
+  id: number;
+  company_code: string;
+  company_name: string;
+  display_name: string;
+}
+
 const AgencyRegister: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [step, setStep] = useState(1); // 1: 情報入力, 2: プラン選択
+  const [step, setStep] = useState(1); // 1: 情報入力, 2: 保険会社選択, 3: プラン選択
   const [formData, setFormData] = useState({
     userId: '',
     password: '',
     confirmPassword: '',
   });
   const [selectedPlan, setSelectedPlan] = useState<string>('');
+  const [selectedCompanies, setSelectedCompanies] = useState<number[]>([]);
   const [plans, setPlans] = useState<PlanDefinition[]>([]);
+  const [companies, setCompanies] = useState<InsuranceCompany[]>([]);
   const [loading, setLoading] = useState(false);
   const [plansLoading, setPlansLoading] = useState(true);
+  const [companiesLoading, setCompaniesLoading] = useState(true);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -60,6 +72,7 @@ const AgencyRegister: React.FC = () => {
 
   useEffect(() => {
     fetchPlans();
+    fetchCompanies();
   }, []);
 
   const fetchPlans = async () => {
@@ -70,7 +83,6 @@ const AgencyRegister: React.FC = () => {
       }
     } catch (err) {
       console.error('Failed to fetch plans:', err);
-      // フォールバック用のプラン情報
       setPlans([
         { plan_type: 'bronze', plan_name: 'ブロンズ', monthly_price: 980, staff_limit: 1, customer_limit: 50, customer_limit_per_staff: 10, description: '個人向けスタータープラン' },
         { plan_type: 'silver', plan_name: 'シルバー', monthly_price: 1980, staff_limit: 3, customer_limit: 150, customer_limit_per_staff: 15, description: '小規模代理店向け' },
@@ -82,9 +94,28 @@ const AgencyRegister: React.FC = () => {
     }
   };
 
+  const fetchCompanies = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/insurance/companies`);
+      setCompanies(response.data);
+    } catch (err) {
+      console.error('Failed to fetch companies:', err);
+    } finally {
+      setCompaniesLoading(false);
+    }
+  };
+
   const handleChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
     setError('');
+  };
+
+  const handleCompanyToggle = (companyId: number) => {
+    setSelectedCompanies(prev =>
+      prev.includes(companyId)
+        ? prev.filter(id => id !== companyId)
+        : [...prev, companyId]
+    );
   };
 
   const validateStep1 = () => {
@@ -107,9 +138,21 @@ const AgencyRegister: React.FC = () => {
     return true;
   };
 
+  const validateStep2 = () => {
+    if (selectedCompanies.length === 0) {
+      setError('契約する保険会社を最低1社選択してください');
+      return false;
+    }
+    return true;
+  };
+
   const handleNextStep = () => {
-    if (validateStep1()) {
+    if (step === 1 && validateStep1()) {
+      setError('');
       setStep(2);
+    } else if (step === 2 && validateStep2()) {
+      setError('');
+      setStep(3);
     }
   };
 
@@ -123,16 +166,16 @@ const AgencyRegister: React.FC = () => {
     setError('');
 
     try {
-      // 1. アカウント作成
+      // 1. アカウント作成（保険会社も含む）
       const registerResponse = await axios.post(`${API_URL}/auth/register`, {
         userId: formData.userId,
         password: formData.password,
         accountType: 'parent',
         planType: selectedPlan,
+        insuranceCompanyIds: selectedCompanies,
       });
 
       if (!registerResponse.data.requiresPayment) {
-        // 支払い不要（管理者が作成した場合など）
         navigate('/login?registered=true');
         return;
       }
@@ -144,7 +187,6 @@ const AgencyRegister: React.FC = () => {
       });
 
       if (checkoutResponse.data.success && checkoutResponse.data.url) {
-        // Stripe Checkoutページにリダイレクト
         window.location.href = checkoutResponse.data.url;
       } else {
         setError('決済ページの作成に失敗しました');
@@ -162,6 +204,12 @@ const AgencyRegister: React.FC = () => {
       style: 'currency',
       currency: 'JPY',
     }).format(price);
+  };
+
+  const calculateTotalPrice = () => {
+    const plan = plans.find(p => p.plan_type === selectedPlan);
+    if (!plan) return 0;
+    return plan.monthly_price * Math.max(selectedCompanies.length, 1);
   };
 
   return (
@@ -191,19 +239,26 @@ const AgencyRegister: React.FC = () => {
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Chip
-              label="1. アカウント情報"
+              label="1. アカウント"
               color={step >= 1 ? 'primary' : 'default'}
-              sx={{ mr: 1 }}
+              size="small"
             />
-            <Box sx={{ width: 40, height: 2, bgcolor: step >= 2 ? 'primary.main' : 'grey.300' }} />
+            <Box sx={{ width: 30, height: 2, bgcolor: step >= 2 ? 'primary.main' : 'grey.300' }} />
             <Chip
-              label="2. プラン選択"
+              label="2. 保険会社"
               color={step >= 2 ? 'primary' : 'default'}
-              sx={{ ml: 1 }}
+              size="small"
+            />
+            <Box sx={{ width: 30, height: 2, bgcolor: step >= 3 ? 'primary.main' : 'grey.300' }} />
+            <Chip
+              label="3. プラン"
+              color={step >= 3 ? 'primary' : 'default'}
+              size="small"
             />
           </Box>
         </Box>
 
+        {/* ステップ1: アカウント情報 */}
         {step === 1 && (
           <Box>
             <Typography variant="h6" gutterBottom>
@@ -270,20 +325,99 @@ const AgencyRegister: React.FC = () => {
                 onClick={handleNextStep}
                 disabled={!formData.userId || !formData.password || !formData.confirmPassword}
               >
+                次へ：保険会社選択
+              </Button>
+            </Box>
+          </Box>
+        )}
+
+        {/* ステップ2: 保険会社選択 */}
+        {step === 2 && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              契約する保険会社を選択
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              分析を利用したい保険会社を選択してください（複数選択可）
+            </Typography>
+
+            {companiesLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Grid container spacing={2}>
+                {companies.map((company) => (
+                  <Grid item xs={12} sm={6} md={4} key={company.id}>
+                    <Card
+                      sx={{
+                        cursor: 'pointer',
+                        border: selectedCompanies.includes(company.id) ? 2 : 1,
+                        borderColor: selectedCompanies.includes(company.id) ? 'primary.main' : 'grey.300',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          boxShadow: 1,
+                        },
+                      }}
+                      onClick={() => handleCompanyToggle(company.id)}
+                    >
+                      <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={selectedCompanies.includes(company.id)}
+                              onChange={() => handleCompanyToggle(company.id)}
+                              color="primary"
+                            />
+                          }
+                          label={
+                            <Typography variant="body2">
+                              {company.display_name || company.company_name}
+                            </Typography>
+                          }
+                          sx={{ m: 0 }}
+                        />
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+
+            <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+              <Typography variant="body2">
+                選択した保険会社: <strong>{selectedCompanies.length}社</strong>
+              </Typography>
+            </Box>
+
+            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
+              <Button
+                variant="outlined"
+                onClick={() => setStep(1)}
+              >
+                戻る
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleNextStep}
+                disabled={selectedCompanies.length === 0}
+              >
                 次へ：プラン選択
               </Button>
             </Box>
           </Box>
         )}
 
-        {step === 2 && (
+        {/* ステップ3: プラン選択 */}
+        {step === 3 && (
           <Box>
             <Typography variant="h6" gutterBottom>
               プランを選択
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              ※ 料金は契約保険会社数によって変動します（基本料金 × 契約保険会社数）
-            </Typography>
+            <Alert severity="info" sx={{ mb: 3 }}>
+              月額料金 = 基本料金 × 契約保険会社数（{selectedCompanies.length}社）
+            </Alert>
 
             {plansLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -316,23 +450,25 @@ const AgencyRegister: React.FC = () => {
                             <Check color="primary" />
                           )}
                         </Box>
-                        <Typography variant="h4" color="primary" sx={{ mb: 1 }}>
-                          {formatPrice(plan.monthly_price)}
+                        <Typography variant="body2" color="text.secondary">
+                          基本料金: {formatPrice(plan.monthly_price)}/月
+                        </Typography>
+                        <Typography variant="h5" color="primary" sx={{ my: 1 }}>
+                          {formatPrice(plan.monthly_price * selectedCompanies.length)}
                           <Typography component="span" variant="body2" color="text.secondary">
-                            /月〜
+                            /月
                           </Typography>
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                           {plan.description}
                         </Typography>
-                        <Box sx={{ borderTop: 1, borderColor: 'grey.200', pt: 2 }}>
-                          <Typography variant="body2">
-                            担当者数: 最大{plan.staff_limit}名
-                          </Typography>
-                          <Typography variant="body2">
-                            顧客数: 担当者あたり{plan.customer_limit_per_staff}名
-                          </Typography>
-                        </Box>
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="body2">
+                          担当者数: 最大{plan.staff_limit}名
+                        </Typography>
+                        <Typography variant="body2">
+                          顧客数: 担当者あたり{plan.customer_limit_per_staff}名
+                        </Typography>
                       </CardContent>
                     </Card>
                   </Grid>
@@ -340,10 +476,21 @@ const AgencyRegister: React.FC = () => {
               </Grid>
             )}
 
+            {selectedPlan && (
+              <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.light', color: 'primary.contrastText', borderRadius: 1 }}>
+                <Typography variant="h6">
+                  お支払い金額: {formatPrice(calculateTotalPrice())}/月
+                </Typography>
+                <Typography variant="body2">
+                  ({plans.find(p => p.plan_type === selectedPlan)?.plan_name}プラン × {selectedCompanies.length}社)
+                </Typography>
+              </Box>
+            )}
+
             <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
               <Button
                 variant="outlined"
-                onClick={() => setStep(1)}
+                onClick={() => setStep(2)}
               >
                 戻る
               </Button>

@@ -206,13 +206,20 @@ router.post('/register', async (req, res) => {
 
         // 代理店の新規登録（決済前は非アクティブ状態）
         if (accountType === 'parent') {
-            const { planType } = req.body;
+            const { planType, insuranceCompanyIds } = req.body;
 
             // プランタイプの検証
             const allowedPlans = ['bronze', 'silver', 'gold', 'platinum'];
             if (!planType || !allowedPlans.includes(planType)) {
                 return res.status(400).json({
                     error: 'プランを選択してください（bronze, silver, gold, platinum）'
+                });
+            }
+
+            // 保険会社の選択検証（最低1社必要）
+            if (!insuranceCompanyIds || !Array.isArray(insuranceCompanyIds) || insuranceCompanyIds.length === 0) {
+                return res.status(400).json({
+                    error: '契約する保険会社を最低1社選択してください'
                 });
             }
 
@@ -239,12 +246,23 @@ router.post('/register', async (req, res) => {
                 isActive: false  // 決済完了まで非アクティブ
             });
 
-            logger.info(`New agency registered (pending payment): ${userId}, plan: ${planType}`);
+            // 選択した保険会社を登録（is_active = false で作成、決済完了後に有効化）
+            for (const companyId of insuranceCompanyIds) {
+                await db.query(
+                    `INSERT INTO agency_insurance_companies (user_id, insurance_company_id, is_active)
+                     VALUES ($1, $2, false)
+                     ON CONFLICT (user_id, insurance_company_id) DO NOTHING`,
+                    [newUserId, companyId]
+                );
+            }
+
+            logger.info(`New agency registered (pending payment): ${userId}, plan: ${planType}, companies: ${insuranceCompanyIds.length}`);
 
             return res.status(201).json({
                 message: '代理店アカウントを作成しました。決済を完了してサービスを開始してください。',
                 userId: newUserId,
                 planType: planType,
+                insuranceCompanyCount: insuranceCompanyIds.length,
                 requiresPayment: true
             });
         }

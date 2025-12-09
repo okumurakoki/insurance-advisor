@@ -569,6 +569,53 @@ class ApiService {
     });
     return response.data;
   }
+
+  // ===== Stripe / Subscription Management =====
+
+  // Get available plans (public)
+  async getAvailablePlans(): Promise<Array<{
+    plan_type: string;
+    plan_name: string;
+    monthly_price: number;
+    staff_limit: number;
+    customer_limit: number;
+    customer_limit_per_staff: number;
+    description: string;
+  }>> {
+    const response = await this.api.get('/stripe/available-plans');
+    return response.data.success ? response.data.plans : [];
+  }
+
+  // Change subscription plan
+  async changePlan(planType: string): Promise<{ message: string; subscription: any; plan: any }> {
+    const response = await this.api.post('/stripe/change-plan', { planType });
+    return response.data;
+  }
+
+  // Cancel subscription
+  async cancelSubscription(): Promise<{ message: string; subscription: any }> {
+    const response = await this.api.post('/stripe/cancel-subscription');
+    return response.data;
+  }
+
+  // Create Stripe Customer Portal session
+  async createPortalSession(): Promise<{ url: string }> {
+    const response = await this.api.post('/stripe/create-portal-session');
+    return response.data;
+  }
+
+  // Get subscription status
+  async getSubscriptionStatus(): Promise<{
+    subscription: any;
+    payment_method: string;
+    plan_type: string;
+    monthly_price: number;
+    is_active: boolean;
+    has_stripe_customer: boolean;
+  }> {
+    const response = await this.api.get('/stripe/subscription-status');
+    return response.data;
+  }
 }
 
 export default new ApiService();
