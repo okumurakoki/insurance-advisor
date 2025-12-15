@@ -67,6 +67,7 @@ import PdfUpload from './pages/PdfUpload.tsx';
 import PublicCustomerRegister from './pages/PublicCustomerRegister.tsx';
 import AgencyRegister from './pages/AgencyRegister.tsx';
 import PaymentSuccess from './pages/PaymentSuccess.tsx';
+import Simulation from './pages/Simulation.tsx';
 import { getUserTheme, defaultTheme, InsuranceCompanyTheme, getInsuranceCompanyTheme } from './config/insuranceCompanyThemes.ts';
 
 // API Configuration
@@ -229,6 +230,7 @@ function AppContent({ onThemeChange }: AppContentProps) {
     ...(user?.accountType === 'parent' ? [{ path: '/staff', icon: <PeopleIcon />, text: '担当者管理' }] : []),
     ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/customers', icon: <PeopleIcon />, text: '顧客管理' }] : []),
     ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/insurance-companies', icon: <BusinessIcon />, text: '保険会社' }] : []),
+    ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/simulation', icon: <TrendingUp />, text: 'シミュレーション' }] : []),
   ];
 
   const drawerContent = (
@@ -383,6 +385,7 @@ function AppContent({ onThemeChange }: AppContentProps) {
               <Route path="/customers/:id" element={<CustomerDetail user={user} navigate={navigate} />} />
               <Route path="/customers/:id/edit" element={<CustomerForm user={user} navigate={navigate} isEdit={true} />} />
               <Route path="/insurance-companies" element={<InsuranceCompanies />} />
+              <Route path="/simulation" element={<Simulation />} />
             </>
           )}
         </Routes>

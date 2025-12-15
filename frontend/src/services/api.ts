@@ -616,6 +616,95 @@ class ApiService {
     const response = await this.api.get('/stripe/subscription-status');
     return response.data;
   }
+
+  // Simulation endpoints
+  async getSimulationFunds(companyId?: number): Promise<Array<{
+    id: number;
+    account_code: string;
+    account_name: string;
+    account_type: string;
+    benchmark: string;
+    company_id: number;
+    company_code: string;
+    company_name: string;
+    display_name: string;
+    performance_count: number;
+  }>> {
+    const params = companyId ? `?company_id=${companyId}` : '';
+    const response = await this.api.get(`/simulation/funds${params}`);
+    return response.data;
+  }
+
+  async getFundPerformance(fundId: number, months?: number): Promise<{
+    performance: Array<{
+      id: number;
+      performance_date: string;
+      unit_price: number;
+      return_1m: number;
+      return_3m: number;
+      return_6m: number;
+      return_1y: number;
+    }>;
+    statistics: {
+      annualReturn: number;
+      annualVolatility: number;
+      dataPoints: number;
+    };
+  }> {
+    const params = months ? `?months=${months}` : '';
+    const response = await this.api.get(`/simulation/fund/${fundId}/performance${params}`);
+    return response.data;
+  }
+
+  async runSimulation(params: {
+    initialAmount: number;
+    monthlyPremium: number;
+    years: number;
+    fundId?: number;
+    customReturn?: number;
+    customVolatility?: number;
+  }): Promise<{
+    summary: {
+      initialAmount: number;
+      monthlyPremium: number;
+      years: number;
+      totalPremiumPaid: number;
+      annualReturn: number;
+      annualVolatility: number;
+      numSimulations: number;
+    };
+    finalValues: {
+      p5: number;
+      p25: number;
+      p50: number;
+      p75: number;
+      p95: number;
+      mean: number;
+    };
+    yearlyData: Array<{
+      year: number;
+      p5: number;
+      p25: number;
+      p50: number;
+      p75: number;
+      p95: number;
+      mean: number;
+    }>;
+  }> {
+    const response = await this.api.post('/simulation/run', params);
+    return response.data;
+  }
+
+  async getSimulationPresets(): Promise<Array<{
+    id: string;
+    name: string;
+    description: string;
+    annualReturn: number;
+    annualVolatility: number;
+  }>> {
+    const response = await this.api.get('/simulation/presets');
+    return response.data;
+  }
 }
 
 export default new ApiService();
