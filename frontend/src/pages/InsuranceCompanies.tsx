@@ -148,16 +148,6 @@ const InsuranceCompanies: React.FC = () => {
     );
   }
 
-  if (error) {
-    return (
-      <Container>
-        <Box sx={{ mt: 4 }}>
-          <Alert severity="error">{error}</Alert>
-        </Box>
-      </Container>
-    );
-  }
-
   const groupedData = groupByAccountType(performanceData);
 
   return (
@@ -171,6 +161,12 @@ const InsuranceCompanies: React.FC = () => {
           各保険会社の特別勘定のパフォーマンスデータを確認できます
         </Typography>
       </Box>
+
+      {error && (
+        <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
       {companies.length > 0 && (
         <Box sx={{ mb: 3 }}>
