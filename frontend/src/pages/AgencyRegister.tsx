@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Container,
-  Paper,
   TextField,
   Button,
   Typography,
@@ -17,15 +15,22 @@ import {
   Checkbox,
   FormControlLabel,
   Divider,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Visibility,
   VisibilityOff,
   Check,
-  Business,
+  Business as BusinessIcon,
+  AccountBalance,
+  TrendingUp,
+  Security,
+  Groups,
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import { saasColors } from '../theme/saasTheme';
 
 // 環境変数から取得し、/apiが含まれていない場合は追加
 const baseUrl = (process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com').replace(/\/+$/, '');
@@ -49,6 +54,8 @@ interface InsuranceCompany {
 }
 
 const AgencyRegister: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1); // 1: 情報入力, 2: 保険会社選択, 3: プラン選択
@@ -212,314 +219,489 @@ const AgencyRegister: React.FC = () => {
     return plan.monthly_price * Math.max(selectedCompanies.length, 1);
   };
 
-  return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ p: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-          <Business sx={{ fontSize: 40, mr: 2, color: 'primary.main' }} />
-          <Box>
-            <Typography variant="h4" component="h1">
-              代理店登録
+  const features = [
+    {
+      icon: <TrendingUp sx={{ fontSize: 32 }} />,
+      title: 'AI最適化分析',
+      description: '最新の市場データを元に、最適なポートフォリオを自動提案',
+    },
+    {
+      icon: <Groups sx={{ fontSize: 32 }} />,
+      title: 'チーム管理',
+      description: '担当者ごとの顧客管理と進捗状況を一元管理',
+    },
+    {
+      icon: <Security sx={{ fontSize: 32 }} />,
+      title: 'セキュアな環境',
+      description: '金融機関レベルのセキュリティで大切なデータを保護',
+    },
+  ];
+
+  const renderStepContent = () => {
+    switch (step) {
+      case 1:
+        return (
+          <>
+            <Typography variant="body2" sx={{ color: saasColors.text.secondary, mb: 3 }}>
+              代理店アカウントの基本情報を入力してください
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              変額保険アドバイザリーシステム
-            </Typography>
-          </Box>
-        </Box>
-
-        {cancelled && (
-          <Alert severity="info" sx={{ mb: 3 }}>
-            決済がキャンセルされました。再度お試しください。
-          </Alert>
-        )}
-
-        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-
-        {/* ステップインジケーター */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Chip
-              label="1. アカウント"
-              color={step >= 1 ? 'primary' : 'default'}
-              size="small"
+            <TextField
+              required
+              fullWidth
+              label="ログインID"
+              value={formData.userId}
+              onChange={(e) => handleChange('userId', e.target.value)}
+              helperText="4文字以上の半角英数字（例: agency001）"
+              autoComplete="username"
+              margin="normal"
             />
-            <Box sx={{ width: 30, height: 2, bgcolor: step >= 2 ? 'primary.main' : 'grey.300' }} />
-            <Chip
-              label="2. 保険会社"
-              color={step >= 2 ? 'primary' : 'default'}
-              size="small"
+            <TextField
+              required
+              fullWidth
+              type={showPassword ? 'text' : 'password'}
+              label="パスワード"
+              value={formData.password}
+              onChange={(e) => handleChange('password', e.target.value)}
+              helperText="8文字以上"
+              autoComplete="new-password"
+              margin="normal"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
-            <Box sx={{ width: 30, height: 2, bgcolor: step >= 3 ? 'primary.main' : 'grey.300' }} />
-            <Chip
-              label="3. プラン"
-              color={step >= 3 ? 'primary' : 'default'}
-              size="small"
+            <TextField
+              required
+              fullWidth
+              type={showPassword ? 'text' : 'password'}
+              label="パスワード（確認）"
+              value={formData.confirmPassword}
+              onChange={(e) => handleChange('confirmPassword', e.target.value)}
+              autoComplete="new-password"
+              margin="normal"
             />
-          </Box>
-        </Box>
-
-        {/* ステップ1: アカウント情報 */}
-        {step === 1 && (
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              アカウント情報を入力
-            </Typography>
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <TextField
-                  required
-                  fullWidth
-                  label="ログインID"
-                  value={formData.userId}
-                  onChange={(e) => handleChange('userId', e.target.value)}
-                  helperText="4文字以上の半角英数字（例: agency001）"
-                  autoComplete="username"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  required
-                  fullWidth
-                  type={showPassword ? 'text' : 'password'}
-                  label="パスワード"
-                  value={formData.password}
-                  onChange={(e) => handleChange('password', e.target.value)}
-                  helperText="8文字以上"
-                  autoComplete="new-password"
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowPassword(!showPassword)}
-                          edge="end"
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  required
-                  fullWidth
-                  type={showPassword ? 'text' : 'password'}
-                  label="パスワード（確認）"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleChange('confirmPassword', e.target.value)}
-                  autoComplete="new-password"
-                />
-              </Grid>
-            </Grid>
-
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
               <Button
-                variant="outlined"
+                variant="text"
                 onClick={() => navigate('/login')}
+                sx={{ color: saasColors.text.secondary }}
               >
-                ログインページへ
+                ログインへ戻る
               </Button>
               <Button
                 variant="contained"
                 onClick={handleNextStep}
                 disabled={!formData.userId || !formData.password || !formData.confirmPassword}
+                sx={{
+                  backgroundColor: saasColors.primary,
+                  '&:hover': { backgroundColor: saasColors.background.sidebarHover },
+                }}
               >
-                次へ：保険会社選択
+                次へ
               </Button>
             </Box>
-          </Box>
-        )}
+          </>
+        );
 
-        {/* ステップ2: 保険会社選択 */}
-        {step === 2 && (
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              契約する保険会社を選択
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+      case 2:
+        return (
+          <>
+            <Typography variant="body2" sx={{ color: saasColors.text.secondary, mb: 3 }}>
               分析を利用したい保険会社を選択してください（複数選択可）
             </Typography>
-
             {companiesLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                 <CircularProgress />
               </Box>
             ) : (
-              <Grid container spacing={2}>
-                {companies.map((company) => (
-                  <Grid item xs={12} sm={6} md={4} key={company.id}>
-                    <Card
-                      sx={{
-                        cursor: 'pointer',
-                        border: selectedCompanies.includes(company.id) ? 2 : 1,
-                        borderColor: selectedCompanies.includes(company.id) ? 'primary.main' : 'grey.300',
-                        transition: 'all 0.2s',
-                        '&:hover': {
-                          borderColor: 'primary.main',
-                          boxShadow: 1,
-                        },
-                      }}
-                      onClick={() => handleCompanyToggle(company.id)}
-                    >
-                      <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={selectedCompanies.includes(company.id)}
-                              onChange={() => handleCompanyToggle(company.id)}
-                              color="primary"
-                            />
-                          }
-                          label={
-                            <Typography variant="body2">
-                              {company.display_name || company.company_name}
-                            </Typography>
-                          }
-                          sx={{ m: 0 }}
-                        />
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
+              <Box sx={{ maxHeight: 300, overflowY: 'auto', mb: 2 }}>
+                <Grid container spacing={1}>
+                  {companies.map((company) => (
+                    <Grid item xs={12} sm={6} key={company.id}>
+                      <Card
+                        sx={{
+                          cursor: 'pointer',
+                          border: selectedCompanies.includes(company.id) ? 2 : 1,
+                          borderColor: selectedCompanies.includes(company.id) ? saasColors.primary : saasColors.border,
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            borderColor: saasColors.primary,
+                          },
+                        }}
+                        onClick={() => handleCompanyToggle(company.id)}
+                      >
+                        <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
+                          <FormControlLabel
+                            control={
+                              <Checkbox
+                                checked={selectedCompanies.includes(company.id)}
+                                onChange={() => handleCompanyToggle(company.id)}
+                                sx={{ color: saasColors.primary, '&.Mui-checked': { color: saasColors.primary } }}
+                              />
+                            }
+                            label={
+                              <Typography variant="body2">
+                                {company.display_name || company.company_name}
+                              </Typography>
+                            }
+                            sx={{ m: 0 }}
+                          />
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
             )}
-
-            <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-              <Typography variant="body2">
-                選択した保険会社: <strong>{selectedCompanies.length}社</strong>
+            <Box sx={{ p: 1.5, bgcolor: saasColors.background.default, borderRadius: 1, mb: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                選択中: <strong>{selectedCompanies.length}社</strong>
               </Typography>
             </Box>
-
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
-              <Button
-                variant="outlined"
-                onClick={() => setStep(1)}
-              >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Button variant="outlined" onClick={() => setStep(1)}>
                 戻る
               </Button>
               <Button
                 variant="contained"
                 onClick={handleNextStep}
                 disabled={selectedCompanies.length === 0}
+                sx={{
+                  backgroundColor: saasColors.primary,
+                  '&:hover': { backgroundColor: saasColors.background.sidebarHover },
+                }}
               >
-                次へ：プラン選択
+                次へ
               </Button>
             </Box>
-          </Box>
-        )}
+          </>
+        );
 
-        {/* ステップ3: プラン選択 */}
-        {step === 3 && (
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              プランを選択
+      case 3:
+        return (
+          <>
+            <Typography variant="body2" sx={{ color: saasColors.text.secondary, mb: 2 }}>
+              ご利用プランを選択してください
             </Typography>
-            <Alert severity="info" sx={{ mb: 3 }}>
+            <Alert severity="info" sx={{ mb: 2, fontSize: '12px' }}>
               月額料金 = 基本料金 × 契約保険会社数（{selectedCompanies.length}社）
             </Alert>
-
             {plansLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                 <CircularProgress />
               </Box>
             ) : (
-              <Grid container spacing={2}>
-                {plans.map((plan) => (
-                  <Grid item xs={12} sm={6} key={plan.plan_type}>
-                    <Card
-                      sx={{
-                        height: '100%',
-                        cursor: 'pointer',
-                        border: selectedPlan === plan.plan_type ? 2 : 1,
-                        borderColor: selectedPlan === plan.plan_type ? 'primary.main' : 'grey.300',
-                        transition: 'all 0.2s',
-                        '&:hover': {
-                          borderColor: 'primary.main',
-                          boxShadow: 2,
-                        },
-                      }}
-                      onClick={() => setSelectedPlan(plan.plan_type)}
-                    >
-                      <CardContent>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                          <Typography variant="h6" component="h3">
-                            {plan.plan_name}
+              <Box sx={{ maxHeight: 280, overflowY: 'auto', mb: 2 }}>
+                <Grid container spacing={1}>
+                  {plans.map((plan) => (
+                    <Grid item xs={12} sm={6} key={plan.plan_type}>
+                      <Card
+                        sx={{
+                          cursor: 'pointer',
+                          border: selectedPlan === plan.plan_type ? 2 : 1,
+                          borderColor: selectedPlan === plan.plan_type ? saasColors.primary : saasColors.border,
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            borderColor: saasColors.primary,
+                          },
+                        }}
+                        onClick={() => setSelectedPlan(plan.plan_type)}
+                      >
+                        <CardContent sx={{ p: 1.5 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                            <Typography variant="subtitle2" fontWeight={600}>
+                              {plan.plan_name}
+                            </Typography>
+                            {selectedPlan === plan.plan_type && (
+                              <Check sx={{ color: saasColors.primary, fontSize: 18 }} />
+                            )}
+                          </Box>
+                          <Typography variant="h6" sx={{ color: saasColors.primary }}>
+                            {formatPrice(plan.monthly_price * selectedCompanies.length)}
+                            <Typography component="span" variant="caption" color="text.secondary">/月</Typography>
                           </Typography>
-                          {selectedPlan === plan.plan_type && (
-                            <Check color="primary" />
-                          )}
-                        </Box>
-                        <Typography variant="body2" color="text.secondary">
-                          基本料金: {formatPrice(plan.monthly_price)}/月
-                        </Typography>
-                        <Typography variant="h5" color="primary" sx={{ my: 1 }}>
-                          {formatPrice(plan.monthly_price * selectedCompanies.length)}
-                          <Typography component="span" variant="body2" color="text.secondary">
-                            /月
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            担当者: {plan.staff_limit}名 / 顧客: {plan.customer_limit_per_staff}名/担当
                           </Typography>
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          {plan.description}
-                        </Typography>
-                        <Divider sx={{ my: 1 }} />
-                        <Typography variant="body2">
-                          担当者数: 最大{plan.staff_limit}名
-                        </Typography>
-                        <Typography variant="body2">
-                          顧客数: 担当者あたり{plan.customer_limit_per_staff}名
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
             )}
-
             {selectedPlan && (
-              <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.light', color: 'primary.contrastText', borderRadius: 1 }}>
-                <Typography variant="h6">
+              <Box sx={{ p: 1.5, bgcolor: saasColors.primary, color: 'white', borderRadius: 1, mb: 2 }}>
+                <Typography variant="body2" fontWeight={600}>
                   お支払い金額: {formatPrice(calculateTotalPrice())}/月
-                </Typography>
-                <Typography variant="body2">
-                  ({plans.find(p => p.plan_type === selectedPlan)?.plan_name}プラン × {selectedCompanies.length}社)
                 </Typography>
               </Box>
             )}
-
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
-              <Button
-                variant="outlined"
-                onClick={() => setStep(2)}
-              >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Button variant="outlined" onClick={() => setStep(2)}>
                 戻る
               </Button>
               <Button
                 variant="contained"
                 onClick={handleSubmit}
                 disabled={loading || !selectedPlan}
-                sx={{ minWidth: 200 }}
+                sx={{
+                  backgroundColor: saasColors.primary,
+                  '&:hover': { backgroundColor: saasColors.background.sidebarHover },
+                }}
               >
-                {loading ? <CircularProgress size={24} /> : '登録して支払いへ'}
+                {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : '登録して支払いへ'}
               </Button>
             </Box>
-          </Box>
-        )}
+          </>
+        );
 
-        <Box sx={{ mt: 4, pt: 3, borderTop: 1, borderColor: 'grey.200' }}>
-          <Typography variant="body2" color="text.secondary" align="center">
-            既にアカウントをお持ちの方は{' '}
-            <Button
-              variant="text"
-              size="small"
-              onClick={() => navigate('/login')}
-            >
-              ログイン
-            </Button>
-          </Typography>
-        </Box>
-      </Paper>
-    </Container>
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        backgroundColor: saasColors.background.default,
+      }}
+    >
+      <Grid container sx={{ minHeight: '100vh' }}>
+        {/* Left side - Registration Form */}
+        <Grid
+          item
+          xs={12}
+          md={5}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: { xs: 3, md: 5 },
+            backgroundColor: saasColors.background.paper,
+          }}
+        >
+          <Box sx={{ width: '100%', maxWidth: 440 }}>
+            {/* Logo */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                  backgroundColor: saasColors.primary,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AccountBalance sx={{ color: 'white', fontSize: 28 }} />
+              </Box>
+              <Box>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 700, color: saasColors.text.primary, lineHeight: 1.2 }}
+                >
+                  変額保険
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: saasColors.text.secondary }}
+                >
+                  アドバイザー
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Title */}
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: saasColors.text.primary }}>
+              代理店登録
+            </Typography>
+
+            {/* Step Indicator */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+              <Chip
+                label="1. アカウント"
+                size="small"
+                sx={{
+                  bgcolor: step >= 1 ? saasColors.primary : saasColors.border,
+                  color: step >= 1 ? 'white' : saasColors.text.secondary,
+                  fontWeight: 500,
+                }}
+              />
+              <Box sx={{ width: 16, height: 2, bgcolor: step >= 2 ? saasColors.primary : saasColors.border }} />
+              <Chip
+                label="2. 保険会社"
+                size="small"
+                sx={{
+                  bgcolor: step >= 2 ? saasColors.primary : saasColors.border,
+                  color: step >= 2 ? 'white' : saasColors.text.secondary,
+                  fontWeight: 500,
+                }}
+              />
+              <Box sx={{ width: 16, height: 2, bgcolor: step >= 3 ? saasColors.primary : saasColors.border }} />
+              <Chip
+                label="3. プラン"
+                size="small"
+                sx={{
+                  bgcolor: step >= 3 ? saasColors.primary : saasColors.border,
+                  color: step >= 3 ? 'white' : saasColors.text.secondary,
+                  fontWeight: 500,
+                }}
+              />
+            </Box>
+
+            {cancelled && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                決済がキャンセルされました。再度お試しください。
+              </Alert>
+            )}
+
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+            {renderStepContent()}
+
+            <Divider sx={{ my: 3 }} />
+
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                既にアカウントをお持ちの方は{' '}
+                <Button
+                  variant="text"
+                  size="small"
+                  onClick={() => navigate('/login')}
+                  sx={{ color: saasColors.primary, fontWeight: 600 }}
+                >
+                  ログイン
+                </Button>
+              </Typography>
+            </Box>
+          </Box>
+        </Grid>
+
+        {/* Right side - Catchphrase (hidden on mobile) */}
+        {!isMobile && (
+          <Grid
+            item
+            md={7}
+            sx={{
+              backgroundColor: saasColors.primary,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              p: 8,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Background pattern */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                opacity: 0.08,
+                background: `radial-gradient(circle at 20% 80%, ${saasColors.secondary} 0%, transparent 50%),
+                             radial-gradient(circle at 80% 20%, ${saasColors.accent} 0%, transparent 50%)`,
+              }}
+            />
+
+            <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 560 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <BusinessIcon sx={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 28 }} />
+                <Typography variant="overline" sx={{ color: 'rgba(255, 255, 255, 0.7)', letterSpacing: 2 }}>
+                  FOR AGENCIES
+                </Typography>
+              </Box>
+
+              <Typography
+                variant="h2"
+                sx={{
+                  fontWeight: 700,
+                  color: 'white',
+                  mb: 2,
+                  lineHeight: 1.2,
+                }}
+              >
+                代理店業務を、
+                <br />
+                次のステージへ。
+              </Typography>
+
+              <Typography
+                variant="h6"
+                sx={{
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  mb: 6,
+                  fontWeight: 400,
+                  lineHeight: 1.6,
+                }}
+              >
+                AIが最新の市場データを分析し、担当者ごとの顧客管理から
+                最適な資産配分の提案まで、代理店業務全体を効率化。
+                チーム全体の生産性向上をサポートします。
+              </Typography>
+
+              {/* Features */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {features.map((feature, index) => (
+                  <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                    <Box
+                      sx={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 2,
+                        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {feature.icon}
+                    </Box>
+                    <Box>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{ fontWeight: 600, color: 'white', mb: 0.5 }}
+                      >
+                        {feature.title}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ color: 'rgba(255, 255, 255, 0.7)' }}
+                      >
+                        {feature.description}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+
+            {/* Version */}
+            <Box sx={{ position: 'absolute', bottom: 32, left: 64 }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                v1.8.9
+              </Typography>
+            </Box>
+          </Grid>
+        )}
+      </Grid>
+    </Box>
   );
 };
 

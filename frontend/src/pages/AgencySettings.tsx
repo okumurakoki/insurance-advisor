@@ -27,7 +27,7 @@ import {
   Cancel as CancelIcon,
   Check as CheckIcon,
 } from '@mui/icons-material';
-import api from '../services/api.ts';
+import api from '../services/api';
 
 interface InsuranceCompany {
   id: number;

@@ -26,7 +26,7 @@ import {
   TrendingUp as TrendingUpIcon,
   Assessment as AssessmentIcon,
 } from '@mui/icons-material';
-import api from '../services/api.ts';
+import api from '../services/api';
 
 interface InsuranceCompany {
   id: number;
@@ -35,8 +35,10 @@ interface InsuranceCompany {
   company_name_en: string;
   display_name: string;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  contract_start_date?: string;
+  contract_end_date?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface PerformanceData {
@@ -96,7 +98,7 @@ const InsuranceCompanies: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await api.getLatestPerformanceByCompany(companyCode);
+      const data: any[] = await api.getLatestPerformanceByCompany(companyCode);
       setPerformanceData(data);
     } catch (err: any) {
       console.error('Failed to load performance data:', err);

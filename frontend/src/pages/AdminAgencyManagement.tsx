@@ -35,7 +35,7 @@ import {
   Delete as DeleteIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
-import api from '../services/api.ts';
+import api from '../services/api';
 
 interface Agency {
   id: number;
@@ -260,7 +260,7 @@ const AdminAgencyManagement: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      await api.updateAgencyPaymentMethod(selectedAgencyId, selectedPaymentMethod);
+      await api.updateAgencyPaymentMethod(selectedAgencyId, selectedPaymentMethod as 'card' | 'bank_transfer');
       setSuccess('支払い方法を更新しました');
       await loadAgencies();
       setSelectedPaymentMethod('');

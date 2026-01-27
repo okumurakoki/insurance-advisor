@@ -1,9 +1,8 @@
-// Build: 2024-11-04-v2 - Fixed staff display showing proper IDs and names
-import React, { useState, useEffect, useCallback } from 'react';
+// Build: 2024-11-04-v3 - SaaS Dashboard UI redesign with sidebar navigation
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import {
   ThemeProvider,
-  createTheme,
   CssBaseline,
   Container,
   Paper,
@@ -17,28 +16,16 @@ import {
   Alert,
   CircularProgress,
   LinearProgress,
-  AppBar,
-  Toolbar,
-  IconButton,
-  Menu,
   MenuItem,
-  Divider,
   FormControl,
   InputLabel,
   Select,
   Chip,
   Autocomplete,
-  Drawer,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  useMediaQuery,
-  useTheme,
   Table,
   TableBody,
   TableCell,
@@ -47,28 +34,29 @@ import {
   TableRow,
 } from '@mui/material';
 import {
-  AccountCircle,
-  Dashboard as DashboardIcon,
-  People as PeopleIcon,
   Assessment as AssessmentIcon,
-  Logout as LogoutIcon,
   TrendingUp,
   Person,
   Add,
-  PictureAsPdf as PdfIcon,
-  Menu as MenuIcon,
   TableChart as TableIcon,
   Business as BusinessIcon,
+  PictureAsPdf as PdfIcon,
+  ShowChart as ShowChartIcon,
+  Insights as InsightsIcon,
+  CloudUpload as CloudUploadIcon,
+  PieChart as PieChartIcon,
 } from '@mui/icons-material';
-import Login from './components/Login.tsx';
-import InsuranceCompanies from './pages/InsuranceCompanies.tsx';
-import AdminAgencyManagement from './pages/AdminAgencyManagement.tsx';
-import PdfUpload from './pages/PdfUpload.tsx';
-import PublicCustomerRegister from './pages/PublicCustomerRegister.tsx';
-import AgencyRegister from './pages/AgencyRegister.tsx';
-import PaymentSuccess from './pages/PaymentSuccess.tsx';
-import Simulation from './pages/Simulation.tsx';
-import { getUserTheme, defaultTheme, InsuranceCompanyTheme, getInsuranceCompanyTheme } from './config/insuranceCompanyThemes.ts';
+import Login from './components/Login';
+import InsuranceCompanies from './pages/InsuranceCompanies';
+import AdminAgencyManagement from './pages/AdminAgencyManagement';
+import PdfUpload from './pages/PdfUpload';
+import PublicCustomerRegister from './pages/PublicCustomerRegister';
+import AgencyRegister from './pages/AgencyRegister';
+import PaymentSuccess from './pages/PaymentSuccess';
+import Simulation from './pages/Simulation';
+import { getInsuranceCompanyTheme } from './config/insuranceCompanyThemes';
+import { MainLayout } from './components/Layout';
+import { saasTheme } from './theme/saasTheme';
 
 // API Configuration
 const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com').replace(/\/+$/, '');
@@ -91,49 +79,8 @@ const getCompanyDisplayName = (company: any, userAccountType: string): string =>
 };
 
 
-// 動的テーマ生成関数
-const createDynamicTheme = (companyTheme: InsuranceCompanyTheme) => {
-  return createTheme({
-    palette: {
-      primary: {
-        main: companyTheme.colors.primary,
-      },
-      secondary: {
-        main: companyTheme.colors.secondary,
-      },
-      background: {
-        default: companyTheme.colors.background,
-      },
-    },
-    typography: {
-      fontFamily: [
-        '"Noto Sans JP"',
-        '-apple-system',
-        'BlinkMacSystemFont',
-        '"Segoe UI"',
-        'Roboto',
-        '"Helvetica Neue"',
-        'Arial',
-        'sans-serif',
-      ].join(','),
-      fontWeightLight: 300,
-      fontWeightRegular: 400,
-      fontWeightMedium: 500,
-      fontWeightBold: 700,
-      h1: { fontWeight: 700 },
-      h2: { fontWeight: 700 },
-      h3: { fontWeight: 700 },
-      h4: { fontWeight: 700 },
-      h5: { fontWeight: 600 },
-      h6: { fontWeight: 600 },
-      body1: { fontWeight: 400 },
-      body2: { fontWeight: 400 },
-    },
-  });
-};
-
-// デフォルトテーマ
-const defaultAppTheme = createDynamicTheme(defaultTheme);
+// デフォルトテーマ（SaaSテーマを使用）
+const defaultAppTheme = saasTheme;
 
 interface User {
   id: number;
@@ -146,32 +93,22 @@ interface User {
 }
 
 function App() {
-  const [currentTheme, setCurrentTheme] = useState(defaultAppTheme);
-
   return (
-    <ThemeProvider theme={currentTheme}>
+    <ThemeProvider theme={defaultAppTheme}>
       <CssBaseline />
       <Router>
-        <AppContent onThemeChange={setCurrentTheme} />
+        <AppContent />
       </Router>
     </ThemeProvider>
   );
 }
 
-interface AppContentProps {
-  onThemeChange: (theme: any) => void;
-}
-
-function AppContent({ onThemeChange }: AppContentProps) {
+function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [marketData, setMarketData] = useState<any[]>([]);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -195,166 +132,13 @@ function AppContent({ onThemeChange }: AppContentProps) {
     localStorage.removeItem('user');
     setIsLoggedIn(false);
     setUser(null);
-    setAnchorEl(null);
+    navigate('/');
   };
 
-  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
-
-  const getAccountTypeLabel = (type: string) => {
-    const labels = {
-      parent: '代理店',
-      child: '生保担当者',
-      grandchild: '顧客',
-      admin: '管理者',
-    };
-    return labels[type as keyof typeof labels] || type;
-  };
-
-
-  // Navigation items - アカウントタイプに応じて表示項目を制御
-  const navigationItems = [
-    { path: '/dashboard', icon: <DashboardIcon />, text: 'ダッシュボード' },
-    ...(user?.accountType === 'admin' ? [{ path: '/agencies', icon: <PeopleIcon />, text: '代理店管理' }] : []),
-    ...(user?.accountType === 'admin' ? [{ path: '/admin/agency-management', icon: <BusinessIcon />, text: '保険会社管理' }] : []),
-    ...(user?.accountType === 'admin' ? [{ path: '/admin/pdf-upload', icon: <PdfIcon />, text: 'PDFアップロード' }] : []),
-    ...(user?.accountType === 'parent' ? [{ path: '/staff', icon: <PeopleIcon />, text: '担当者管理' }] : []),
-    ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/customers', icon: <PeopleIcon />, text: '顧客管理' }] : []),
-    ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/insurance-companies', icon: <BusinessIcon />, text: '保険会社' }] : []),
-    ...(user?.accountType === 'parent' || user?.accountType === 'child' ? [{ path: '/simulation', icon: <TrendingUp />, text: 'シミュレーション' }] : []),
-  ];
-
-  const drawerContent = (
-    <Box onClick={() => setMobileOpen(false)}>
-      <Box sx={{ p: 2, borderBottom: '1px solid #eee' }}>
-        <Typography variant="h6">🏦 変額保険システム</Typography>
-        <Typography variant="body2" color="text.secondary">
-          {user?.userId} ({getAccountTypeLabel(user?.accountType || '')})
-        </Typography>
-      </Box>
-      <List>
-        {navigationItems.map((item) => (
-          <ListItem
-            button
-            key={item.path}
-            onClick={() => navigate(item.path)}
-            sx={{
-              backgroundColor: location.pathname === item.path ? 'action.selected' : 'transparent'
-            }}
-          >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.text} />
-          </ListItem>
-        ))}
-        <Divider sx={{ my: 1 }} />
-        <ListItem button onClick={handleLogout}>
-          <ListItemIcon><LogoutIcon /></ListItemIcon>
-          <ListItemText primary="ログアウト" />
-        </ListItem>
-      </List>
-    </Box>
-  );
-
+  // ログイン済み状態の表示
   if (isLoggedIn && user) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <AppBar position="static">
-          <Toolbar>
-            {isMobile && (
-              <IconButton
-                color="inherit"
-                edge="start"
-                onClick={handleDrawerToggle}
-                sx={{ mr: 2 }}
-              >
-                <MenuIcon />
-              </IconButton>
-            )}
-            
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-              {isMobile ? '🏦 変額保険' : '🏦 変額保険アドバイザリーシステム'}
-              <Chip
-                label="v1.8.9"
-                size="small"
-                color="secondary"
-                sx={{
-                  fontWeight: 600,
-                  fontSize: '0.75rem'
-                }}
-              />
-            </Typography>
-            
-            {!isMobile && (
-              <>
-                {navigationItems.map((item) => (
-                  <Button 
-                    key={item.path}
-                    color="inherit" 
-                    startIcon={item.icon}
-                    onClick={() => navigate(item.path)}
-                    sx={{ 
-                      backgroundColor: location.pathname === item.path ? 'rgba(255,255,255,0.1)' : 'transparent',
-                      display: { xs: 'none', md: 'flex' }
-                    }}
-                  >
-                    {item.text}
-                  </Button>
-                ))}
-              </>
-            )}
-            
-            <IconButton
-              size="large"
-              onClick={handleMenu}
-              color="inherit"
-            >
-              <AccountCircle />
-            </IconButton>
-            
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-            >
-              <MenuItem disabled>
-                <Typography variant="body2">
-                  {user.userId} ({getAccountTypeLabel(user.accountType)})
-                </Typography>
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={handleLogout}>
-                <LogoutIcon sx={{ mr: 1 }} fontSize="small" />
-                ログアウト
-              </MenuItem>
-            </Menu>
-          </Toolbar>
-        </AppBar>
-
-        {/* Mobile Drawer */}
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
-          }}
-          sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 280 },
-          }}
-        >
-          {drawerContent}
-        </Drawer>
-        
+      <MainLayout user={user} onLogout={handleLogout}>
         <Routes>
           {/* Public routes */}
           <Route path="/register" element={<PublicCustomerRegister />} />
@@ -389,13 +173,7 @@ function AppContent({ onThemeChange }: AppContentProps) {
             </>
           )}
         </Routes>
-        
-        <Box component="footer" sx={{ py: 3, px: 2, mt: 'auto', backgroundColor: 'background.paper' }}>
-          <Typography variant="body2" color="text.secondary" align="center">
-            © 2025 変額保険アドバイザリーシステム
-          </Typography>
-        </Box>
-      </Box>
+      </MainLayout>
     );
   }
 
@@ -403,8 +181,6 @@ function AppContent({ onThemeChange }: AppContentProps) {
     setIsLoggedIn(true);
     setUser(userData);
     fetchMarketData();
-    // ログイン時にも保険会社情報を取得してテーマを設定
-    fetchInsuranceCompaniesAndSetTheme(userData, token);
   };
 
   // 未ログインでもアクセス可能なパブリックルート
@@ -785,7 +561,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography variant="h6" mb={1} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    📊 マーケットデータ管理
+                    <InsightsIcon color="primary" /> マーケットデータ管理
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     保険会社の月次PDFをアップロードして、ファンドパフォーマンスデータを管理できます。
@@ -808,8 +584,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
           {fundPerformance.length > 0 ? (
             <Paper sx={{ p: 2, mb: 3 }}>
               <Box sx={{ mb: 2 }}>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>
-                  📊 今月の最適化推奨配分
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PieChartIcon color="primary" /> 今月の最適化推奨配分
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   AI分析による最適なポートフォリオ配分（直近1年パフォーマンス基準）
@@ -1008,9 +784,6 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                           return {
                             ...fund,
                             recommended,
-                            fundName: fund.fundName,
-                            performance: fund.performance,
-                            previousPerformance: fund.previousPerformance
                           };
                         });
                       }
@@ -1063,7 +836,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                       const saveAllocations = async () => {
                         try {
                           const token = localStorage.getItem('token');
-                          const recommendationDate = fundData[0]?.performanceDate || new Date().toISOString().split('T')[0];
+                          const recommendationDate = new Date().toISOString().split('T')[0];
 
                           const allocations = calculations.map(calc => ({
                             fundType: calc.fundName,
@@ -1097,7 +870,7 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                       // Get previous allocations from window storage
                       const previousAllocations = (window as any).__previousAllocations;
 
-                      return calculations.map(({ fundName, performance, previousPerformance, recommended }) => {
+                      return calculations.map(({ fundName, performance, recommended }) => {
                         // Get previous allocation for this fund
                         const previousAllocation = previousAllocations?.allocations?.[fundName] || null;
 
@@ -1165,8 +938,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             </Paper>
           ) : (
             <Paper sx={{ p: 4, mb: 2, textAlign: 'center' }}>
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                📊 マーケットデータをアップロードしてください
+              <Typography variant="h6" color="text.secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                <CloudUploadIcon /> マーケットデータをアップロードしてください
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 管理者がPDFをアップロードすると、最適化推奨配分が表示されます
@@ -1287,8 +1060,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
                 <Grid item xs={12} md={6}>
                   <Card sx={{ bgcolor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)' }}>
                     <CardContent>
-                      <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1 }}>
-                        📈 10年国債利回り（マクロ環境）
+                      <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <TrendingUp fontSize="small" /> 10年国債利回り（マクロ環境）
                       </Typography>
                       <Grid container spacing={2}>
                         <Grid item xs={6}>
@@ -1437,8 +1210,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
 
                         {(fund.totalReturn5Y !== undefined || fund.totalReturn10Y !== undefined) && (
                           <Box sx={{ mb: 2, p: 1.5, bgcolor: 'grey.50', borderRadius: 1 }}>
-                            <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                              📊 累積騰落率
+                            <Typography variant="caption" color="text.secondary" gutterBottom display="block" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <ShowChartIcon fontSize="small" /> 累積騰落率
                             </Typography>
                             <Grid container spacing={1}>
                               {fund.totalReturn1Y !== undefined && (
@@ -1513,8 +1286,8 @@ function Dashboard({ user, marketData, navigate }: DashboardProps) {
             {/* Market Summary */}
             {fundPerformance.length > 0 && (
               <Box sx={{ mt: 3, p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
-                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                  📈 市場サマリー & 投資アドバイス
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <TrendingUp /> 市場サマリー & 投資アドバイス
                 </Typography>
                 <Grid container spacing={2}>
                   {fundPerformance
@@ -1799,6 +1572,7 @@ function AgencyList({ user, navigate }: AgencyListProps) {
     }
 
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/admin/agencies/fix-plans`, {
         method: 'POST',
         headers: {
@@ -2410,8 +2184,8 @@ function CustomerList({ user, navigate }: CustomerListProps) {
           const uniqueStaff = Array.from(
             new Map(
               formattedCustomers
-                .filter(c => c.staffName)
-                .map(c => [c.staffId, { id: c.staffId, name: c.staffName }])
+                .filter((c: any) => c.staffName)
+                .map((c: any) => [c.staffId, { id: c.staffId, name: c.staffName }])
             ).values()
           );
           setStaffList(uniqueStaff);

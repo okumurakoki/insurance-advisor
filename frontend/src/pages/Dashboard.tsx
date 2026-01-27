@@ -32,7 +32,11 @@ import {
   Add as AddIcon,
   TrendingUp as TrendingUpIcon,
   Business as BusinessIcon,
+  AttachMoney as MoneyIcon,
+  ShowChart as ChartIcon,
 } from '@mui/icons-material';
+import { KPICard } from '../components/Dashboard';
+import { saasColors } from '../theme/saasTheme';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -94,7 +98,7 @@ const Dashboard: React.FC = () => {
   const fetchInsuranceCompanies = async () => {
     try {
       // Get insurance companies (all for admin, contracted for others)
-      const companies = user?.accountType === 'admin'
+      const companies: any[] = user?.accountType === 'admin'
         ? await api.getInsuranceCompanies()
         : await api.getMyInsuranceCompanies();
 
@@ -243,110 +247,59 @@ const Dashboard: React.FC = () => {
           </Grid>
         )}
 
-        {/* Statistics Cards */}
-        <Grid item xs={12} sm={6} md={4}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    {selectedCompanyCode === 'all' ? '管理中の顧客数' : '保険会社の顧客数'}
-                  </Typography>
-                  <Typography variant="h5">
-                    {filteredStats.customerCount}
-                  </Typography>
-                  {selectedCompanyCode !== 'all' && (
-                    <Typography variant="caption" color="textSecondary">
-                      全体: {stats.customerCount}人
-                    </Typography>
-                  )}
-                </Box>
-                <PersonIcon color="primary" sx={{ fontSize: 40 }} />
-              </Box>
-            </CardContent>
-          </Card>
+        {/* KPI Statistics Cards */}
+        <Grid item xs={12} sm={6} md={3}>
+          <KPICard
+            title={selectedCompanyCode === 'all' ? '管理中の顧客数' : '保険会社の顧客数'}
+            value={filteredStats.customerCount}
+            subtitle={selectedCompanyCode !== 'all' ? `全体: ${stats.customerCount}人` : undefined}
+            icon={<PersonIcon />}
+            iconBgColor={saasColors.primary}
+            onClick={() => navigate('/customers')}
+          />
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    レポート数
-                  </Typography>
-                  <Typography variant="h5">
-                    {filteredStats.reportCount}
-                  </Typography>
-                </Box>
-                <AssessmentIcon color="secondary" sx={{ fontSize: 40 }} />
-              </Box>
-            </CardContent>
-          </Card>
+        <Grid item xs={12} sm={6} md={3}>
+          <KPICard
+            title="レポート数"
+            value={filteredStats.reportCount}
+            icon={<AssessmentIcon />}
+            iconBgColor={saasColors.secondary}
+          />
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    {selectedCompanyCode === 'all' ? '契約金額合計' : '保険会社の契約金額'}
-                  </Typography>
-                  <Typography variant="h5">
-                    ¥{Math.round(filteredStats.totalAssets).toLocaleString()}
-                  </Typography>
-                  {selectedCompanyCode !== 'all' && (
-                    <Typography variant="caption" color="textSecondary">
-                      全体: ¥{Math.round(stats.totalAssets).toLocaleString()}
-                    </Typography>
-                  )}
-                </Box>
-                <TrendingUpIcon color="success" sx={{ fontSize: 40 }} />
-              </Box>
-            </CardContent>
-          </Card>
+        <Grid item xs={12} sm={6} md={3}>
+          <KPICard
+            title={selectedCompanyCode === 'all' ? '契約金額合計' : '保険会社の契約金額'}
+            value={`¥${Math.round(filteredStats.totalAssets).toLocaleString()}`}
+            subtitle={selectedCompanyCode !== 'all' ? `全体: ¥${Math.round(stats.totalAssets).toLocaleString()}` : undefined}
+            icon={<MoneyIcon />}
+            iconBgColor={saasColors.success}
+          />
         </Grid>
 
-        <Grid item xs={12} sm={6} md={6}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    {selectedCompanyCode === 'all' ? '月額保険料合計' : '保険会社の月額保険料'}
-                  </Typography>
-                  <Typography variant="h5">
-                    ¥{Math.round(filteredStats.totalMonthlyPremium).toLocaleString()}/月
-                  </Typography>
-                  {selectedCompanyCode !== 'all' && (
-                    <Typography variant="caption" color="textSecondary">
-                      全体: ¥{Math.round(stats.totalMonthlyPremium).toLocaleString()}/月
-                    </Typography>
-                  )}
-                </Box>
-                <TrendingUpIcon color="info" sx={{ fontSize: 40 }} />
-              </Box>
-            </CardContent>
-          </Card>
+        <Grid item xs={12} sm={6} md={3}>
+          <KPICard
+            title="平均利回り"
+            value={`${stats.averageReturn}%`}
+            trend={stats.averageReturn !== 0 ? {
+              value: stats.averageReturn,
+              direction: stats.averageReturn > 0 ? 'up' : stats.averageReturn < 0 ? 'down' : 'flat',
+            } : undefined}
+            icon={<ChartIcon />}
+            iconBgColor={saasColors.info}
+            valueColor={stats.averageReturn > 0 ? saasColors.success : stats.averageReturn < 0 ? saasColors.error : undefined}
+          />
         </Grid>
 
-        <Grid item xs={12} sm={6} md={6}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    平均利回り
-                  </Typography>
-                  <Typography variant="h5">
-                    {stats.averageReturn}%
-                  </Typography>
-                </Box>
-                <AddIcon color="action" sx={{ fontSize: 40 }} />
-              </Box>
-            </CardContent>
-          </Card>
+        <Grid item xs={12}>
+          <KPICard
+            title={selectedCompanyCode === 'all' ? '月額保険料合計' : '保険会社の月額保険料'}
+            value={`¥${Math.round(filteredStats.totalMonthlyPremium).toLocaleString()}/月`}
+            subtitle={selectedCompanyCode !== 'all' ? `全体: ¥${Math.round(stats.totalMonthlyPremium).toLocaleString()}/月` : undefined}
+            icon={<TrendingUpIcon />}
+            iconBgColor={saasColors.accent}
+          />
         </Grid>
 
         {/* Action Buttons and Company Filter */}
@@ -536,8 +489,8 @@ const Dashboard: React.FC = () => {
         {marketData.length > 0 && (
           <Grid item xs={12}>
             <Paper sx={{ p: 3, mb: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                📈 市場データ (リアルタイム)
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <TrendingUpIcon /> 市場データ (リアルタイム)
               </Typography>
               <Grid container spacing={2}>
                 {marketData.slice(0, 5).map((data, index) => (

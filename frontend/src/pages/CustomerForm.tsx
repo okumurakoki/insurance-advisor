@@ -96,9 +96,9 @@ const CustomerForm: React.FC = () => {
         : new Date().toISOString().split('T')[0];
 
       // Extract company IDs from insuranceCompanies array
-      const companyIds = customer.insuranceCompanies && Array.isArray(customer.insuranceCompanies)
-        ? customer.insuranceCompanies.map((ic: any) => ic.insurance_company_id)
-        : (customer.companyId ? [customer.companyId] : []);
+      const companyIds = (customer as any).insuranceCompanies && Array.isArray((customer as any).insuranceCompanies)
+        ? (customer as any).insuranceCompanies.map((ic: any) => ic.insurance_company_id)
+        : ((customer as any).companyId ? [(customer as any).companyId] : []);
 
       setFormData({
         name: customer.name,

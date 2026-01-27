@@ -19,6 +19,7 @@ import {
   ArrowBack as ArrowBackIcon,
   Download as DownloadIcon,
   Print as PrintIcon,
+  PieChart as PieChartIcon,
 } from '@mui/icons-material';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
@@ -275,8 +276,8 @@ const AnalysisResult: React.FC = () => {
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h5" gutterBottom fontWeight="bold" color="primary">
-              📊 今月の最適化推奨配分
+            <Typography variant="h5" gutterBottom fontWeight="bold" color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <PieChartIcon /> 今月の最適化推奨配分
             </Typography>
             <Typography variant="body2" color="textSecondary" gutterBottom sx={{ mb: 3 }}>
               以下のファンドに配分してください
@@ -285,7 +286,9 @@ const AnalysisResult: React.FC = () => {
 
             {/* 大きくわかりやすい配分表示 */}
             <Box sx={{ mb: 4 }}>
-              {Object.entries(analysis.allocation).map(([asset, percentage], index) => (
+              {Object.entries(analysis.allocation).map(([asset, pct], index) => {
+                const percentage = pct as number;
+                return (
                 <Box
                   key={asset}
                   sx={{
@@ -323,7 +326,8 @@ const AnalysisResult: React.FC = () => {
                     </Typography>
                   </Box>
                 </Box>
-              ))}
+              );
+              })}
             </Box>
 
             {/* 円グラフは参考として下部に配置 */}

@@ -1,10 +1,12 @@
 export interface User {
   id: number;
   userId: string;
-  accountType: 'parent' | 'child' | 'grandchild';
+  accountType: 'admin' | 'parent' | 'child' | 'grandchild';
   planType: 'standard' | 'master' | 'exceed';
   customerLimit: number;
   parentId?: number;
+  isAdmin?: boolean;
+  customerId?: number;
 }
 
 export interface Customer {

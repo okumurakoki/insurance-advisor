@@ -5,7 +5,7 @@ import { CircularProgress, Box } from '@mui/material';
 
 interface PrivateRouteProps {
   children: React.ReactNode;
-  allowedAccountTypes?: ('parent' | 'child' | 'grandchild')[];
+  allowedAccountTypes?: ('admin' | 'parent' | 'child' | 'grandchild')[];
 }
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children, allowedAccountTypes }) => {

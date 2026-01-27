@@ -88,8 +88,8 @@ const CustomerDetail: React.FC = () => {
       }
 
       // 担当者情報を取得
-      if (customerData.user_id) {
-        fetchStaffInfo(customerData.user_id);
+      if ((customerData as any).user_id) {
+        fetchStaffInfo((customerData as any).user_id);
       }
     } catch (err: any) {
       setError('データの取得に失敗しました');
@@ -101,7 +101,7 @@ const CustomerDetail: React.FC = () => {
   const fetchStaffInfo = async (userId: number) => {
     try {
       // ユーザー情報APIを呼び出す（担当者名を取得）
-      const staffInfo = await api.getUser(userId);
+      const staffInfo = await api.getUser(userId) as any;
       console.log('Staff info:', staffInfo);
       setStaffName(staffInfo.name || staffInfo.user_id || staffInfo.userId || '担当者不明');
     } catch (err) {
@@ -122,7 +122,7 @@ const CustomerDetail: React.FC = () => {
     if (analysisHistory.length === 0) {
       // No analysis history - show message instead of hardcoded data
       return {
-        month: startMonth.toISOString().split('T')[0],
+        month: new Date().toISOString().split('T')[0],
         value: 100,
         cumulativeReturn: 0,
         message: '分析履歴がありません。最初の分析を作成してください。'
@@ -130,7 +130,7 @@ const CustomerDetail: React.FC = () => {
     }
 
     // Use the most recent analysis if available
-    const recentAnalysis = analysisHistory[0];
+    const recentAnalysis = analysisHistory[0] as any;
     allocation = recentAnalysis.adjustedAllocation || recentAnalysis.recommendedAllocation || {};
 
     // Use expected return from the analysis result if available
@@ -335,8 +335,8 @@ const CustomerDetail: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Typography color="textSecondary" variant="body2">加入保険会社</Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-            {customer.insuranceCompanies && customer.insuranceCompanies.length > 0 ? (
-              customer.insuranceCompanies.map((company: any) => (
+            {(customer as any).insuranceCompanies && (customer as any).insuranceCompanies.length > 0 ? (
+              (customer as any).insuranceCompanies.map((company: any) => (
                 <Chip
                   key={company.id}
                   label={company.display_name || company.company_name}

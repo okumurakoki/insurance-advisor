@@ -381,7 +381,7 @@ const AnalysisNew: React.FC = () => {
                     <Grid item xs={12} sm={6} key={asset}>
                       <Box display="flex" justifyContent="space-between">
                         <Typography>{asset}</Typography>
-                        <Typography fontWeight="bold">{percentage}%</Typography>
+                        <Typography fontWeight="bold">{`${percentage}%`}</Typography>
                       </Box>
                     </Grid>
                   ))}
