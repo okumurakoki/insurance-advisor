@@ -16,6 +16,10 @@ function detectCompany(text) {
         return 'AXA_LIFE';
     } else if (text.includes('プルデンシャル生命')) {
         return 'PRUDENTIAL_LIFE';
+    } else if (text.includes('SOMPOひまわり生命') || text.includes('ひまわり生命')) {
+        return 'SOMPO_HIMAWARI_LIFE';
+    } else if (text.includes('はなさく生命')) {
+        return 'HANASAKU_LIFE';
     }
     throw new Error('Unable to detect insurance company from PDF content');
 }
@@ -42,6 +46,10 @@ async function parsePDF(pdfBuffer) {
             return parseAxaLifePDF(pdfBuffer);
         case 'PRUDENTIAL_LIFE':
             return parsePrudentialLifePDF(pdfBuffer);
+        case 'SOMPO_HIMAWARI_LIFE':
+            return parseHimawariLifePDF(pdfBuffer);
+        case 'HANASAKU_LIFE':
+            return parseHanasakuLifePDF(pdfBuffer);
         default:
             throw new Error(`Unsupported company: ${companyCode}`);
     }
@@ -295,7 +303,9 @@ async function parseSonyLifeAnnuityPDF(pdfBuffer) {
             { name: '海外株式型MSP', code: 'SONY_ANNUITY_FOREIGN_EQUITY_MSP', type: '株式型' },
             { name: '日本債券型NOP', code: 'SONY_ANNUITY_JP_BOND_NOP', type: '債券型' },
             { name: '世界債券型GQ', code: 'SONY_ANNUITY_GLOBAL_BOND_GQ', type: '債券型' },
-            { name: '海外債券型FTP', code: 'SONY_ANNUITY_FOREIGN_BOND_FTP', type: '債券型' }
+            { name: '海外債券型FTP', code: 'SONY_ANNUITY_FOREIGN_BOND_FTP', type: '債券型' },
+            { name: '日本リート型TSP', code: 'SONY_ANNUITY_JP_REIT_TSP', type: 'REIT型' },
+            { name: '海外リート型SPP', code: 'SONY_ANNUITY_FOREIGN_REIT_SPP', type: 'REIT型' }
         ];
 
         // Parse each account's data
@@ -306,9 +316,10 @@ async function parseSonyLifeAnnuityPDF(pdfBuffer) {
             // Example: バランス型20105.87＋0.29％＋2.06％＋1.74％＋2.29％
             // or: バランス型20 105.87 ＋0.29％ ＋2.06％ ＋1.74％ ＋2.29％
             // Note: Negative values may be marked with △ or －
+            // Note: Some accounts like 日本株式型JG may have ＊ marker between name and values
             const linePattern = new RegExp(
                 escapedName +
-                '[\\s\\u3000]*' +  // Optional whitespace
+                '[\\s\\u3000＊\\*\\n\\r]*' +  // Optional whitespace, asterisk markers, and newlines
                 '([\\d,]+\\.\\d+)' + // Index value (unit price)
                 '[\\s\\u3000]*' +
                 '([＋\\+\\-－−△]?[\\d\\.]+)[％%]' + // 前月末比 (1M return)
@@ -621,6 +632,243 @@ async function parsePrudentialLifePDF(pdfBuffer) {
 }
 
 /**
+ * Parse SOMPO Himawari Life PDF (将来のお守り)
+ * @param {Buffer} pdfBuffer - PDF file buffer
+ * @returns {Promise<Object>} Parsed data
+ */
+async function parseHimawariLifePDF(pdfBuffer) {
+    try {
+        const data = await pdf(pdfBuffer);
+        const text = data.text;
+
+        // Extract data date from "2025年11月末現在" pattern
+        const dateMatch = text.match(/(\d{4})年(\d{1,2})月末現在/);
+        let dataDate = null;
+        if (dateMatch) {
+            const year = parseInt(dateMatch[1]);
+            const month = parseInt(dateMatch[2]);
+            const lastDay = new Date(year, month, 0).getDate();
+            dataDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+        }
+
+        const accounts = [];
+
+        // Account patterns for SOMPO Himawari Life
+        // Format in PDF: AccountName + UnitPrice + 1M% + 3M% + 6M% + 1Y%
+        // Note: Some account names span multiple lines in PDF:
+        //   "バランス４０型\n（安定型）\n129.3521.15%..."
+        //   "先進国株式\nアクティブ型\n172.5142.10%..."
+        const accountPatterns = [
+            { name: 'バランス４０型（安定型）', code: 'HIMAWARI_BALANCE40', type: 'バランス型',
+              altNames: ['バランス40型（安定型）'],
+              regexName: 'バランス４０型[\\s\\u3000\\n\\r]*（安定型）' },
+            { name: 'バランス６０型（積極型）', code: 'HIMAWARI_BALANCE60', type: 'バランス型',
+              altNames: ['バランス60型（積極型）'],
+              regexName: 'バランス６０型[\\s\\u3000\\n\\r]*（積極型）' },
+            { name: '国内株式型', code: 'HIMAWARI_DOMESTIC_EQUITY', type: '株式型' },
+            { name: '先進国株式型', code: 'HIMAWARI_DEVELOPED_EQUITY', type: '株式型' },
+            { name: '先進国株式アクティブ型', code: 'HIMAWARI_DEVELOPED_EQUITY_ACTIVE', type: '株式型',
+              regexName: '先進国株式[\\s\\u3000\\n\\r]*アクティブ型' },
+            { name: '新興国株式型', code: 'HIMAWARI_EMERGING_EQUITY', type: '株式型' },
+            { name: '先進国債券型', code: 'HIMAWARI_DEVELOPED_BOND', type: '債券型' },
+            { name: '国内リート型', code: 'HIMAWARI_DOMESTIC_REIT', type: 'REIT型' },
+            { name: '短期金融市場型', code: 'HIMAWARI_MONEY_MARKET', type: '短期金融' }
+        ];
+
+        for (const pattern of accountPatterns) {
+            let foundData = null;
+
+            // Build regex patterns to try
+            const regexPatterns = [];
+
+            // If custom regex pattern is provided, use it first
+            if (pattern.regexName) {
+                regexPatterns.push(pattern.regexName);
+            }
+
+            // Add escaped name and alt names
+            regexPatterns.push(pattern.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+            if (pattern.altNames) {
+                for (const altName of pattern.altNames) {
+                    regexPatterns.push(altName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                }
+            }
+
+            for (const regexPattern of regexPatterns) {
+                if (foundData) break;
+
+                // Pattern: AccountName + UnitPrice + 1M% + 3M% + 6M% + 1Y%
+                // Data is often concatenated without spaces
+                // Example: 国内株式型165.3071.47%10.83%21.81%28.38%
+                const linePattern = new RegExp(
+                    regexPattern +
+                    '[\\s\\u3000\\n\\r]*' +
+                    '([\\d]+\\.\\d+)' +  // Unit price (e.g., 165.307)
+                    '[\\s\\u3000]*' +
+                    '(-?[\\d]+\\.\\d+)[％%]' +  // 1M return
+                    '[\\s\\u3000]*' +
+                    '(-?[\\d]+\\.\\d+)[％%]' +  // 3M return
+                    '[\\s\\u3000]*' +
+                    '(-?[\\d]+\\.\\d+)[％%]' +  // 6M return
+                    '[\\s\\u3000]*' +
+                    '(-?[\\d]+\\.\\d+)[％%]',   // 1Y return
+                    'u'
+                );
+
+                const match = text.match(linePattern);
+                if (match) {
+                    foundData = {
+                        accountName: pattern.name,
+                        accountCode: pattern.code,
+                        accountType: pattern.type,
+                        unitPrice: parseFloat(match[1]),
+                        return1m: parseFloat(match[2]),
+                        return3m: parseFloat(match[3]),
+                        return6m: parseFloat(match[4]),
+                        return1y: parseFloat(match[5])
+                    };
+                }
+            }
+
+            if (foundData) {
+                accounts.push(foundData);
+            } else {
+                console.warn(`Could not extract data for ${pattern.name}`);
+            }
+        }
+
+        return {
+            dataDate,
+            accounts,
+            companyCode: 'SOMPO_HIMAWARI_LIFE'
+        };
+    } catch (error) {
+        console.error('Error parsing Himawari Life PDF:', error);
+        throw new Error(`Himawari Life PDF parsing failed: ${error.message}`);
+    }
+}
+
+/**
+ * Parse Hanasaku Life PDF (はなさく変額保険)
+ * @param {Buffer} pdfBuffer - PDF file buffer
+ * @returns {Promise<Object>} Parsed data
+ */
+async function parseHanasakuLifePDF(pdfBuffer) {
+    try {
+        const data = await pdf(pdfBuffer);
+        const text = data.text;
+
+        // Extract data date from "2025年11月末現在" pattern
+        const dateMatch = text.match(/(\d{4})年(\d{1,2})月末現在/);
+        let dataDate = null;
+        if (dateMatch) {
+            const year = parseInt(dateMatch[1]);
+            const month = parseInt(dateMatch[2]);
+            const lastDay = new Date(year, month, 0).getDate();
+            dataDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+        }
+
+        const accounts = [];
+
+        // Account patterns for Hanasaku Life
+        // Format in PDF: AccountName + SetupDate + UnitPrice + 1M% + 3M% + 6M% + 1Y%
+        // Example: バランス５０型2024/12/23109.840.60%5.87%11.43%－
+        const accountPatterns = [
+            { name: 'バランス５０型', code: 'HANASAKU_BALANCE50', type: 'バランス型', altNames: ['バランス50型'] },
+            { name: 'バランス７０型', code: 'HANASAKU_BALANCE70', type: 'バランス型', altNames: ['バランス70型'] },
+            { name: '国内株式型', code: 'HANASAKU_DOMESTIC_EQUITY', type: '株式型' },
+            { name: '国内株式アクティブ型', code: 'HANASAKU_DOMESTIC_EQUITY_ACTIVE', type: '株式型' },
+            { name: '世界株式型', code: 'HANASAKU_GLOBAL_EQUITY', type: '株式型' },
+            { name: '世界株式アクティブ型', code: 'HANASAKU_GLOBAL_EQUITY_ACTIVE', type: '株式型' },
+            { name: '先進国株式型', code: 'HANASAKU_DEVELOPED_EQUITY', type: '株式型' },
+            { name: '米国株式アクティブ型', code: 'HANASAKU_US_EQUITY_ACTIVE', type: '株式型' },
+            { name: '外国債券型', code: 'HANASAKU_FOREIGN_BOND', type: '債券型' },
+            { name: 'マネー型', code: 'HANASAKU_MONEY_MARKET', type: '短期金融' }
+        ];
+
+        for (const pattern of accountPatterns) {
+            const searchNames = [pattern.name, ...(pattern.altNames || [])];
+            let foundData = null;
+
+            for (const searchName of searchNames) {
+                if (foundData) break;
+
+                const escapedName = searchName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+                // Pattern: AccountName + SetupDate(YYYY/MM/DD) + UnitPrice + 1M% + 3M% + 6M%
+                // Note: 1Y return may be "－" for new funds
+                // Example: バランス５０型2024/12/23109.840.60%5.87%11.43%－
+                const linePattern = new RegExp(
+                    escapedName +
+                    '[\\s\\u3000\\n\\r]*' +
+                    '\\d{4}/\\d{1,2}/\\d{1,2}' +  // Setup date (skip)
+                    '[\\s\\u3000]*' +
+                    '([\\d]+\\.\\d+)' +  // Unit price (e.g., 109.84)
+                    '[\\s\\u3000]*' +
+                    '(-?[\\d]+\\.\\d+)[％%]' +  // 1M return
+                    '[\\s\\u3000]*' +
+                    '(-?[\\d]+\\.\\d+)[％%]' +  // 3M return
+                    '[\\s\\u3000]*' +
+                    '(-?[\\d]+\\.\\d+)[％%]',   // 6M return
+                    'u'
+                );
+
+                const match = text.match(linePattern);
+                if (match) {
+                    foundData = {
+                        accountName: pattern.name,
+                        accountCode: pattern.code,
+                        accountType: pattern.type,
+                        unitPrice: parseFloat(match[1]),
+                        return1m: parseFloat(match[2]),
+                        return3m: parseFloat(match[3]),
+                        return6m: parseFloat(match[4]),
+                        return1y: null  // New fund - 1Y data not available yet
+                    };
+
+                    // Try to extract 1Y return if available (not "－")
+                    const fullPattern = new RegExp(
+                        escapedName +
+                        '[\\s\\u3000\\n\\r]*' +
+                        '\\d{4}/\\d{1,2}/\\d{1,2}' +
+                        '[\\s\\u3000]*' +
+                        '[\\d]+\\.\\d+' +
+                        '[\\s\\u3000]*' +
+                        '-?[\\d]+\\.\\d+[％%]' +
+                        '[\\s\\u3000]*' +
+                        '-?[\\d]+\\.\\d+[％%]' +
+                        '[\\s\\u3000]*' +
+                        '-?[\\d]+\\.\\d+[％%]' +
+                        '[\\s\\u3000]*' +
+                        '(-?[\\d]+\\.\\d+)[％%]',  // 1Y return
+                        'u'
+                    );
+                    const fullMatch = text.match(fullPattern);
+                    if (fullMatch) {
+                        foundData.return1y = parseFloat(fullMatch[1]);
+                    }
+                }
+            }
+
+            if (foundData) {
+                accounts.push(foundData);
+            } else {
+                console.warn(`Could not extract data for ${pattern.name}`);
+            }
+        }
+
+        return {
+            dataDate,
+            accounts,
+            companyCode: 'HANASAKU_LIFE'
+        };
+    } catch (error) {
+        console.error('Error parsing Hanasaku Life PDF:', error);
+        throw new Error(`Hanasaku Life PDF parsing failed: ${error.message}`);
+    }
+}
+
+/**
  * Validate parsed data
  * @param {Object} parsedData - Data returned from parseSovaniPDF
  * @returns {boolean} True if valid
@@ -652,6 +900,8 @@ module.exports = {
     parseSonyLifeAnnuityPDF,
     parseAxaLifePDF,
     parsePrudentialLifePDF,
+    parseHimawariLifePDF,
+    parseHanasakuLifePDF,
     detectCompany,
     validateParsedData
 };

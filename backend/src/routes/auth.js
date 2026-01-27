@@ -30,14 +30,14 @@ router.post('/login', async (req, res) => {
 
         if (!user) {
             logger.warn(`User not found: ${userId}, type: ${accountType}`);
-            return res.status(401).json({ error: 'User not found' });
+            return res.status(401).json({ error: 'ユーザーが見つかりません' });
         }
 
         const isValid = await User.checkPassword(password, user.password_hash);
         
         if (!isValid) {
             logger.warn(`Wrong password for user: ${userId}`);
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({ error: 'パスワードが正しくありません' });
         }
 
         await User.updateLastLogin(user.id);
@@ -102,7 +102,7 @@ router.post('/register', async (req, res) => {
         // ユーザーIDの重複チェック（全アカウントタイプで）
         const existingUser = await User.findByUserId(userId, accountType);
         if (existingUser) {
-            return res.status(409).json({ error: 'User ID already exists' });
+            return res.status(409).json({ error: 'このログインIDは既に使用されています' });
         }
 
         let parentId = null;
@@ -111,17 +111,17 @@ router.post('/register', async (req, res) => {
         // 担当者登録（childアカウント）
         if (accountType === 'child') {
             if (!agencyUserId) {
-                return res.status(400).json({ error: 'Agency user ID is required for staff registration' });
+                return res.status(400).json({ error: '代理店IDが必要です' });
             }
 
             // 代理店ユーザーを取得
             const agencyUser = await User.findByUserId(agencyUserId, 'parent');
             if (!agencyUser) {
-                return res.status(400).json({ error: 'Agency not found' });
+                return res.status(400).json({ error: '代理店が見つかりません' });
             }
 
             if (!agencyUser.is_active) {
-                return res.status(403).json({ error: 'Agency is not active' });
+                return res.status(403).json({ error: '代理店が有効ではありません' });
             }
 
             // 担当者数の制限チェック
@@ -158,23 +158,23 @@ router.post('/register', async (req, res) => {
         // 顧客登録（grandchildアカウント）
         if (accountType === 'grandchild') {
             if (!staffUserId) {
-                return res.status(400).json({ error: 'Staff user ID is required for customer registration' });
+                return res.status(400).json({ error: '担当者IDが必要です' });
             }
 
             // 担当者ユーザーを取得
             const staffUser = await User.findByUserId(staffUserId, 'child');
             if (!staffUser) {
-                return res.status(400).json({ error: 'Staff not found' });
+                return res.status(400).json({ error: '担当者が見つかりません' });
             }
 
             if (!staffUser.is_active) {
-                return res.status(403).json({ error: 'Staff is not active' });
+                return res.status(403).json({ error: '担当者が有効ではありません' });
             }
 
             // 代理店ユーザーを取得
             const agencyUser = await User.findById(staffUser.parent_id);
             if (!agencyUser || !agencyUser.is_active) {
-                return res.status(403).json({ error: 'Agency is not active' });
+                return res.status(403).json({ error: '代理店が有効ではありません' });
             }
 
             // 顧客数の制限チェック
@@ -274,7 +274,7 @@ router.post('/register', async (req, res) => {
             });
         }
 
-        return res.status(400).json({ error: 'Invalid account type' });
+        return res.status(400).json({ error: '無効なアカウントタイプです' });
     } catch (error) {
         logger.error('Registration error:', error);
         logger.error('Error details:', {
@@ -304,7 +304,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
         const user = await User.findById(req.user.id);
         
         if (!(await User.checkPassword(currentPassword, user.password_hash))) {
-            return res.status(401).json({ error: 'Current password is incorrect' });
+            return res.status(401).json({ error: '現在のパスワードが正しくありません' });
         }
 
         await User.changePassword(req.user.id, newPassword);
@@ -331,7 +331,7 @@ router.get('/me', authenticateToken, async (req, res) => {
         const user = await User.findById(req.user.id);
 
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: 'ユーザーが見つかりません' });
         }
 
         // Get customer count for this user

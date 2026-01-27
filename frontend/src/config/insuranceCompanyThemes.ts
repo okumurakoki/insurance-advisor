@@ -58,6 +58,58 @@ export const insuranceCompanyThemes: Record<string, InsuranceCompanyTheme> = {
     },
     description: 'ソニーグループの生命保険会社、オーダーメイドの保障設計',
   },
+  SONY_LIFE_SOVANI: {
+    code: 'SONY_LIFE_SOVANI',
+    name: 'ソニー生命保険株式会社',
+    displayName: 'ソニー生命 SOVANI',
+    anonymizedName: 'S社',
+    colors: {
+      primary: '#0066CC',      // ソニーブルー
+      secondary: '#FF9900',    // オレンジ
+      accent: '#00CC99',       // アクセントグリーン
+      background: '#F8FAFC',   // 背景
+    },
+    description: 'ソニー生命の変額個人年金保険 SOVANI',
+  },
+  SONY_LIFE_ANNUITY: {
+    code: 'SONY_LIFE_ANNUITY',
+    name: 'ソニー生命保険株式会社',
+    displayName: 'ソニー生命 個人年金',
+    anonymizedName: 'S社',
+    colors: {
+      primary: '#0066CC',      // ソニーブルー
+      secondary: '#FF9900',    // オレンジ
+      accent: '#00CC99',       // アクセントグリーン
+      background: '#F8FAFC',   // 背景
+    },
+    description: 'ソニー生命の変額個人年金保険（無告知型）22',
+  },
+  SOMPO_HIMAWARI_LIFE: {
+    code: 'SOMPO_HIMAWARI_LIFE',
+    name: 'SOMPOひまわり生命保険株式会社',
+    displayName: 'SOMPOひまわり生命',
+    anonymizedName: 'H社',
+    colors: {
+      primary: '#E85A00',      // ひまわりオレンジ
+      secondary: '#003366',    // SOMPOネイビー
+      accent: '#FFB300',       // イエローアクセント
+      background: '#FFF9F0',   // 暖かい背景
+    },
+    description: 'SOMPOグループの生命保険会社、健康応援企業',
+  },
+  HANASAKU_LIFE: {
+    code: 'HANASAKU_LIFE',
+    name: 'はなさく生命保険株式会社',
+    displayName: 'はなさく生命',
+    anonymizedName: 'N社',
+    colors: {
+      primary: '#E91E63',      // ピンク（花のイメージ）
+      secondary: '#4CAF50',    // グリーン（自然のイメージ）
+      accent: '#FF9800',       // オレンジアクセント
+      background: '#FFF5F8',   // 暖かいピンク背景
+    },
+    description: '日本生命グループの生命保険会社、はなさく変額保険',
+  },
 };
 
 /**

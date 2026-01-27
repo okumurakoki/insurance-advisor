@@ -27,9 +27,24 @@ const INSURANCE_COMPANIES = [
         display_name: 'ソニー生命（SOVANI）'
     },
     {
+        company_code: 'SONY_LIFE_ANNUITY',
+        company_name: 'ソニー生命保険株式会社（変額個人年金）',
+        display_name: 'ソニー生命（個人年金）'
+    },
+    {
         company_code: 'AXA_LIFE',
         company_name: 'アクサ生命保険株式会社',
         display_name: 'アクサ生命'
+    },
+    {
+        company_code: 'SOMPO_HIMAWARI_LIFE',
+        company_name: 'SOMPOひまわり生命保険株式会社',
+        display_name: 'SOMPOひまわり生命'
+    },
+    {
+        company_code: 'HANASAKU_LIFE',
+        company_name: 'はなさく生命保険株式会社',
+        display_name: 'はなさく生命'
     }
 ];
 

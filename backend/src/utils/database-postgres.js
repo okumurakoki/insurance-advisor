@@ -308,7 +308,9 @@ class DatabasePostgreSQL {
         }
     }
 
-    async query(sql, params = []) {
+    async query(sql, params = [], retryCount = 0) {
+        const MAX_RETRIES = 2;
+
         try {
             await this.initialize();
 
@@ -335,6 +337,24 @@ class DatabasePostgreSQL {
                 client.release();
             }
         } catch (error) {
+            // Retry on connection errors
+            const isConnectionError = error.message.includes('Connection terminated') ||
+                error.message.includes('timeout') ||
+                error.message.includes('ECONNREFUSED') ||
+                error.code === 'ECONNRESET';
+
+            if (isConnectionError && retryCount < MAX_RETRIES) {
+                logger.warn(`Connection error, retrying (${retryCount + 1}/${MAX_RETRIES})...`, { error: error.message });
+                // Reset the pool to force new connections
+                if (this.pool) {
+                    await this.pool.end().catch(() => {});
+                    this.pool = null;
+                }
+                // Wait a bit before retrying
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return this.query(sql, params, retryCount + 1);
+            }
+
             logger.error('Query execution error:', { error: error.message });
             throw error;
         }

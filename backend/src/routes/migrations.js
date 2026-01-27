@@ -2,7 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../utils/database-factory');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, authorizeAccountType } = require('../middleware/auth');
+const requireAdmin = authorizeAccountType('admin');
 const fs = require('fs');
 const path = require('path');
 

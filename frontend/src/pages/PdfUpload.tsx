@@ -321,6 +321,12 @@ const PdfUpload: React.FC = () => {
           <Typography variant="body2" component="div">
             • プルデンシャル生命 変額保険 (データ版_X月.pdf)
           </Typography>
+          <Typography variant="body2" component="div">
+            • SOMPOひまわり生命 将来のお守り (月次運用レポート)
+          </Typography>
+          <Typography variant="body2" component="div">
+            • はなさく生命 はなさく変額保険 (月次運用レポート)
+          </Typography>
         </CardContent>
       </Card>
     </Container>
