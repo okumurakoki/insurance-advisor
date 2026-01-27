@@ -79,6 +79,18 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Debug endpoint to check DATABASE_URL (temporary)
+app.get('/api/debug-env', (req, res) => {
+    const dbUrl = process.env.DATABASE_URL || 'NOT_SET';
+    const masked = dbUrl.replace(/:[^:@]+@/, ':****@');
+    res.json({
+        DATABASE_URL_SET: !!process.env.DATABASE_URL,
+        DATABASE_URL_MASKED: masked,
+        DATABASE_URL_LENGTH: dbUrl.length,
+        HOST_EXTRACTED: dbUrl.match(/@([^:\/]+)/)?.[1] || 'unknown'
+    });
+});
+
 // Load routes
 console.log('Loading routes...');
 
