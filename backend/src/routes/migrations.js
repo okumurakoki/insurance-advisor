@@ -2,10 +2,19 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../utils/database-factory');
-const { authenticateToken, authorizeAccountType } = require('../middleware/auth');
-const requireAdmin = authorizeAccountType('admin');
+const { authenticateToken } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
+
+// Inline admin check to avoid import issues
+const requireAdmin = (req, res, next) => {
+    if (req.method === 'OPTIONS') return next();
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    if (req.user.accountType !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+};
 
 // GET /api/migrations - List available migrations
 router.get('/', authenticateToken, requireAdmin, async (req, res) => {
