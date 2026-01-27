@@ -15,14 +15,21 @@ import {
   TableRow,
   Card,
   CardContent,
-  Grid,
   Chip,
+  LinearProgress,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  IconButton,
 } from '@mui/material';
 import {
   CloudUpload as UploadIcon,
   CheckCircle as SuccessIcon,
   Error as ErrorIcon,
   PictureAsPdf as PdfIcon,
+  Delete as DeleteIcon,
+  Pending as PendingIcon,
 } from '@mui/icons-material';
 
 const API_BASE_URL = (process.env.REACT_APP_API_URL || 'https://api.insurance-optimizer.com').replace(/\/+$/, '');
@@ -36,9 +43,10 @@ interface UploadHistory {
   uploaded_at: string;
 }
 
-interface UploadResult {
-  success: boolean;
-  message: string;
+interface FileUploadStatus {
+  file: File;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  message?: string;
   data?: {
     dataDate: string;
     companyCode: string;
@@ -50,12 +58,12 @@ interface UploadResult {
 }
 
 const PdfUpload: React.FC = () => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<FileUploadStatus[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [uploadHistory, setUploadHistory] = useState<UploadHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
   useEffect(() => {
     fetchUploadHistory();
@@ -86,37 +94,52 @@ const PdfUpload: React.FC = () => {
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const maxSize = 4 * 1024 * 1024; // 4MB
+    const newFiles: FileUploadStatus[] = [];
+    const errors: string[] = [];
+
+    Array.from(files).forEach((file) => {
       if (file.type !== 'application/pdf') {
-        setError('PDFファイルを選択してください');
+        errors.push(`${file.name}: PDFファイルではありません`);
         return;
       }
-      // Check file size (Vercel has a 4.5MB request body limit)
-      const maxSize = 4 * 1024 * 1024; // 4MB to be safe
       if (file.size > maxSize) {
-        setError(`ファイルサイズが大きすぎます。4MB以下のPDFファイルを選択してください。(現在: ${(file.size / 1024 / 1024).toFixed(2)}MB)\n\n大きいファイルは https://www.ilovepdf.com/ja/compress_pdf などで圧縮してからアップロードしてください。`);
+        errors.push(`${file.name}: ファイルサイズが4MBを超えています (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
         return;
       }
-      setSelectedFile(file);
+      // Check if already added
+      if (selectedFiles.some(f => f.file.name === file.name)) {
+        errors.push(`${file.name}: 既に追加されています`);
+        return;
+      }
+      newFiles.push({ file, status: 'pending' });
+    });
+
+    if (errors.length > 0) {
+      setError(errors.join('\n'));
+    } else {
       setError(null);
-      setUploadResult(null);
     }
+
+    if (newFiles.length > 0) {
+      setSelectedFiles(prev => [...prev, ...newFiles]);
+    }
+
+    // Reset input
+    event.target.value = '';
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      setError('ファイルを選択してください');
-      return;
-    }
+  const removeFile = (fileName: string) => {
+    setSelectedFiles(prev => prev.filter(f => f.file.name !== fileName));
+  };
 
-    setUploading(true);
-    setError(null);
-    setUploadResult(null);
-
+  const uploadSingleFile = async (fileStatus: FileUploadStatus): Promise<FileUploadStatus> => {
     try {
       const formData = new FormData();
-      formData.append('pdf', selectedFile);
+      formData.append('pdf', fileStatus.file);
 
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/api/pdf-upload/auto`, {
@@ -130,20 +153,65 @@ const PdfUpload: React.FC = () => {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'アップロードに失敗しました');
+        return {
+          ...fileStatus,
+          status: 'error',
+          message: result.message || 'アップロードに失敗しました',
+        };
       }
 
-      setUploadResult(result);
-      setSelectedFile(null);
-
-      // Refresh upload history
-      await fetchUploadHistory();
+      return {
+        ...fileStatus,
+        status: 'success',
+        message: 'アップロード成功',
+        data: result.data,
+      };
     } catch (err) {
-      console.error('Upload error:', err);
-      setError(err instanceof Error ? err.message : 'アップロード中にエラーが発生しました');
-    } finally {
-      setUploading(false);
+      return {
+        ...fileStatus,
+        status: 'error',
+        message: err instanceof Error ? err.message : 'エラーが発生しました',
+      };
     }
+  };
+
+  const handleUploadAll = async () => {
+    const pendingFiles = selectedFiles.filter(f => f.status === 'pending');
+    if (pendingFiles.length === 0) {
+      setError('アップロードするファイルがありません');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+    setUploadProgress({ current: 0, total: pendingFiles.length });
+
+    // Upload files sequentially
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const fileStatus = selectedFiles[i];
+      if (fileStatus.status !== 'pending') continue;
+
+      // Update status to uploading
+      setSelectedFiles(prev => prev.map((f, idx) =>
+        idx === i ? { ...f, status: 'uploading' as const } : f
+      ));
+
+      const result = await uploadSingleFile(fileStatus);
+
+      // Update with result
+      setSelectedFiles(prev => prev.map((f, idx) =>
+        idx === i ? result : f
+      ));
+
+      setUploadProgress(prev => ({ ...prev, current: prev.current + 1 }));
+    }
+
+    setUploading(false);
+    await fetchUploadHistory();
+  };
+
+  const clearCompleted = () => {
+    setSelectedFiles(prev => prev.filter(f => f.status === 'pending'));
   };
 
   const formatDate = (dateString: string) => {
@@ -155,6 +223,23 @@ const PdfUpload: React.FC = () => {
     });
   };
 
+  const getStatusIcon = (status: FileUploadStatus['status']) => {
+    switch (status) {
+      case 'pending':
+        return <PendingIcon color="action" />;
+      case 'uploading':
+        return <CircularProgress size={24} />;
+      case 'success':
+        return <SuccessIcon color="success" />;
+      case 'error':
+        return <ErrorIcon color="error" />;
+    }
+  };
+
+  const pendingCount = selectedFiles.filter(f => f.status === 'pending').length;
+  const successCount = selectedFiles.filter(f => f.status === 'success').length;
+  const errorCount = selectedFiles.filter(f => f.status === 'error').length;
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" gutterBottom sx={{ mb: 4, fontWeight: 'bold' }}>
@@ -164,7 +249,7 @@ const PdfUpload: React.FC = () => {
       {/* Upload Section */}
       <Paper sx={{ p: 4, mb: 4 }}>
         <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-          保険会社月次PDFアップロード
+          保険会社月次PDFアップロード（複数ファイル対応）
         </Typography>
 
         <Box sx={{ mb: 3 }}>
@@ -173,6 +258,7 @@ const PdfUpload: React.FC = () => {
             style={{ display: 'none' }}
             id="pdf-file-input"
             type="file"
+            multiple
             onChange={handleFileSelect}
           />
           <label htmlFor="pdf-file-input">
@@ -181,65 +267,98 @@ const PdfUpload: React.FC = () => {
               component="span"
               startIcon={<PdfIcon />}
               sx={{ mr: 2 }}
+              disabled={uploading}
             >
-              PDFを選択
+              PDFを選択（複数可）
             </Button>
           </label>
-          {selectedFile && (
+          {selectedFiles.length > 0 && (
             <Chip
-              label={selectedFile.name}
-              onDelete={() => setSelectedFile(null)}
+              label={`${selectedFiles.length}ファイル選択中`}
               color="primary"
               variant="outlined"
             />
           )}
         </Box>
 
-        {selectedFile && (
+        {/* Selected Files List */}
+        {selectedFiles.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="subtitle2">
+                選択ファイル ({pendingCount}件待機 / {successCount}件成功 / {errorCount}件エラー)
+              </Typography>
+              {(successCount > 0 || errorCount > 0) && (
+                <Button size="small" onClick={clearCompleted}>
+                  完了をクリア
+                </Button>
+              )}
+            </Box>
+            <Paper variant="outlined" sx={{ maxHeight: 300, overflow: 'auto' }}>
+              <List dense>
+                {selectedFiles.map((fileStatus, index) => (
+                  <ListItem
+                    key={fileStatus.file.name}
+                    secondaryAction={
+                      fileStatus.status === 'pending' && !uploading ? (
+                        <IconButton edge="end" onClick={() => removeFile(fileStatus.file.name)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      ) : null
+                    }
+                  >
+                    <ListItemIcon>
+                      {getStatusIcon(fileStatus.status)}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={fileStatus.file.name}
+                      secondary={
+                        fileStatus.status === 'success' && fileStatus.data
+                          ? `${fileStatus.data.companyCode} - ${fileStatus.data.totalAccounts}勘定処理`
+                          : fileStatus.status === 'error'
+                          ? fileStatus.message
+                          : `${(fileStatus.file.size / 1024 / 1024).toFixed(2)}MB`
+                      }
+                      secondaryTypographyProps={{
+                        color: fileStatus.status === 'error' ? 'error' : 'textSecondary'
+                      }}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Paper>
+          </Box>
+        )}
+
+        {/* Upload Progress */}
+        {uploading && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              アップロード中... ({uploadProgress.current} / {uploadProgress.total})
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={(uploadProgress.current / uploadProgress.total) * 100}
+            />
+          </Box>
+        )}
+
+        {/* Upload Button */}
+        {pendingCount > 0 && (
           <Button
             variant="contained"
-            onClick={handleUpload}
+            onClick={handleUploadAll}
             disabled={uploading}
             startIcon={uploading ? <CircularProgress size={20} /> : <UploadIcon />}
             sx={{ mb: 2 }}
           >
-            {uploading ? 'アップロード中...' : 'アップロード'}
+            {uploading ? 'アップロード中...' : `${pendingCount}件をアップロード`}
           </Button>
         )}
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={{ mb: 2, whiteSpace: 'pre-line' }}>
             {error}
-          </Alert>
-        )}
-
-        {uploadResult && uploadResult.success && (
-          <Alert severity="success" icon={<SuccessIcon />} sx={{ mb: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-              アップロード成功
-            </Typography>
-            {uploadResult.data && (
-              <Box>
-                <Typography variant="body2">
-                  データ日付: {formatDate(uploadResult.data.dataDate)}
-                </Typography>
-                <Typography variant="body2">
-                  会社: {uploadResult.data.companyCode}
-                </Typography>
-                <Typography variant="body2">
-                  処理した勘定数: {uploadResult.data.totalAccounts}
-                </Typography>
-                <Typography variant="body2">
-                  新規作成: {uploadResult.data.newAccountsCreated} 勘定、
-                  {uploadResult.data.newPerformanceRecords} パフォーマンスレコード
-                </Typography>
-                {uploadResult.data.updatedPerformanceRecords > 0 && (
-                  <Typography variant="body2">
-                    更新: {uploadResult.data.updatedPerformanceRecords} パフォーマンスレコード
-                  </Typography>
-                )}
-              </Box>
-            )}
           </Alert>
         )}
       </Paper>
@@ -295,13 +414,13 @@ const PdfUpload: React.FC = () => {
             使い方
           </Typography>
           <Typography variant="body2" paragraph>
-            1. 「PDFを選択」ボタンをクリックして、保険会社の月次レポートPDFを選択します
+            1. 「PDFを選択」ボタンをクリックして、保険会社の月次レポートPDFを選択します（複数選択可）
           </Typography>
           <Typography variant="body2" paragraph>
-            2. ファイル名が表示されたら、「アップロード」ボタンをクリックします
+            2. 選択したファイルが一覧に表示されます。不要なファイルは削除できます
           </Typography>
           <Typography variant="body2" paragraph>
-            3. PDFから自動的に保険会社と特別勘定のパフォーマンスデータが抽出され、データベースに保存されます
+            3. 「アップロード」ボタンをクリックすると、順番に処理されます
           </Typography>
           <Typography variant="body2" paragraph>
             4. 同じ日付のデータが既に存在する場合は、自動的に更新されます
